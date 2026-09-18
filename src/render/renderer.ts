@@ -102,67 +102,67 @@ function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
   const baseFill = `${ctx.fillStyle}`
   const oldAlpha = ctx.globalAlpha
 
-  // 바깥 실루엣: 상단은 조금 더 얇고, 하단 꼬리는 양옆으로 더 벌어진 둥근 형태
+  // 상단 루프를 조금 더 두툼하고 예쁘게 조정한 최종형
   ctx.fillStyle = baseFill
 
-  // 왼쪽 윗루프
+  // 왼쪽 윗루프 (기존보다 더 두툼)
   ctx.beginPath()
-  ctx.moveTo(-2.1, -0.1)
-  ctx.bezierCurveTo(-8.8, -9.6, -24.3, -11.4, -27.7, -3.4)
-  ctx.bezierCurveTo(-30.2, 2.3, -24.2, 7.6, -15.5, 7.0)
-  ctx.bezierCurveTo(-9.0, 6.6, -4.2, 4.0, -2.1, 1.0)
+  ctx.moveTo(-2.0, 0.1)
+  ctx.bezierCurveTo(-8.8, -11.4, -24.8, -13.0, -28.2, -4.0)
+  ctx.bezierCurveTo(-30.8, 2.8, -24.2, 8.8, -14.7, 8.2)
+  ctx.bezierCurveTo(-8.0, 7.8, -3.2, 4.8, -2.0, 1.3)
   ctx.closePath()
   ctx.fill()
 
-  // 오른쪽 윗루프
+  // 오른쪽 윗루프 (기존보다 더 두툼)
   ctx.beginPath()
-  ctx.moveTo(2.1, -0.1)
-  ctx.bezierCurveTo(8.8, -9.6, 24.3, -11.4, 27.7, -3.4)
-  ctx.bezierCurveTo(30.2, 2.3, 24.2, 7.6, 15.5, 7.0)
-  ctx.bezierCurveTo(9.0, 6.6, 4.2, 4.0, 2.1, 1.0)
+  ctx.moveTo(2.0, 0.1)
+  ctx.bezierCurveTo(8.8, -11.4, 24.8, -13.0, 28.2, -4.0)
+  ctx.bezierCurveTo(30.8, 2.8, 24.2, 8.8, 14.7, 8.2)
+  ctx.bezierCurveTo(8.0, 7.8, 3.2, 4.8, 2.0, 1.3)
   ctx.closePath()
   ctx.fill()
 
-  // 아래 꼬리: 더 바깥으로 벌어지고 끝은 둥글게
+  // 아래 꼬리: 양옆으로 벌어지고 둥글게
   ctx.beginPath()
-  ctx.moveTo(-4.8, 4.2)
-  ctx.bezierCurveTo(-10.8, 7.8, -18.6, 13.8, -21.6, 18.8)
-  ctx.bezierCurveTo(-22.6, 20.5, -21.2, 22.1, -18.8, 21.9)
-  ctx.bezierCurveTo(-15.1, 21.4, -10.4, 18.0, -6.9, 14.1)
-  ctx.bezierCurveTo(-4.8, 11.6, -2.8, 8.5, -1.2, 5.0)
+  ctx.moveTo(-4.8, 4.4)
+  ctx.bezierCurveTo(-10.8, 7.9, -18.8, 13.9, -21.9, 19.0)
+  ctx.bezierCurveTo(-22.9, 20.8, -21.2, 22.4, -18.6, 22.1)
+  ctx.bezierCurveTo(-14.7, 21.6, -9.9, 18.2, -6.3, 14.3)
+  ctx.bezierCurveTo(-4.1, 11.9, -2.4, 8.9, -1.0, 5.2)
   ctx.closePath()
   ctx.fill()
 
   ctx.beginPath()
-  ctx.moveTo(4.8, 4.2)
-  ctx.bezierCurveTo(10.8, 7.8, 18.6, 13.8, 21.6, 18.8)
-  ctx.bezierCurveTo(22.6, 20.5, 21.2, 22.1, 18.8, 21.9)
-  ctx.bezierCurveTo(15.1, 21.4, 10.4, 18.0, 6.9, 14.1)
-  ctx.bezierCurveTo(4.8, 11.6, 2.8, 8.5, 1.2, 5.0)
+  ctx.moveTo(4.8, 4.4)
+  ctx.bezierCurveTo(10.8, 7.9, 18.8, 13.9, 21.9, 19.0)
+  ctx.bezierCurveTo(22.9, 20.8, 21.2, 22.4, 18.6, 22.1)
+  ctx.bezierCurveTo(14.7, 21.6, 9.9, 18.2, 6.3, 14.3)
+  ctx.bezierCurveTo(4.1, 11.9, 2.4, 8.9, 1.0, 5.2)
   ctx.closePath()
   ctx.fill()
 
-  // 중앙 매듭은 조금 작고 얇게
+  // 중앙 매듭도 살짝 두툼하게
   ctx.beginPath()
-  ctx.ellipse(0, 0.7, 5.6, 4.9, 0, 0, TAU)
+  ctx.ellipse(0, 0.9, 6.2, 5.5, 0, 0, TAU)
   ctx.fill()
 
-  // 윗 루프 안쪽은 채우지 않고 비우기
+  // 윗 루프 안쪽은 비우되, 구멍을 조금 줄여 윗부분이 더 두툼해 보이도록
   ctx.save()
   ctx.globalCompositeOperation = 'destination-out'
   ctx.beginPath()
-  ctx.ellipse(-14.4, -1.0, 10.0, 5.7, 0.18, 0, TAU)
-  ctx.ellipse(14.4, -1.0, 10.0, 5.7, -0.18, 0, TAU)
+  ctx.ellipse(-14.1, -0.8, 8.8, 4.9, 0.18, 0, TAU)
+  ctx.ellipse(14.1, -0.8, 8.8, 4.9, -0.18, 0, TAU)
   ctx.fill()
   ctx.restore()
 
-  // 약한 스티커 느낌 하이라이트
+  // 약한 하이라이트
   ctx.fillStyle = '#FFFFFF'
-  ctx.globalAlpha = oldAlpha * 0.17
+  ctx.globalAlpha = oldAlpha * 0.16
   ctx.beginPath()
-  ctx.ellipse(-8.8, -4.6, 5.2, 1.9, -0.35, 0, TAU)
-  ctx.ellipse(8.8, -4.6, 5.2, 1.9, 0.35, 0, TAU)
-  ctx.ellipse(-1.0, -0.1, 1.9, 1.4, -0.4, 0, TAU)
+  ctx.ellipse(-8.5, -5.0, 5.3, 2.0, -0.35, 0, TAU)
+  ctx.ellipse(8.5, -5.0, 5.3, 2.0, 0.35, 0, TAU)
+  ctx.ellipse(-1.0, 0.0, 2.0, 1.5, -0.4, 0, TAU)
   ctx.fill()
 
   ctx.globalAlpha = oldAlpha

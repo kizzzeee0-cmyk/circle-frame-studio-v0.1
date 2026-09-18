@@ -92,151 +92,78 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
   ctx.restore()
 }
 
-function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number, style: 'rounded' | 'simple' | 'sticker' = 'rounded') {
+function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number) {
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(rotation)
-  const s = size / 25
+  const s = size / 26
   ctx.scale(s, s)
 
   const baseFill = `${ctx.fillStyle}`
   const oldAlpha = ctx.globalAlpha
 
-  const drawRoundedTails = (narrow = false) => {
-    const leftOuter = narrow ? -10.0 : -10.8
-    const rightOuter = narrow ? 10.0 : 10.8
-    const tailBottomY = narrow ? 18.4 : 19.2
-    const roundBulge = narrow ? 1.2 : 1.8
+  // 바깥 실루엣: 상단은 조금 더 얇고, 하단 꼬리는 양옆으로 더 벌어진 둥근 형태
+  ctx.fillStyle = baseFill
 
-    ctx.beginPath()
-    ctx.moveTo(-6.2, 4.2)
-    ctx.bezierCurveTo(-10.3, 7.2, leftOuter, 11.2, leftOuter, 15.7)
-    ctx.bezierCurveTo(leftOuter, 18.1, -8.9, 19.7, -6.8, tailBottomY)
-    ctx.bezierCurveTo(-4.9, 20.7, -2.7, 20.4, -1.3, 18.8 + roundBulge)
-    ctx.bezierCurveTo(-0.2, 16.8, -0.2, 12.2, -0.2, 5.0)
-    ctx.closePath()
-    ctx.fill()
+  // 왼쪽 윗루프
+  ctx.beginPath()
+  ctx.moveTo(-2.1, -0.1)
+  ctx.bezierCurveTo(-8.8, -9.6, -24.3, -11.4, -27.7, -3.4)
+  ctx.bezierCurveTo(-30.2, 2.3, -24.2, 7.6, -15.5, 7.0)
+  ctx.bezierCurveTo(-9.0, 6.6, -4.2, 4.0, -2.1, 1.0)
+  ctx.closePath()
+  ctx.fill()
 
-    ctx.beginPath()
-    ctx.moveTo(6.2, 4.2)
-    ctx.bezierCurveTo(10.3, 7.2, rightOuter, 11.2, rightOuter, 15.7)
-    ctx.bezierCurveTo(rightOuter, 18.1, 8.9, 19.7, 6.8, tailBottomY)
-    ctx.bezierCurveTo(4.9, 20.7, 2.7, 20.4, 1.3, 18.8 + roundBulge)
-    ctx.bezierCurveTo(0.2, 16.8, 0.2, 12.2, 0.2, 5.0)
-    ctx.closePath()
-    ctx.fill()
-  }
+  // 오른쪽 윗루프
+  ctx.beginPath()
+  ctx.moveTo(2.1, -0.1)
+  ctx.bezierCurveTo(8.8, -9.6, 24.3, -11.4, 27.7, -3.4)
+  ctx.bezierCurveTo(30.2, 2.3, 24.2, 7.6, 15.5, 7.0)
+  ctx.bezierCurveTo(9.0, 6.6, 4.2, 4.0, 2.1, 1.0)
+  ctx.closePath()
+  ctx.fill()
 
-  if (style === 'simple') {
-    ctx.beginPath()
-    ctx.moveTo(-1.2, 0)
-    ctx.bezierCurveTo(-6.4, -11.2, -20.5, -12.5, -24.2, -4.6)
-    ctx.bezierCurveTo(-27.0, 1.5, -20.8, 7.8, -12.5, 7.2)
-    ctx.bezierCurveTo(-7.0, 6.8, -3.0, 4.4, -1.2, 0.7)
-    ctx.closePath()
-    ctx.fill()
+  // 아래 꼬리: 더 바깥으로 벌어지고 끝은 둥글게
+  ctx.beginPath()
+  ctx.moveTo(-4.8, 4.2)
+  ctx.bezierCurveTo(-10.8, 7.8, -18.6, 13.8, -21.6, 18.8)
+  ctx.bezierCurveTo(-22.6, 20.5, -21.2, 22.1, -18.8, 21.9)
+  ctx.bezierCurveTo(-15.1, 21.4, -10.4, 18.0, -6.9, 14.1)
+  ctx.bezierCurveTo(-4.8, 11.6, -2.8, 8.5, -1.2, 5.0)
+  ctx.closePath()
+  ctx.fill()
 
-    ctx.beginPath()
-    ctx.moveTo(1.2, 0)
-    ctx.bezierCurveTo(6.4, -11.2, 20.5, -12.5, 24.2, -4.6)
-    ctx.bezierCurveTo(27.0, 1.5, 20.8, 7.8, 12.5, 7.2)
-    ctx.bezierCurveTo(7.0, 6.8, 3.0, 4.4, 1.2, 0.7)
-    ctx.closePath()
-    ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(4.8, 4.2)
+  ctx.bezierCurveTo(10.8, 7.8, 18.6, 13.8, 21.6, 18.8)
+  ctx.bezierCurveTo(22.6, 20.5, 21.2, 22.1, 18.8, 21.9)
+  ctx.bezierCurveTo(15.1, 21.4, 10.4, 18.0, 6.9, 14.1)
+  ctx.bezierCurveTo(4.8, 11.6, 2.8, 8.5, 1.2, 5.0)
+  ctx.closePath()
+  ctx.fill()
 
-    drawRoundedTails(true)
+  // 중앙 매듭은 조금 작고 얇게
+  ctx.beginPath()
+  ctx.ellipse(0, 0.7, 5.6, 4.9, 0, 0, TAU)
+  ctx.fill()
 
-    ctx.beginPath()
-    ctx.ellipse(0, 0.8, 6.2, 5.5, 0, 0, TAU)
-    ctx.fill()
+  // 윗 루프 안쪽은 채우지 않고 비우기
+  ctx.save()
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.beginPath()
+  ctx.ellipse(-14.4, -1.0, 10.0, 5.7, 0.18, 0, TAU)
+  ctx.ellipse(14.4, -1.0, 10.0, 5.7, -0.18, 0, TAU)
+  ctx.fill()
+  ctx.restore()
 
-    ctx.fillStyle = '#FFFFFF'
-    ctx.globalAlpha = oldAlpha * 0.16
-    ctx.beginPath()
-    ctx.ellipse(-10.4, -3.5, 5.0, 2.2, -0.25, 0, TAU)
-    ctx.ellipse(10.4, -3.5, 5.0, 2.2, 0.25, 0, TAU)
-    ctx.fill()
-  } else if (style === 'sticker') {
-    ctx.beginPath()
-    ctx.moveTo(-1.3, -0.3)
-    ctx.bezierCurveTo(-7.5, -12.2, -22.0, -13.6, -26.4, -5.1)
-    ctx.bezierCurveTo(-29.6, 1.2, -23.0, 8.7, -13.2, 8.0)
-    ctx.bezierCurveTo(-7.3, 7.5, -3.1, 4.8, -1.3, 1.0)
-    ctx.closePath()
-    ctx.fill()
-
-    ctx.beginPath()
-    ctx.moveTo(1.3, -0.3)
-    ctx.bezierCurveTo(7.5, -12.2, 22.0, -13.6, 26.4, -5.1)
-    ctx.bezierCurveTo(29.6, 1.2, 23.0, 8.7, 13.2, 8.0)
-    ctx.bezierCurveTo(7.3, 7.5, 3.1, 4.8, 1.3, 1.0)
-    ctx.closePath()
-    ctx.fill()
-
-    drawRoundedTails(false)
-
-    ctx.beginPath()
-    ctx.ellipse(0, 0.8, 6.8, 6.1, 0, 0, TAU)
-    ctx.fill()
-
-    // 스티커 느낌 하이라이트
-    ctx.fillStyle = '#FFFFFF'
-    ctx.globalAlpha = oldAlpha * 0.24
-    ctx.beginPath()
-    ctx.ellipse(-10.6, -4.2, 5.7, 2.6, -0.35, 0, TAU)
-    ctx.ellipse(10.6, -4.2, 5.7, 2.6, 0.35, 0, TAU)
-    ctx.ellipse(-1.2, -0.1, 2.4, 1.8, -0.4, 0, TAU)
-    ctx.fill()
-
-    ctx.globalAlpha = oldAlpha * 0.12
-    ctx.beginPath()
-    ctx.moveTo(-11.3, 9.3)
-    ctx.bezierCurveTo(-9.0, 7.8, -5.6, 7.4, -3.7, 8.2)
-    ctx.bezierCurveTo(-6.6, 10.8, -8.2, 13.0, -8.7, 15.8)
-    ctx.closePath()
-    ctx.moveTo(11.3, 9.3)
-    ctx.bezierCurveTo(9.0, 7.8, 5.6, 7.4, 3.7, 8.2)
-    ctx.bezierCurveTo(6.6, 10.8, 8.2, 13.0, 8.7, 15.8)
-    ctx.closePath()
-    ctx.fill()
-  } else {
-    // rounded default
-    ctx.beginPath()
-    ctx.moveTo(-1.2, -0.5)
-    ctx.bezierCurveTo(-6.5, -13.0, -22.5, -15.0, -27.0, -5.6)
-    ctx.bezierCurveTo(-30.6, 2.1, -22.8, 9.8, -12.8, 8.8)
-    ctx.bezierCurveTo(-7.1, 8.1, -3.0, 5.1, -1.2, 1.0)
-    ctx.closePath()
-    ctx.fill()
-
-    ctx.beginPath()
-    ctx.moveTo(1.2, -0.5)
-    ctx.bezierCurveTo(6.5, -13.0, 22.5, -15.0, 27.0, -5.6)
-    ctx.bezierCurveTo(30.6, 2.1, 22.8, 9.8, 12.8, 8.8)
-    ctx.bezierCurveTo(7.1, 8.1, 3.0, 5.1, 1.2, 1.0)
-    ctx.closePath()
-    ctx.fill()
-
-    drawRoundedTails(false)
-
-    ctx.beginPath()
-    ctx.ellipse(0, 0.7, 6.4, 5.9, 0, 0, TAU)
-    ctx.fill()
-
-    ctx.fillStyle = '#FFFFFF'
-    ctx.globalAlpha = oldAlpha * 0.22
-    ctx.beginPath()
-    ctx.moveTo(-10.0, -1.8)
-    ctx.bezierCurveTo(-14.0, -6.8, -20.0, -6.0, -21.0, -1.8)
-    ctx.bezierCurveTo(-18.2, -1.0, -14.0, -0.6, -9.2, 0.8)
-    ctx.closePath()
-    ctx.moveTo(10.0, -1.8)
-    ctx.bezierCurveTo(14.0, -6.8, 20.0, -6.0, 21.0, -1.8)
-    ctx.bezierCurveTo(18.2, -1.0, 14.0, -0.6, 9.2, 0.8)
-    ctx.closePath()
-    ctx.ellipse(-1.0, -0.2, 2.2, 1.7, -0.5, 0, TAU)
-    ctx.fill()
-  }
+  // 약한 스티커 느낌 하이라이트
+  ctx.fillStyle = '#FFFFFF'
+  ctx.globalAlpha = oldAlpha * 0.17
+  ctx.beginPath()
+  ctx.ellipse(-8.8, -4.6, 5.2, 1.9, -0.35, 0, TAU)
+  ctx.ellipse(8.8, -4.6, 5.2, 1.9, 0.35, 0, TAU)
+  ctx.ellipse(-1.0, -0.1, 1.9, 1.4, -0.4, 0, TAU)
+  ctx.fill()
 
   ctx.globalAlpha = oldAlpha
   ctx.fillStyle = baseFill
@@ -283,7 +210,7 @@ function drawDecorationAt(ctx: CanvasRenderingContext2D, design: FrameDesign, x:
     case 'heart': drawHeart(ctx, x, y, size, rotation); break
     case 'star': drawStar(ctx, x, y, size, rotation, 5); break
     case 'sparkle': drawStar(ctx, x, y, size, rotation, 4); break
-    case 'ribbon': drawRibbon(ctx, x, y, size, rotation, design.pattern.ribbonStyle); break
+    case 'ribbon': drawRibbon(ctx, x, y, size, rotation); break
     case 'flower': drawFlower(ctx, x, y, size, rotation, centerColor); break
   }
 }

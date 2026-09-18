@@ -90,7 +90,7 @@ export interface FrameDesign {
 }
 
 export interface FrameProject {
-  version: '0.12'
+  version: '0.13'
   width: 2000
   height: 2000
   autoFit: boolean

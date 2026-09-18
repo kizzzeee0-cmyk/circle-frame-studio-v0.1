@@ -534,16 +534,14 @@ export function estimateDesignExtent(design: FrameDesign) {
       break
   }
 
-  const outline = design.effects.outlineEnabled ? Math.max(0, design.effects.outlineWidth) * 3 : 0
-  const glow = design.effects.glowEnabled ? Math.max(0, design.effects.glowBlur) * 2.6 : 0
-  const bloom = Math.max(0, design.effects.bloom) * .12 * 3
-  const softBlur = Math.max(0, design.effects.softBlur) * 3
-  const shadow = design.effects.shadowEnabled
-    ? Math.max(Math.abs(design.effects.shadowOffsetX), Math.abs(design.effects.shadowOffsetY)) + Math.max(0, design.effects.shadowBlur) * 2.6
-    : 0
+  // Auto Fit은 프레임의 실제 구조 크기만 기준으로 계산합니다.
+  // Glow / Shadow / Bloom / Soft Blur 같은 시각 효과를 켰을 때
+  // 프레임 본체 자체가 갑자기 작아지는 현상을 막기 위해 효과 반경은 제외합니다.
+  // Outline은 실제 외곽 형상을 넓히므로 최소한으로만 반영합니다.
+  const outline = design.effects.outlineEnabled ? Math.max(0, design.effects.outlineWidth) * 1.25 : 0
   const offset = Math.max(Math.abs(design.offsetX), Math.abs(design.offsetY))
 
-  return geometry + outline + glow + bloom + softBlur + shadow + offset + 8
+  return geometry + outline + offset + 8
 }
 
 export function getProjectFitScale(project: FrameProject) {

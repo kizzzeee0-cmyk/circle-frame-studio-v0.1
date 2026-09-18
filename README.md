@@ -1,46 +1,30 @@
-# Circle Frame Studio v0.12
+# Circle Frame Studio v0.13
 
 원형 프레임을 만들고 **테두리 외부는 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
-## v0.12 핵심 업데이트
+## v0.13 핵심 수정
 
-### 1) 새 Broken 프리셋 추가
-사용자가 요청한 것처럼,
-**3갈래로 끊겨 있으면서 각 조각 길이는 더 길고, 간격은 더 좁은 느낌**의 프리셋을 추가했습니다.
+### Glow / Shadow 사용 시 프레임 크기가 작아지는 오류 수정
+이전 버전에서는 Auto Fit 계산에 Glow, Shadow, Bloom, Soft Blur의 퍼지는 범위까지 포함되어,
+효과를 켜는 순간 원형 프레임 본체가 자동으로 축소되는 문제가 있었습니다.
 
-- 새 프리셋 이름: **Long 3-Cut Segments**
-- 위치: **Broken 카테고리**
-
-### 2) 모든 디자인에 외곽선 기능 추가
-이제 거의 모든 프레임 디자인에 대해 **외곽선(Outline)** 을 켜고 조절할 수 있습니다.
-
-추가된 설정:
-- 외곽선 사용 ON/OFF
-- 외곽선 색상
-- 외곽선 두께
-- 내부 선/도형 색상과 외곽선 색상을 각각 따로 수정 가능
-
-적용 대상:
-- 기본 링 / 더블 / 트리플
-- Broken / Arc
-- Dotted
-- Wavy / Scallop
-- Scribble / Rough / Brush
-- Heart / Ribbon / Flower / Star / Sparkle
-- 업로드 PNG 반복 프레임
-- Glossy 계열
-
-### 3) 자동 맞춤 범위 보정
-외곽선을 켠 경우에도 저장 시 잘리지 않도록,
-외곽선 두께를 고려해 자동 맞춤 범위를 함께 계산하도록 보정했습니다.
+v0.13부터는:
+- 프레임의 **실제 구조 크기**를 기준으로 Auto Fit 계산
+- Glow ON/OFF 시 원 크기 유지
+- Shadow ON/OFF 시 원 크기 유지
+- Bloom / Soft Blur를 바꿔도 원 크기 유지
+- 미리보기와 PNG 저장 모두 같은 크기 기준 유지
+- Outline은 실제 외곽 형상을 넓히므로 최소한의 범위만 Auto Fit에 반영
 
 ## 유지 기능
-- 1/2/3/4색 패턴 반복 유지
-- PNG 업로드 반복 프레임 유지
-- 미리보기 = 저장 결과 일치 유지
-- 2000×2000 투명 PNG 저장 유지
-- 단일 프레임 구조 유지
-- v0.11 ~ v0.3 자동 저장 데이터 불러오기 유지
+- 3갈래 Long 3-Cut Segments 프리셋
+- 모든 디자인 Outline 기능
+- 1/2/3/4색 패턴 반복
+- PNG 업로드 반복 프레임
+- 미리보기 = 저장 결과 일치
+- 2000×2000 투명 PNG 저장
+- 단일 프레임 구조
+- v0.12 ~ v0.3 자동 저장 데이터 불러오기
 
 ## 실행 방법
 
@@ -49,10 +33,7 @@ npm install
 npm run dev
 ```
 
-브라우저에서 `http://localhost:5173/` 접속.
+## Cloudflare Pages
 
-## 빌드
-
-```bash
-npm run build
-```
+- Build command: `npm run build`
+- Build output directory: `dist`

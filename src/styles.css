@@ -41,9 +41,12 @@ button:disabled { opacity: .35; cursor: not-allowed !important; }
 .sticky-head { position: sticky; top: 0; background: rgba(255,255,255,.96); padding: 13px 13px 10px; z-index: 5; border-bottom: 1px solid #f1eff5; backdrop-filter: blur(8px); }
 .search { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; outline: none; background: #faf9fc; font-size: 12px; }
 .search:focus, .control input:focus, .control select:focus { border-color: #b7afe2; box-shadow: 0 0 0 3px rgba(129,117,212,.10); }
-.category-chips { display: flex; gap: 5px; overflow-x: auto; padding: 9px 0 7px; scrollbar-width: none; }
-.chip { border: 1px solid var(--line); background: white; border-radius: 999px; font-size: 10px; padding: 5px 8px; white-space: nowrap; cursor: pointer; }
+.category-chips { display: flex; gap: 6px; padding: 9px 0 7px; }
+.category-chips.expanded { flex-wrap: wrap; overflow: visible; }
+.chip { border: 1px solid var(--line); background: white; border-radius: 999px; font-size: 10px; padding: 6px 9px; white-space: nowrap; cursor: pointer; }
 .chip.active { background: var(--accent-soft); color: var(--accent-strong); border-color: #cfc8ef; font-weight: 700; }
+
+.preset-result-meta { font-size: 10px; color: var(--muted); margin: 2px 0 8px; }
 .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding-bottom: 20px; }
 .preset-card { min-width: 0; border: 1px solid var(--line); background: #fcfbfe; border-radius: 11px; padding: 7px; cursor: pointer; text-align: left; transition: .15s ease; }
 .preset-card:hover { transform: translateY(-1px); border-color: #cfc8e9; box-shadow: 0 7px 15px rgba(77,65,107,.08); }

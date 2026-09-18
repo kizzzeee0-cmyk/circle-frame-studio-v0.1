@@ -2,17 +2,24 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import type { FramePreset, FrameProject } from '../types'
 import { CATEGORIES, PRESETS } from '../presets'
 import { renderProject } from '../render/renderer'
+import { preloadProjectAssets } from '../utils/assets'
 
 function Thumb({ preset }: { preset: FramePreset }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
-    if (!ref.current) return
-    const layer = structuredClone(preset.layer)
-    layer.radius = 650
-    layer.offsetX = 0
-    layer.offsetY = 0
-    const project: FrameProject = { version: '0.1', width: 2000, height: 2000, autoFit: false, selectedLayerId: layer.id, layers: [layer] }
-    renderProject(ref.current, project)
+    let cancelled = false
+    const run = async () => {
+      if (!ref.current) return
+      const layer = structuredClone(preset.layer)
+      layer.radius = 650
+      layer.offsetX = 0
+      layer.offsetY = 0
+      const project: FrameProject = { version: '0.2', width: 2000, height: 2000, autoFit: false, selectedLayerId: layer.id, layers: [layer] }
+      await preloadProjectAssets(project)
+      if (!cancelled && ref.current) renderProject(ref.current, project)
+    }
+    run()
+    return () => { cancelled = true }
   }, [preset])
   return <canvas ref={ref} width={96} height={96} />
 }

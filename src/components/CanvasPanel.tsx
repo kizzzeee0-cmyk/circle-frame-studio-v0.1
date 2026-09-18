@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent } from 'react'
 import type { FrameProject } from '../types'
 import { renderProject } from '../render/renderer'
+import { preloadProjectAssets } from '../utils/assets'
 
 interface Props {
   project: FrameProject
@@ -14,8 +15,15 @@ function rgbToHex(r: number, g: number, b: number) {
 export default function CanvasPanel({ project, onSampleColor }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
-    if (!ref.current) return
-    renderProject(ref.current, project)
+    let cancelled = false
+    const run = async () => {
+      if (!ref.current) return
+      await preloadProjectAssets(project)
+      if (cancelled || !ref.current) return
+      renderProject(ref.current, project)
+    }
+    run()
+    return () => { cancelled = true }
   }, [project])
 
   const sample = (e: MouseEvent<HTMLCanvasElement>) => {
@@ -32,6 +40,7 @@ export default function CanvasPanel({ project, onSampleColor }: Props) {
       <div className="canvas-meta">
         <span>2000 × 2000 PNG</span>
         <span>Alt + 클릭: 캔버스 스포이드</span>
+        <span>Custom PNG wreath ready</span>
       </div>
       <div className="checkerboard">
         <canvas ref={ref} width={1200} height={1200} onClick={sample} />

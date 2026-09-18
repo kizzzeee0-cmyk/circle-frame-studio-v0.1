@@ -1,4 +1,5 @@
 import type { FrameProject, RingLayer } from '../types'
+import { getCachedImage } from '../utils/assets'
 
 const TAU = Math.PI * 2
 
@@ -107,26 +108,131 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
   ctx.restore()
 }
 
+function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(rotation)
+  const s = size / 22
+  ctx.scale(s, s)
+  ctx.beginPath()
+  ctx.moveTo(-16, -2)
+  ctx.quadraticCurveTo(-6, -11, -1, -3)
+  ctx.quadraticCurveTo(-7, 1, -16, -2)
+  ctx.closePath()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(16, -2)
+  ctx.quadraticCurveTo(6, -11, 1, -3)
+  ctx.quadraticCurveTo(7, 1, 16, -2)
+  ctx.closePath()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(0, 0, 5, 0, TAU)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(-3, 4)
+  ctx.lineTo(-10, 17)
+  ctx.lineTo(-1, 12)
+  ctx.closePath()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(3, 4)
+  ctx.lineTo(10, 17)
+  ctx.lineTo(1, 12)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawFlower(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number, centerColor: string) {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(rotation)
+  for (let i = 0; i < 5; i++) {
+    ctx.save()
+    ctx.rotate((i / 5) * TAU)
+    ctx.beginPath()
+    ctx.ellipse(0, -size * .5, size * .33, size * .5, 0, 0, TAU)
+    ctx.fill()
+    ctx.restore()
+  }
+  const current = ctx.fillStyle
+  ctx.fillStyle = centerColor
+  ctx.beginPath()
+  ctx.arc(0, 0, size * .22, 0, TAU)
+  ctx.fill()
+  ctx.fillStyle = current
+  ctx.restore()
+}
+
 function drawDots(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, layer: RingLayer, rotation: number, scale: number) {
   const count = Math.max(3, Math.round(layer.pattern.decorationCount))
   const size = Math.max(1, layer.pattern.decorationSize * scale)
+  const orbit = r + layer.pattern.decorationOffset * scale
   for (let i = 0; i < count; i++) {
-    const a = rotation - Math.PI / 2 + (i / count) * TAU
+    const a = rotation - Math.PI / 2 + ((i + layer.pattern.decorationRotation / 360) / count) * TAU
     ctx.beginPath()
-    ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, size / 2, 0, TAU)
+    ctx.arc(cx + Math.cos(a) * orbit, cy + Math.sin(a) * orbit, size / 2, 0, TAU)
+    ctx.fillStyle = layer.pattern.alternateColors && i % 2 === 1 ? validColor(layer.secondaryColor) : (ctx.strokeStyle as string)
     ctx.fill()
+  }
+}
+
+function drawDecorationAt(ctx: CanvasRenderingContext2D, layer: RingLayer, x: number, y: number, size: number, angle: number) {
+  const upright = layer.pattern.keepUpright
+  const rotation = upright ? 0 : angle + Math.PI / 2
+  switch (layer.kind) {
+    case 'heart':
+      drawHeart(ctx, x, y, size, rotation)
+      break
+    case 'star':
+    case 'sparkle':
+      drawStar(ctx, x, y, size, rotation, layer.kind === 'star' ? 5 : 4)
+      break
+    case 'ribbon':
+      drawRibbon(ctx, x, y, size, rotation)
+      break
+    case 'flower':
+      drawFlower(ctx, x, y, size, rotation, validColor(layer.secondaryColor, '#FFE087'))
+      break
   }
 }
 
 function drawDecorations(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, layer: RingLayer, rotation: number, scale: number) {
   const count = Math.max(3, Math.round(layer.pattern.decorationCount))
   const size = Math.max(3, layer.pattern.decorationSize * scale)
+  const orbit = r + layer.pattern.decorationOffset * scale
+  const baseColor = validColor(layer.color)
+  const altColor = validColor(layer.secondaryColor, baseColor)
   for (let i = 0; i < count; i++) {
-    const a = rotation - Math.PI / 2 + (i / count) * TAU
-    const x = cx + Math.cos(a) * r
-    const y = cy + Math.sin(a) * r
-    if (layer.kind === 'heart') drawHeart(ctx, x, y, size, a + Math.PI / 2)
-    else drawStar(ctx, x, y, size, a, layer.kind === 'star' ? 5 : 4)
+    const a = rotation - Math.PI / 2 + ((i + layer.pattern.decorationRotation / 360) / count) * TAU
+    const x = cx + Math.cos(a) * orbit
+    const y = cy + Math.sin(a) * orbit
+    ctx.fillStyle = layer.pattern.alternateColors && i % 2 === 1 ? altColor : baseColor
+    drawDecorationAt(ctx, layer, x, y, size, a)
+  }
+}
+
+function drawAssetDecorations(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, layer: RingLayer, rotation: number, scale: number) {
+  const url = layer.pattern.customAssetUrl
+  const img = url ? getCachedImage(url) : undefined
+  if (!img) return
+  const count = Math.max(3, Math.round(layer.pattern.decorationCount))
+  const size = Math.max(4, layer.pattern.decorationSize * scale)
+  const orbit = r + layer.pattern.decorationOffset * scale
+  for (let i = 0; i < count; i++) {
+    const a = rotation - Math.PI / 2 + ((i + layer.pattern.decorationRotation / 360) / count) * TAU
+    const x = cx + Math.cos(a) * orbit
+    const y = cy + Math.sin(a) * orbit
+    const aspect = img.width / Math.max(1, img.height)
+    const h = size * 2
+    const w = h * aspect
+    ctx.save()
+    ctx.translate(x, y)
+    if (!layer.pattern.keepUpright) ctx.rotate(a + Math.PI / 2)
+    ctx.globalAlpha *= .96
+    ctx.drawImage(img, -w / 2, -h / 2, w, h)
+    ctx.restore()
   }
 }
 
@@ -234,7 +340,12 @@ function drawLayerCore(ctx: CanvasRenderingContext2D, layer: RingLayer, scale: n
     case 'sparkle':
     case 'star':
     case 'heart':
+    case 'ribbon':
+    case 'flower':
       drawDecorations(ctx, cx, cy, r, layer, rot, scale)
+      break
+    case 'asset':
+      drawAssetDecorations(ctx, cx, cy, r, layer, rot, scale)
       break
     case 'glossy':
       drawGlossy(ctx, cx, cy, r, layer, rot, scale)
@@ -261,62 +372,57 @@ function drawLayer(ctx: CanvasRenderingContext2D, layer: RingLayer, scale: numbe
   }
 
   if (layer.effects.glowEnabled) {
-    const strength = Math.max(0, Math.min(1, layer.effects.glowIntensity))
-    const passes = [1.45, .85, .42]
-    passes.forEach((mult, index) => {
+    const blur = Math.max(0, layer.effects.glowBlur * scale)
+    const intensity = Math.max(0, layer.effects.glowIntensity)
+    for (const multi of [1, 0.66, 0.35]) {
       ctx.save()
+      ctx.shadowBlur = Math.max(1, blur * multi)
       ctx.shadowColor = validColor(layer.effects.glowColor, validColor(layer.color))
-      ctx.shadowBlur = layer.effects.glowBlur * mult * scale
-      ctx.globalAlpha *= strength * (index === 0 ? .28 : index === 1 ? .42 : .65)
+      ctx.globalAlpha *= intensity * (0.55 + multi * 0.5)
       drawLayerCore(ctx, layer, scale)
       ctx.restore()
-    })
+    }
   }
 
   if (layer.effects.bloom > 0) {
     ctx.save()
-    ctx.shadowColor = validColor(layer.effects.glowColor, validColor(layer.color))
-    ctx.shadowBlur = (layer.effects.glowBlur + layer.effects.bloom * 2.3) * scale
-    ctx.globalAlpha *= .22
+    ctx.filter = `blur(${(layer.effects.bloom * .12) * scale}px)`
+    ctx.globalAlpha *= .28
     drawLayerCore(ctx, layer, scale)
     ctx.restore()
   }
 
-  if (layer.effects.softBlur > 0) ctx.filter = `blur(${layer.effects.softBlur * scale}px)`
-  drawLayerCore(ctx, layer, scale)
+  if (layer.effects.softBlur > 0) {
+    ctx.save()
+    ctx.filter = `blur(${layer.effects.softBlur * scale}px)`
+    drawLayerCore(ctx, layer, scale)
+    ctx.restore()
+  } else {
+    drawLayerCore(ctx, layer, scale)
+  }
+
   ctx.restore()
 }
 
-export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, logicalScale = 1) {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.save()
-  if (logicalScale !== 1) {
-    const center = canvas.width / 2
-    ctx.translate(center, center)
-    ctx.scale(logicalScale, logicalScale)
-    ctx.translate(-center, -center)
-  }
-  for (const layer of project.layers) drawLayer(ctx, layer, canvas.width / 2000)
-  ctx.restore()
+export function estimateLayerExtent(layer: RingLayer) {
+  const base = layer.radius + layer.thickness * 1.5 + Math.max(0, layer.pattern.decorationOffset)
+  const decoration = ['dotted', 'sparkle', 'star', 'heart', 'ribbon', 'flower', 'asset'].includes(layer.kind) ? layer.pattern.decorationSize * 1.4 : 0
+  const glow = layer.effects.glowEnabled ? layer.effects.glowBlur * (1.2 + layer.effects.glowIntensity) : 0
+  const shadow = layer.effects.shadowEnabled ? Math.max(Math.abs(layer.effects.shadowOffsetX), Math.abs(layer.effects.shadowOffsetY)) + layer.effects.shadowBlur : 0
+  const softBlur = layer.effects.softBlur + layer.effects.bloom
+  return base + decoration + glow + shadow + softBlur + Math.max(Math.abs(layer.offsetX), Math.abs(layer.offsetY))
 }
 
 export function estimateProjectExtent(project: FrameProject) {
-  let extent = 100
-  for (const layer of project.layers) {
-    if (!layer.visible) continue
-    const multi = layer.kind === 'triple' ? layer.thickness * 3.5 : layer.kind === 'double' ? layer.thickness * 2.6 : 0
-    const deco = ['dotted', 'sparkle', 'star', 'heart'].includes(layer.kind) ? layer.pattern.decorationSize : 0
-    const wave = ['wavy', 'scallop'].includes(layer.kind) ? layer.pattern.waveAmplitude : 0
-    const rough = ['scribble', 'rough', 'brush'].includes(layer.kind) ? layer.pattern.roughness * 1.4 : 0
-    const glow = layer.effects.glowEnabled ? layer.effects.glowBlur * 1.85 + layer.effects.bloom * 2.3 : 0
-    const shadow = layer.effects.shadowEnabled
-      ? layer.effects.shadowBlur * 1.4 + Math.max(Math.abs(layer.effects.shadowOffsetX), Math.abs(layer.effects.shadowOffsetY))
-      : 0
-    const blur = layer.effects.softBlur * 2
-    const local = layer.radius + layer.thickness + multi + deco + wave + rough + glow + shadow + blur + Math.max(Math.abs(layer.offsetX), Math.abs(layer.offsetY))
-    extent = Math.max(extent, local)
-  }
-  return extent
+  return project.layers.reduce((max, layer) => Math.max(max, estimateLayerExtent(layer)), 0)
+}
+
+export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, outputScale = 1) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const scale = (canvas.width / project.width) * outputScale
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.save()
+  for (const layer of project.layers) drawLayer(ctx, layer, scale)
+  ctx.restore()
 }

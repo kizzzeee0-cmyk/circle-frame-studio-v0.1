@@ -13,6 +13,9 @@ export type RingKind =
   | 'sparkle'
   | 'star'
   | 'heart'
+  | 'ribbon'
+  | 'flower'
+  | 'asset'
   | 'glossy'
 
 export type GradientMode = 'solid' | 'linear' | 'radial' | 'conic'
@@ -47,6 +50,12 @@ export interface RingPattern {
   waveCount: number
   decorationCount: number
   decorationSize: number
+  decorationOffset: number
+  decorationRotation: number
+  alternateColors: boolean
+  keepUpright: boolean
+  customAssetUrl: string
+  customAssetName: string
   seed: number
 }
 
@@ -72,7 +81,7 @@ export interface RingLayer {
 }
 
 export interface FrameProject {
-  version: '0.1'
+  version: '0.2'
   width: 2000
   height: 2000
   autoFit: boolean

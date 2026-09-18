@@ -9,8 +9,34 @@ import { downloadProject, exportPng } from './utils/export'
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v01'
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v01'
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v02'
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v02'
+
+function normalizeLayer(source: Partial<RingLayer>): RingLayer {
+  const base = createLayer(source.kind ?? 'basic', source.name ?? 'Layer')
+  const merged: RingLayer = {
+    ...base,
+    ...source,
+    effects: { ...base.effects, ...(source.effects ?? {}) },
+    pattern: { ...base.pattern, ...(source.pattern ?? {}) },
+    gradientStops: source.gradientStops?.length ? source.gradientStops : base.gradientStops,
+  }
+  if (!merged.id) merged.id = uid('layer')
+  return merged
+}
+
+function normalizeProject(source: any): FrameProject {
+  const layers = Array.isArray(source?.layers) ? source.layers.map(normalizeLayer) : []
+  if (layers.length === 0) return makeInitialProject()
+  return {
+    version: '0.2',
+    width: 2000,
+    height: 2000,
+    autoFit: typeof source?.autoFit === 'boolean' ? source.autoFit : true,
+    selectedLayerId: source?.selectedLayerId ?? layers[0]?.id ?? null,
+    layers,
+  }
+}
 
 function makeInitialProject(): FrameProject {
   const base = createLayer('glossy', 'Lavender Glossy')
@@ -28,25 +54,27 @@ function makeInitialProject(): FrameProject {
   base.effects.glowBlur = 34
   base.effects.glowIntensity = .28
 
-  const sparkle = createLayer('sparkle', 'Soft Sparkles')
-  sparkle.radius = 815
-  sparkle.color = '#FFFFFF'
-  sparkle.opacity = .82
-  sparkle.pattern.decorationCount = 16
-  sparkle.pattern.decorationSize = 22
-  sparkle.rotation = 7
+  const deco = createLayer('heart', 'Alt Heart Wreath')
+  deco.radius = 825
+  deco.color = '#F4C455'
+  deco.secondaryColor = '#8DC5FF'
+  deco.pattern.decorationCount = 34
+  deco.pattern.decorationSize = 14
+  deco.pattern.decorationOffset = 0
+  deco.pattern.alternateColors = true
+  deco.pattern.keepUpright = true
+  deco.opacity = .96
 
-  return { version: '0.1', width: 2000, height: 2000, autoFit: true, selectedLayerId: base.id, layers: [base, sparkle] }
+  return { version: '0.2', width: 2000, height: 2000, autoFit: true, selectedLayerId: base.id, layers: [base, deco] }
 }
 
 function loadInitialProject() {
   try {
     const raw = localStorage.getItem(AUTOSAVE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as FrameProject
-      if (parsed.version === '0.1' && Array.isArray(parsed.layers)) return parsed
-    }
-  } catch { /* ignore corrupted autosave */ }
+    if (raw) return normalizeProject(JSON.parse(raw))
+  } catch {
+    /* ignore corrupted autosave */
+  }
   return makeInitialProject()
 }
 
@@ -54,7 +82,9 @@ function loadUserPresets(): FramePreset[] {
   try {
     const raw = localStorage.getItem(USER_PRESETS_KEY)
     return raw ? JSON.parse(raw) : []
-  } catch { return [] }
+  } catch {
+    return []
+  }
 }
 
 export default function App() {
@@ -191,12 +221,26 @@ export default function App() {
   const importProject = async (file?: File) => {
     if (!file) return
     try {
-      const parsed = JSON.parse(await file.text()) as FrameProject
-      if (parsed.version !== '0.1' || parsed.width !== 2000 || parsed.height !== 2000 || !Array.isArray(parsed.layers)) throw new Error('invalid')
-      commit(() => parsed)
+      const parsed = JSON.parse(await file.text())
+      commit(() => normalizeProject(parsed))
     } catch {
-      alert('Circle Frame Studio v0.1 프로젝트 JSON 파일이 아닙니다.')
+      alert('Circle Frame Studio 프로젝트 JSON 파일이 아닙니다.')
     }
+  }
+
+  const uploadAsset = async (file?: File) => {
+    if (!file || !selected) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const next = structuredClone(selected)
+      next.kind = 'asset'
+      next.pattern.customAssetUrl = String(reader.result ?? '')
+      next.pattern.customAssetName = file.name
+      if (next.pattern.decorationSize < 18) next.pattern.decorationSize = 22
+      next.name = next.name.includes('Custom') ? next.name : `${next.name} Asset`
+      updateSelected(next)
+    }
+    reader.readAsDataURL(file)
   }
 
   const reset = () => {
@@ -209,7 +253,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.1 · 2000×2000 Transparent PNG</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.2 · Doodle / Neon / Ribbon / Custom PNG Wreath</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프로젝트</button>
@@ -232,7 +276,7 @@ export default function App() {
           <LayerPanel
             layers={project.layers}
             selectedId={project.selectedLayerId}
-            onSelect={id => setProject(prev => ({ ...prev, selectedLayerId: id }))}
+            onSelect={id => commit(d => ({ ...d, selectedLayerId: id }))}
             onToggleVisible={id => patchLayer(id, layer => { layer.visible = !layer.visible })}
             onToggleLock={id => patchLayer(id, layer => { layer.locked = !layer.locked })}
             onDuplicate={duplicateLayer}
@@ -240,11 +284,12 @@ export default function App() {
             onMove={moveLayer}
           />
         </section>
-        <PropertyPanel layer={selected} onChange={updateSelected} onSavePreset={saveSelectedPreset} />
+        <PropertyPanel layer={selected} onChange={updateSelected} onSavePreset={saveSelectedPreset} onUploadAsset={uploadAsset} />
       </main>
+
       <footer className="statusbar">
-        <span>배경은 편집 화면에서만 체크무늬로 표시되며 PNG에는 투명하게 저장됩니다.</span>
-        <span>레이어 {project.layers.length} · {project.autoFit ? 'Auto Fit ON' : '원본 크기 출력'}</span>
+        <span>프리셋 {userPresets.length + project.layers.length} · Alt+클릭 스포이드 · Custom PNG wreath 지원</span>
+        <span>{selected ? `선택: ${selected.name}` : '레이어를 선택하세요'}</span>
       </footer>
     </div>
   )

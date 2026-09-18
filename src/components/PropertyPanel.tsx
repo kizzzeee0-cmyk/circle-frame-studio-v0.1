@@ -6,6 +6,7 @@ interface Props {
   layer: RingLayer | null
   onChange: (next: RingLayer) => void
   onSavePreset: () => void
+  onUploadAsset: (file?: File) => void
 }
 
 function hexOkay(value: string) {
@@ -31,7 +32,9 @@ function ColorField({ label, value, onChange, eyedrop = false }: { label: string
     try {
       const result = await new EyeDropperCtor().open()
       onChange(result.sRGBHex.toUpperCase())
-    } catch { /* user cancelled */ }
+    } catch {
+      /* cancelled */
+    }
   }
   return (
     <label className="control color-control">
@@ -45,7 +48,7 @@ function ColorField({ label, value, onChange, eyedrop = false }: { label: string
   )
 }
 
-export default function PropertyPanel({ layer, onChange, onSavePreset }: Props) {
+export default function PropertyPanel({ layer, onChange, onSavePreset, onUploadAsset }: Props) {
   if (!layer) return <aside className="right-panel panel"><div className="empty-state">편집할 레이어를 선택하세요.</div></aside>
   const locked = layer.locked
   const patch = (partial: Partial<RingLayer>) => onChange({ ...layer, ...partial })
@@ -64,6 +67,8 @@ export default function PropertyPanel({ layer, onChange, onSavePreset }: Props) 
     ],
   })
 
+  const decorationKinds = ['dotted','sparkle','star','heart','ribbon','flower','asset']
+
   return (
     <aside className="right-panel panel">
       <div className="panel-title-row sticky-head">
@@ -74,19 +79,44 @@ export default function PropertyPanel({ layer, onChange, onSavePreset }: Props) 
         <section className="property-section">
           <h3>기본</h3>
           <label className="control"><span><b>이름</b></span><input value={layer.name} onChange={e => patch({ name: e.target.value })} /></label>
+          <label className="control"><span><b>종류</b></span>
+            <select value={layer.kind} onChange={e => patch({ kind: e.target.value as RingLayer['kind'] })}>
+              <option value="basic">Basic Ring</option>
+              <option value="double">Double Ring</option>
+              <option value="triple">Triple Ring</option>
+              <option value="segmented">Broken / Segmented</option>
+              <option value="arc">Arc</option>
+              <option value="dotted">Dotted</option>
+              <option value="wavy">Wavy</option>
+              <option value="scallop">Scallop</option>
+              <option value="scribble">Scribble</option>
+              <option value="rough">Rough</option>
+              <option value="brush">Brush</option>
+              <option value="sparkle">Sparkle</option>
+              <option value="star">Star</option>
+              <option value="heart">Heart</option>
+              <option value="ribbon">Ribbon</option>
+              <option value="flower">Flower</option>
+              <option value="asset">Custom PNG Wreath</option>
+              <option value="glossy">Glossy</option>
+            </select>
+          </label>
           <Slider label="반지름" value={layer.radius} min={120} max={930} suffix="px" onChange={n => patch({ radius: n })} />
           <Slider label="두께" value={layer.thickness} min={1} max={180} suffix="px" onChange={n => patch({ thickness: n })} />
           <Slider label="회전" value={layer.rotation} min={-180} max={180} suffix="°" onChange={n => patch({ rotation: n })} />
           <Slider label="X 위치" value={layer.offsetX} min={-300} max={300} suffix="px" onChange={n => patch({ offsetX: n })} />
           <Slider label="Y 위치" value={layer.offsetY} min={-300} max={300} suffix="px" onChange={n => patch({ offsetY: n })} />
           <Slider label="불투명도" value={layer.opacity} min={0} max={1} step={.01} onChange={n => patch({ opacity: n })} />
-          <p className="hint">가로/세로 배율을 분리하지 않아 어떤 설정에서도 정확한 원형을 유지합니다.</p>
+          <p className="hint">v0.2에서는 낙서 프레임, 네온 느낌, 리본/하트/꽃 패턴, 업로드한 투명 PNG를 원형으로 둘러 배치하는 기능이 추가되었습니다.</p>
         </section>
 
         <section className="property-section">
           <h3>색상</h3>
           <ColorField label="기본 색상" value={layer.color} onChange={v => patch({ color: v })} eyedrop />
           <ColorField label="보조 색상" value={layer.secondaryColor} onChange={v => patch({ secondaryColor: v })} />
+          {decorationKinds.includes(layer.kind) && (
+            <label className="toggle"><input type="checkbox" checked={layer.pattern.alternateColors} onChange={e => nestedPattern({ alternateColors: e.target.checked })} /><span>기본/보조 색상 번갈아 사용</span></label>
+          )}
           <label className="control"><span><b>채우기 방식</b></span>
             <select value={layer.gradientMode} onChange={e => patch({ gradientMode: e.target.value as GradientMode })}>
               <option value="solid">Solid</option><option value="linear">Linear Gradient</option><option value="radial">Radial Gradient</option><option value="conic">Angular / Conic</option>
@@ -144,13 +174,23 @@ export default function PropertyPanel({ layer, onChange, onSavePreset }: Props) 
             <Slider label="물결 높이" value={layer.pattern.waveAmplitude} min={0} max={80} suffix="px" onChange={n => nestedPattern({ waveAmplitude: n })} />
             <Slider label="물결 개수" value={layer.pattern.waveCount} min={3} max={48} onChange={n => nestedPattern({ waveCount: Math.round(n) })} />
           </>}
-          {['dotted','sparkle','star','heart'].includes(layer.kind) && <>
-            <Slider label="장식 개수" value={layer.pattern.decorationCount} min={3} max={120} onChange={n => nestedPattern({ decorationCount: Math.round(n) })} />
+          {decorationKinds.includes(layer.kind) && <>
+            <Slider label="장식 개수 / 간격" value={layer.pattern.decorationCount} min={3} max={120} onChange={n => nestedPattern({ decorationCount: Math.round(n) })} />
             <Slider label="장식 크기" value={layer.pattern.decorationSize} min={3} max={90} suffix="px" onChange={n => nestedPattern({ decorationSize: n })} />
+            <Slider label="장식 거리" value={layer.pattern.decorationOffset} min={-140} max={140} suffix="px" onChange={n => nestedPattern({ decorationOffset: n })} />
+            <Slider label="장식 회전 오프셋" value={layer.pattern.decorationRotation} min={-180} max={180} suffix="°" onChange={n => nestedPattern({ decorationRotation: n })} />
+            <label className="toggle"><input type="checkbox" checked={layer.pattern.keepUpright} onChange={e => nestedPattern({ keepUpright: e.target.checked })} /><span>장식 정방향 유지</span></label>
           </>}
           {layer.kind === 'brush' && <>
             <Slider label="브러시 조각 길이" value={layer.pattern.dash} min={15} max={180} suffix="px" onChange={n => nestedPattern({ dash: n })} />
             <Slider label="브러시 간격" value={layer.pattern.gap} min={2} max={80} suffix="px" onChange={n => nestedPattern({ gap: n })} />
+          </>}
+          {layer.kind === 'asset' && <>
+            <label className="control"><span><b>투명 PNG 업로드</b></span>
+              <input type="file" accept="image/png,image/webp,image/svg+xml" onChange={e => onUploadAsset(e.target.files?.[0])} />
+            </label>
+            {layer.pattern.customAssetName && <div className="mini-badge">현재 파일: {layer.pattern.customAssetName}</div>}
+            <p className="hint">배경이 투명한 하트/리본/꽃 PNG를 올리면 그 모양이 원형으로 반복 배치되어 하나의 프레임이 됩니다.</p>
           </>}
           <Slider label="랜덤 Seed" value={layer.pattern.seed} min={1} max={9999} onChange={n => nestedPattern({ seed: Math.round(n) })} />
         </section>

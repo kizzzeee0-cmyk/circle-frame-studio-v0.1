@@ -100,3 +100,25 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 4px; }
   .center-column { grid-template-rows: minmax(330px, 1fr) 160px; }
   .layer-list { max-height: 108px; }
 }
+
+.mini-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #f5f2fc;
+  border: 1px solid #e3dcf7;
+  color: #6b6293;
+  font-size: 10px;
+  margin-bottom: 8px;
+}
+
+.control input[type="file"] {
+  width: 100%;
+  border: 1px dashed #d9d2ec;
+  background: #fbfafd;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 11px;
+}

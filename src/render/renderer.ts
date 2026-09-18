@@ -96,56 +96,80 @@ function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(rotation)
-  const s = size / 22
+  const s = size / 25
   ctx.scale(s, s)
 
-  // 둥글고 아기자기한 리본 실루엣
+  const baseFill = `${ctx.fillStyle}`
+
+  // 미리캔버스 예시처럼 넓고 둥근 리본 실루엣
+  // 좌측 큰 루프
   ctx.beginPath()
-  ctx.moveTo(-2.2, -0.8)
-  ctx.bezierCurveTo(-8.5, -12.8, -23.5, -11.3, -18.6, -0.8)
-  ctx.bezierCurveTo(-15.9, 4.8, -8.1, 6.9, -2.2, 2.5)
-  ctx.bezierCurveTo(-0.8, 1.5, -0.3, 0.1, -2.2, -0.8)
+  ctx.moveTo(-1.2, -0.5)
+  ctx.bezierCurveTo(-6.5, -13.0, -22.5, -15.0, -27.0, -5.6)
+  ctx.bezierCurveTo(-30.6, 2.1, -22.8, 9.8, -12.8, 8.8)
+  ctx.bezierCurveTo(-7.1, 8.1, -3.0, 5.1, -1.2, 1.0)
+  ctx.closePath()
+  ctx.fill()
+
+  // 우측 큰 루프
+  ctx.beginPath()
+  ctx.moveTo(1.2, -0.5)
+  ctx.bezierCurveTo(6.5, -13.0, 22.5, -15.0, 27.0, -5.6)
+  ctx.bezierCurveTo(30.6, 2.1, 22.8, 9.8, 12.8, 8.8)
+  ctx.bezierCurveTo(7.1, 8.1, 3.0, 5.1, 1.2, 1.0)
+  ctx.closePath()
+  ctx.fill()
+
+  // 아래 꼬리(짧고 두툼하게)
+  ctx.beginPath()
+  ctx.moveTo(-7.1, 4.4)
+  ctx.bezierCurveTo(-11.5, 8.0, -13.6, 13.0, -13.5, 19.5)
+  ctx.lineTo(-5.9, 14.6)
+  ctx.lineTo(-0.6, 22.8)
+  ctx.bezierCurveTo(0.2, 15.3, 0.3, 10.0, 0.0, 4.8)
   ctx.closePath()
   ctx.fill()
 
   ctx.beginPath()
-  ctx.moveTo(2.2, -0.8)
-  ctx.bezierCurveTo(8.5, -12.8, 23.5, -11.3, 18.6, -0.8)
-  ctx.bezierCurveTo(15.9, 4.8, 8.1, 6.9, 2.2, 2.5)
-  ctx.bezierCurveTo(0.8, 1.5, 0.3, 0.1, 2.2, -0.8)
+  ctx.moveTo(7.1, 4.4)
+  ctx.bezierCurveTo(11.5, 8.0, 13.6, 13.0, 13.5, 19.5)
+  ctx.lineTo(5.9, 14.6)
+  ctx.lineTo(0.6, 22.8)
+  ctx.bezierCurveTo(-0.2, 15.3, -0.3, 10.0, 0.0, 4.8)
   ctx.closePath()
   ctx.fill()
 
+  // 중앙 매듭
   ctx.beginPath()
-  ctx.moveTo(-2.4, 3.3)
-  ctx.bezierCurveTo(-5.6, 10.5, -11.2, 13.4, -13.1, 20.2)
-  ctx.lineTo(-5.2, 15.8)
-  ctx.lineTo(-1.6, 22)
-  ctx.bezierCurveTo(-0.5, 15.2, 0.4, 10.7, 2.4, 4.1)
-  ctx.closePath()
+  ctx.ellipse(0, 0.7, 6.4, 5.9, 0, 0, TAU)
   ctx.fill()
 
-  ctx.beginPath()
-  ctx.moveTo(2.4, 3.3)
-  ctx.bezierCurveTo(5.6, 10.5, 11.2, 13.4, 13.1, 20.2)
-  ctx.lineTo(5.2, 15.8)
-  ctx.lineTo(1.6, 22)
-  ctx.bezierCurveTo(0.5, 15.2, -0.4, 10.7, -2.4, 4.1)
-  ctx.closePath()
-  ctx.fill()
-
+  // 리본 접힌 안쪽 모양(투명하지 않게 흰 하이라이트로만 표현)
   const oldAlpha = ctx.globalAlpha
-  ctx.globalAlpha = oldAlpha * 0.18
   ctx.fillStyle = '#FFFFFF'
-  ctx.beginPath()
-  ctx.ellipse(-9.5, -5.2, 4.4, 2.3, -0.4, 0, TAU)
-  ctx.ellipse(9.5, -5.2, 4.4, 2.3, 0.4, 0, TAU)
-  ctx.fill()
-  ctx.globalAlpha = oldAlpha
+  ctx.globalAlpha = oldAlpha * 0.24
 
   ctx.beginPath()
-  ctx.ellipse(0, 0, 4.8, 5.3, 0, 0, TAU)
+  ctx.moveTo(-10.0, -1.8)
+  ctx.bezierCurveTo(-14.0, -6.8, -20.0, -6.0, -21.0, -1.8)
+  ctx.bezierCurveTo(-18.2, -1.0, -14.0, -0.6, -9.2, 0.8)
+  ctx.closePath()
   ctx.fill()
+
+  ctx.beginPath()
+  ctx.moveTo(10.0, -1.8)
+  ctx.bezierCurveTo(14.0, -6.8, 20.0, -6.0, 21.0, -1.8)
+  ctx.bezierCurveTo(18.2, -1.0, 14.0, -0.6, 9.2, 0.8)
+  ctx.closePath()
+  ctx.fill()
+
+  // 중앙 매듭의 살짝 밝은 느낌
+  ctx.beginPath()
+  ctx.ellipse(-1.0, -0.2, 2.2, 1.7, -0.5, 0, TAU)
+  ctx.fill()
+
+  ctx.globalAlpha = oldAlpha
+  ctx.fillStyle = baseFill
   ctx.restore()
 }
 

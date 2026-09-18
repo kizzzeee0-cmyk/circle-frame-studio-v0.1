@@ -14,7 +14,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.9', width: 2000, height: 2000, autoFit: false, design }
+      const project: FrameProject = { version: '0.10', width: 2000, height: 2000, autoFit: false, design }
       await preloadProjectAssets(project)
       if (!cancelled && ref.current) renderProject(ref.current, project, 1)
     }

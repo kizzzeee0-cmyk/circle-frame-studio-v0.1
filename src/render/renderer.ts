@@ -92,7 +92,7 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
   ctx.restore()
 }
 
-function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number) {
+function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number, style: 'rounded' | 'simple' | 'sticker' = 'rounded') {
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(rotation)
@@ -100,73 +100,143 @@ function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
   ctx.scale(s, s)
 
   const baseFill = `${ctx.fillStyle}`
-
-  // 미리캔버스 예시처럼 넓고 둥근 리본 실루엣
-  // 좌측 큰 루프
-  ctx.beginPath()
-  ctx.moveTo(-1.2, -0.5)
-  ctx.bezierCurveTo(-6.5, -13.0, -22.5, -15.0, -27.0, -5.6)
-  ctx.bezierCurveTo(-30.6, 2.1, -22.8, 9.8, -12.8, 8.8)
-  ctx.bezierCurveTo(-7.1, 8.1, -3.0, 5.1, -1.2, 1.0)
-  ctx.closePath()
-  ctx.fill()
-
-  // 우측 큰 루프
-  ctx.beginPath()
-  ctx.moveTo(1.2, -0.5)
-  ctx.bezierCurveTo(6.5, -13.0, 22.5, -15.0, 27.0, -5.6)
-  ctx.bezierCurveTo(30.6, 2.1, 22.8, 9.8, 12.8, 8.8)
-  ctx.bezierCurveTo(7.1, 8.1, 3.0, 5.1, 1.2, 1.0)
-  ctx.closePath()
-  ctx.fill()
-
-  // 아래 꼬리(짧고 두툼하게)
-  ctx.beginPath()
-  ctx.moveTo(-7.1, 4.4)
-  ctx.bezierCurveTo(-11.5, 8.0, -13.6, 13.0, -13.5, 19.5)
-  ctx.lineTo(-5.9, 14.6)
-  ctx.lineTo(-0.6, 22.8)
-  ctx.bezierCurveTo(0.2, 15.3, 0.3, 10.0, 0.0, 4.8)
-  ctx.closePath()
-  ctx.fill()
-
-  ctx.beginPath()
-  ctx.moveTo(7.1, 4.4)
-  ctx.bezierCurveTo(11.5, 8.0, 13.6, 13.0, 13.5, 19.5)
-  ctx.lineTo(5.9, 14.6)
-  ctx.lineTo(0.6, 22.8)
-  ctx.bezierCurveTo(-0.2, 15.3, -0.3, 10.0, 0.0, 4.8)
-  ctx.closePath()
-  ctx.fill()
-
-  // 중앙 매듭
-  ctx.beginPath()
-  ctx.ellipse(0, 0.7, 6.4, 5.9, 0, 0, TAU)
-  ctx.fill()
-
-  // 리본 접힌 안쪽 모양(투명하지 않게 흰 하이라이트로만 표현)
   const oldAlpha = ctx.globalAlpha
-  ctx.fillStyle = '#FFFFFF'
-  ctx.globalAlpha = oldAlpha * 0.24
 
-  ctx.beginPath()
-  ctx.moveTo(-10.0, -1.8)
-  ctx.bezierCurveTo(-14.0, -6.8, -20.0, -6.0, -21.0, -1.8)
-  ctx.bezierCurveTo(-18.2, -1.0, -14.0, -0.6, -9.2, 0.8)
-  ctx.closePath()
-  ctx.fill()
+  const drawRoundedTails = (narrow = false) => {
+    const leftOuter = narrow ? -10.0 : -10.8
+    const rightOuter = narrow ? 10.0 : 10.8
+    const tailBottomY = narrow ? 18.4 : 19.2
+    const roundBulge = narrow ? 1.2 : 1.8
 
-  ctx.beginPath()
-  ctx.moveTo(10.0, -1.8)
-  ctx.bezierCurveTo(14.0, -6.8, 20.0, -6.0, 21.0, -1.8)
-  ctx.bezierCurveTo(18.2, -1.0, 14.0, -0.6, 9.2, 0.8)
-  ctx.closePath()
-  ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(-6.2, 4.2)
+    ctx.bezierCurveTo(-10.3, 7.2, leftOuter, 11.2, leftOuter, 15.7)
+    ctx.bezierCurveTo(leftOuter, 18.1, -8.9, 19.7, -6.8, tailBottomY)
+    ctx.bezierCurveTo(-4.9, 20.7, -2.7, 20.4, -1.3, 18.8 + roundBulge)
+    ctx.bezierCurveTo(-0.2, 16.8, -0.2, 12.2, -0.2, 5.0)
+    ctx.closePath()
+    ctx.fill()
 
-  // 중앙 매듭의 살짝 밝은 느낌
-  ctx.beginPath()
-  ctx.ellipse(-1.0, -0.2, 2.2, 1.7, -0.5, 0, TAU)
-  ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(6.2, 4.2)
+    ctx.bezierCurveTo(10.3, 7.2, rightOuter, 11.2, rightOuter, 15.7)
+    ctx.bezierCurveTo(rightOuter, 18.1, 8.9, 19.7, 6.8, tailBottomY)
+    ctx.bezierCurveTo(4.9, 20.7, 2.7, 20.4, 1.3, 18.8 + roundBulge)
+    ctx.bezierCurveTo(0.2, 16.8, 0.2, 12.2, 0.2, 5.0)
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  if (style === 'simple') {
+    ctx.beginPath()
+    ctx.moveTo(-1.2, 0)
+    ctx.bezierCurveTo(-6.4, -11.2, -20.5, -12.5, -24.2, -4.6)
+    ctx.bezierCurveTo(-27.0, 1.5, -20.8, 7.8, -12.5, 7.2)
+    ctx.bezierCurveTo(-7.0, 6.8, -3.0, 4.4, -1.2, 0.7)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.moveTo(1.2, 0)
+    ctx.bezierCurveTo(6.4, -11.2, 20.5, -12.5, 24.2, -4.6)
+    ctx.bezierCurveTo(27.0, 1.5, 20.8, 7.8, 12.5, 7.2)
+    ctx.bezierCurveTo(7.0, 6.8, 3.0, 4.4, 1.2, 0.7)
+    ctx.closePath()
+    ctx.fill()
+
+    drawRoundedTails(true)
+
+    ctx.beginPath()
+    ctx.ellipse(0, 0.8, 6.2, 5.5, 0, 0, TAU)
+    ctx.fill()
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.globalAlpha = oldAlpha * 0.16
+    ctx.beginPath()
+    ctx.ellipse(-10.4, -3.5, 5.0, 2.2, -0.25, 0, TAU)
+    ctx.ellipse(10.4, -3.5, 5.0, 2.2, 0.25, 0, TAU)
+    ctx.fill()
+  } else if (style === 'sticker') {
+    ctx.beginPath()
+    ctx.moveTo(-1.3, -0.3)
+    ctx.bezierCurveTo(-7.5, -12.2, -22.0, -13.6, -26.4, -5.1)
+    ctx.bezierCurveTo(-29.6, 1.2, -23.0, 8.7, -13.2, 8.0)
+    ctx.bezierCurveTo(-7.3, 7.5, -3.1, 4.8, -1.3, 1.0)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.moveTo(1.3, -0.3)
+    ctx.bezierCurveTo(7.5, -12.2, 22.0, -13.6, 26.4, -5.1)
+    ctx.bezierCurveTo(29.6, 1.2, 23.0, 8.7, 13.2, 8.0)
+    ctx.bezierCurveTo(7.3, 7.5, 3.1, 4.8, 1.3, 1.0)
+    ctx.closePath()
+    ctx.fill()
+
+    drawRoundedTails(false)
+
+    ctx.beginPath()
+    ctx.ellipse(0, 0.8, 6.8, 6.1, 0, 0, TAU)
+    ctx.fill()
+
+    // 스티커 느낌 하이라이트
+    ctx.fillStyle = '#FFFFFF'
+    ctx.globalAlpha = oldAlpha * 0.24
+    ctx.beginPath()
+    ctx.ellipse(-10.6, -4.2, 5.7, 2.6, -0.35, 0, TAU)
+    ctx.ellipse(10.6, -4.2, 5.7, 2.6, 0.35, 0, TAU)
+    ctx.ellipse(-1.2, -0.1, 2.4, 1.8, -0.4, 0, TAU)
+    ctx.fill()
+
+    ctx.globalAlpha = oldAlpha * 0.12
+    ctx.beginPath()
+    ctx.moveTo(-11.3, 9.3)
+    ctx.bezierCurveTo(-9.0, 7.8, -5.6, 7.4, -3.7, 8.2)
+    ctx.bezierCurveTo(-6.6, 10.8, -8.2, 13.0, -8.7, 15.8)
+    ctx.closePath()
+    ctx.moveTo(11.3, 9.3)
+    ctx.bezierCurveTo(9.0, 7.8, 5.6, 7.4, 3.7, 8.2)
+    ctx.bezierCurveTo(6.6, 10.8, 8.2, 13.0, 8.7, 15.8)
+    ctx.closePath()
+    ctx.fill()
+  } else {
+    // rounded default
+    ctx.beginPath()
+    ctx.moveTo(-1.2, -0.5)
+    ctx.bezierCurveTo(-6.5, -13.0, -22.5, -15.0, -27.0, -5.6)
+    ctx.bezierCurveTo(-30.6, 2.1, -22.8, 9.8, -12.8, 8.8)
+    ctx.bezierCurveTo(-7.1, 8.1, -3.0, 5.1, -1.2, 1.0)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.moveTo(1.2, -0.5)
+    ctx.bezierCurveTo(6.5, -13.0, 22.5, -15.0, 27.0, -5.6)
+    ctx.bezierCurveTo(30.6, 2.1, 22.8, 9.8, 12.8, 8.8)
+    ctx.bezierCurveTo(7.1, 8.1, 3.0, 5.1, 1.2, 1.0)
+    ctx.closePath()
+    ctx.fill()
+
+    drawRoundedTails(false)
+
+    ctx.beginPath()
+    ctx.ellipse(0, 0.7, 6.4, 5.9, 0, 0, TAU)
+    ctx.fill()
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.globalAlpha = oldAlpha * 0.22
+    ctx.beginPath()
+    ctx.moveTo(-10.0, -1.8)
+    ctx.bezierCurveTo(-14.0, -6.8, -20.0, -6.0, -21.0, -1.8)
+    ctx.bezierCurveTo(-18.2, -1.0, -14.0, -0.6, -9.2, 0.8)
+    ctx.closePath()
+    ctx.moveTo(10.0, -1.8)
+    ctx.bezierCurveTo(14.0, -6.8, 20.0, -6.0, 21.0, -1.8)
+    ctx.bezierCurveTo(18.2, -1.0, 14.0, -0.6, 9.2, 0.8)
+    ctx.closePath()
+    ctx.ellipse(-1.0, -0.2, 2.2, 1.7, -0.5, 0, TAU)
+    ctx.fill()
+  }
 
   ctx.globalAlpha = oldAlpha
   ctx.fillStyle = baseFill
@@ -213,7 +283,7 @@ function drawDecorationAt(ctx: CanvasRenderingContext2D, design: FrameDesign, x:
     case 'heart': drawHeart(ctx, x, y, size, rotation); break
     case 'star': drawStar(ctx, x, y, size, rotation, 5); break
     case 'sparkle': drawStar(ctx, x, y, size, rotation, 4); break
-    case 'ribbon': drawRibbon(ctx, x, y, size, rotation); break
+    case 'ribbon': drawRibbon(ctx, x, y, size, rotation, design.pattern.ribbonStyle); break
     case 'flower': drawFlower(ctx, x, y, size, rotation, centerColor); break
   }
 }

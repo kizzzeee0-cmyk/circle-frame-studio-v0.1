@@ -8,10 +8,10 @@ import { downloadProject, exportPng } from './utils/export'
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v06'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v06'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v07'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v07'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -43,7 +43,7 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
 function normalizeProject(source: any): FrameProject {
   if (source?.design) {
     return {
-      version: '0.6',
+      version: '0.7',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -53,7 +53,7 @@ function normalizeProject(source: any): FrameProject {
   if (Array.isArray(source?.layers) && source.layers.length > 0) {
     const picked = source.layers.find((x: any) => x.id === source.selectedLayerId) ?? source.layers[source.layers.length - 1]
     return {
-      version: '0.6',
+      version: '0.7',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -64,16 +64,17 @@ function normalizeProject(source: any): FrameProject {
 }
 
 function makeInitialProject(): FrameProject {
-  const design = createDesign('ribbon', 'Cute Bow Ribbon Ring')
+  const design = createDesign('ribbon', 'Pink Ribbon Sticker Ring')
   design.radius = 800
   design.pattern.decorationLayout = 'spacing'
   design.pattern.decorationSpacing = 170
   design.pattern.decorationSize = 24
   design.pattern.decorationOffset = 18
   design.pattern.keepUpright = true
-  design.pattern.colorCount = 4
-  design.pattern.paletteColors = ['#FFFFFF', '#F7C7DE', '#B9D8FF', '#F8DF88']
-  return { version: '0.6', width: 2000, height: 2000, autoFit: true, design }
+  design.pattern.colorCount = 2
+  design.pattern.ribbonStyle = 'sticker'
+  design.pattern.paletteColors = ['#F8AFCF', '#FBD4E5', '#F8AFCF', '#FBD4E5']
+  return { version: '0.7', width: 2000, height: 2000, autoFit: true, design }
 }
 
 function loadInitialProject() {
@@ -256,7 +257,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.6 · Bow Ribbon Refresh</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.7 · Ribbon Style Pack</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>

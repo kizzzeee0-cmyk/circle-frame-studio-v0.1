@@ -33,6 +33,7 @@ const basePattern = () => ({
   customAssetUrl: '',
   customAssetName: '',
   assetTintMode: 'original' as const,
+  ribbonStyle: 'rounded' as const,
   seed: 3701,
 })
 
@@ -126,9 +127,11 @@ export const PRESETS: FramePreset[] = [
   p('heart-cute', 'Decorative', 'Heart Circle', 'heart', { thickness: 5 }, { decorationCount: 22, decorationSize: 24, decorationOffset: 10 }),
   p('heart-wide', 'Decorative', 'Wide Heart Ring', 'heart', { thickness: 5 }, { decorationCount: 14, decorationSize: 34, decorationOffset: 12 }),
   p('heart-fourcolor', 'Decorative', 'Four Color Heart Ring', 'heart', { color: '#F4C455', secondaryColor: '#8DC5FF' }, { decorationCount: 34, decorationSize: 15, decorationOffset: 10, colorCount: 4, paletteColors: ['#F4C455','#8DC5FF','#F6A8C8','#B8A5F2'], keepUpright: true }),
-  p('ribbon-cute', 'Decorative', 'Cute Bow Ribbon Ring', 'ribbon', { color: '#FFFFFF' }, { decorationCount: 12, decorationSize: 28, decorationOffset: 18, keepUpright: true, colorCount: 1, paletteColors: ['#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'] }),
-  p('ribbon-mini', 'Decorative', 'Mini Bow Ribbon Ring', 'ribbon', { color: '#FFFFFF', secondaryColor: '#E4D1F9' }, { decorationCount: 20, decorationSize: 19, decorationOffset: 16, keepUpright: true, colorCount: 2, paletteColors: ['#FFFFFF','#E4D1F9','#FFFFFF','#E4D1F9'] }),
-  p('ribbon-fourcolor', 'Decorative', 'Four Color Bow Ribbon Ring', 'ribbon', { color: '#F2B3CD', secondaryColor: '#A7CCF3' }, { decorationLayout: 'spacing', decorationSpacing: 210, decorationSize: 24, decorationOffset: 18, keepUpright: true, colorCount: 4, paletteColors: ['#F2B3CD','#A7CCF3','#F2D78A','#C0AEFA'] }),
+  p('ribbon-cute', 'Decorative', 'Rounded Ribbon Ring', 'ribbon', { color: '#FFFFFF' }, { decorationCount: 12, decorationSize: 28, decorationOffset: 18, keepUpright: true, colorCount: 1, paletteColors: ['#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'], ribbonStyle: 'rounded' }),
+  p('ribbon-mini', 'Decorative', 'Mini Simple Ribbon Ring', 'ribbon', { color: '#FFFFFF', secondaryColor: '#E4D1F9' }, { decorationCount: 20, decorationSize: 18, decorationOffset: 15, keepUpright: true, colorCount: 2, paletteColors: ['#FFFFFF','#E4D1F9','#FFFFFF','#E4D1F9'], ribbonStyle: 'simple' }),
+  p('ribbon-fourcolor', 'Decorative', 'Pink Sticker Ribbon Ring', 'ribbon', { color: '#F6A9CC', secondaryColor: '#F8C4DD' }, { decorationLayout: 'spacing', decorationSpacing: 210, decorationSize: 24, decorationOffset: 18, keepUpright: true, colorCount: 4, paletteColors: ['#F6A9CC','#F8C4DD','#F9A9C7','#F7D9E7'], ribbonStyle: 'sticker' }),
+  p('ribbon-pink-sticker', 'Decorative', 'Pink Ribbon Sticker Ring', 'ribbon', { color: '#F8AFCF', secondaryColor: '#FBD4E5' }, { decorationLayout: 'spacing', decorationSpacing: 175, decorationSize: 26, decorationOffset: 17, keepUpright: true, colorCount: 2, paletteColors: ['#F8AFCF','#FBD4E5','#F8AFCF','#FBD4E5'], ribbonStyle: 'sticker' }),
+  p('ribbon-simple-pastel', 'Decorative', 'Simple Pastel Ribbon Ring', 'ribbon', { color: '#FFD7EC', secondaryColor: '#D8CCFF' }, { decorationCount: 16, decorationSize: 20, decorationOffset: 17, keepUpright: true, colorCount: 2, paletteColors: ['#FFD7EC','#D8CCFF','#FFD7EC','#D8CCFF'], ribbonStyle: 'simple' }),
   p('flower-soft', 'Decorative', 'Soft Flower Ring', 'flower', { color: '#FFFFFF', secondaryColor: '#FFDD74' }, { decorationCount: 18, decorationSize: 23, decorationOffset: 14, keepUpright: true }),
   p('flower-pastel', 'Decorative', 'Pastel Flower Ring', 'flower', { color: '#FFD7EF', secondaryColor: '#FFF1A6' }, { decorationCount: 24, decorationSize: 19, decorationOffset: 16, keepUpright: true, colorCount: 2, paletteColors: ['#FFD7EF','#FFF1A6','#FFD7EF','#FFF1A6'] }),
   p('flower-fourcolor', 'Decorative', 'Four Color Flower Ring', 'flower', { color: '#F1BDD7', secondaryColor: '#A7D4F3' }, { decorationLayout: 'spacing', decorationSpacing: 175, decorationSize: 20, decorationOffset: 18, keepUpright: true, colorCount: 4, paletteColors: ['#F1BDD7','#A7D4F3','#F3D987','#C3AEF4'] }),
@@ -147,7 +150,7 @@ export const PRESETS: FramePreset[] = [
   p('glow-dots', 'Glow', 'Glow Dots', 'dotted', { thickness: 8 }, { decorationCount: 46, decorationSize: 16 }, { glowEnabled: true, glowBlur: 38, glowIntensity: .72 }),
   p('glow-neon-sign', 'Glow', 'Neon Sign Outline', 'scribble', { thickness: 7, color: '#B38AFF' }, { roughness: 6, strokeCount: 3 }, { glowEnabled: true, glowColor: '#A47BFF', glowBlur: 54, glowIntensity: .95, bloom: 18 }),
   p('glow-neon-heart', 'Glow', 'Neon Heart Wreath', 'heart', { color: '#F7D267', secondaryColor: '#8AC9FF' }, { decorationCount: 26, decorationSize: 18, decorationOffset: 16, keepUpright: true, colorCount: 2, paletteColors: ['#F7D267','#8AC9FF','#F7D267','#8AC9FF'] }, { glowEnabled: true, glowColor: '#FFF0A4', glowBlur: 40, glowIntensity: .75 }),
-  p('glow-neon-ribbon', 'Glow', 'Neon Ribbon Ring', 'ribbon', { color: '#FFFFFF', secondaryColor: '#E2CBFF' }, { decorationCount: 14, decorationSize: 22, decorationOffset: 22, keepUpright: true, colorCount: 2, paletteColors: ['#FFFFFF','#E2CBFF','#FFFFFF','#E2CBFF'] }, { glowEnabled: true, glowColor: '#B38AFF', glowBlur: 44, glowIntensity: .65 }),
+  p('glow-neon-ribbon', 'Glow', 'Neon Ribbon Ring', 'ribbon', { color: '#FFFFFF', secondaryColor: '#E2CBFF' }, { decorationCount: 14, decorationSize: 22, decorationOffset: 22, keepUpright: true, colorCount: 2, paletteColors: ['#FFFFFF','#E2CBFF','#FFFFFF','#E2CBFF'], ribbonStyle: 'rounded' }, { glowEnabled: true, glowColor: '#B38AFF', glowBlur: 44, glowIntensity: .65 }),
 
   p('glossy-clean', '3D', 'Glossy Ring', 'glossy', { thickness: 74, gradientMode: 'conic' }, {}, { shadowEnabled: true, shadowBlur: 30, shadowOffsetY: 18 }),
   p('glossy-thin', '3D', 'Thin Glossy', 'glossy', { thickness: 42, gradientMode: 'conic' }, {}, { glowEnabled: true, glowBlur: 28, glowIntensity: .25 }),

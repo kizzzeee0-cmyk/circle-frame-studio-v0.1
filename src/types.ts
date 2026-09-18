@@ -21,6 +21,7 @@ export type RingKind =
 export type GradientMode = 'solid' | 'linear' | 'radial' | 'conic'
 export type DecorationLayout = 'count' | 'spacing'
 export type AssetTintMode = 'original' | 'palette'
+export type RibbonStyle = 'rounded' | 'simple' | 'sticker'
 
 export interface GradientStop {
   id: string
@@ -64,6 +65,7 @@ export interface FramePattern {
   customAssetUrl: string
   customAssetName: string
   assetTintMode: AssetTintMode
+  ribbonStyle: RibbonStyle
   seed: number
 }
 
@@ -87,7 +89,7 @@ export interface FrameDesign {
 }
 
 export interface FrameProject {
-  version: '0.6'
+  version: '0.7'
   width: 2000
   height: 2000
   autoFit: boolean

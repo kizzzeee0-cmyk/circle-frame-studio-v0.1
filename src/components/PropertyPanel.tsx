@@ -200,6 +200,17 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
           <Slider label="물결 높이" value={design.pattern.waveAmplitude} min={0} max={80} suffix="px" onChange={n => nestedPattern({ waveAmplitude: n })} />
           <Slider label="물결 개수" value={design.pattern.waveCount} min={3} max={48} onChange={n => nestedPattern({ waveCount: Math.round(n) })} />
         </>}
+
+        {design.kind === 'ribbon' && <>
+          <label className="control"><span><b>리본 스타일</b></span>
+            <select value={design.pattern.ribbonStyle} onChange={e => nestedPattern({ ribbonStyle: e.target.value as 'rounded' | 'simple' | 'sticker' })}>
+              <option value="rounded">Rounded Ribbon</option>
+              <option value="simple">Simple Ribbon</option>
+              <option value="sticker">Pink Sticker Ribbon</option>
+            </select>
+          </label>
+          <p className="hint">Rounded는 둥글고 귀여운 기본형, Simple은 더 단순한 리본, Sticker는 핑크 스티커 같은 느낌입니다.</p>
+        </>}
         {isDecoration && <>
           <label className="control"><span><b>배치 기준</b></span>
             <select value={design.pattern.decorationLayout} onChange={e => nestedPattern({ decorationLayout: e.target.value as 'count' | 'spacing' })}>

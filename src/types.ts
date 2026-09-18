@@ -40,6 +40,9 @@ export interface FrameEffects {
   shadowBlur: number
   shadowOffsetX: number
   shadowOffsetY: number
+  outlineEnabled: boolean
+  outlineColor: string
+  outlineWidth: number
 }
 
 export interface FramePattern {
@@ -87,7 +90,7 @@ export interface FrameDesign {
 }
 
 export interface FrameProject {
-  version: '0.11'
+  version: '0.12'
   width: 2000
   height: 2000
   autoFit: boolean

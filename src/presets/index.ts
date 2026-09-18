@@ -12,6 +12,9 @@ const baseEffects = () => ({
   shadowBlur: 24,
   shadowOffsetX: 0,
   shadowOffsetY: 18,
+  outlineEnabled: false,
+  outlineColor: '#FFFFFF',
+  outlineWidth: 8,
 })
 
 const basePattern = () => ({
@@ -90,6 +93,7 @@ export const PRESETS: FramePreset[] = [
   p('broken-wide', 'Broken', 'Wide Broken', 'segmented', { thickness: 34 }, { dash: 215, gap: 105 }),
   p('broken-mini', 'Broken', 'Mini Segments', 'segmented', { thickness: 18 }, { dash: 70, gap: 32 }),
   p('broken-round', 'Broken', 'Rounded Segments', 'segmented', { thickness: 48 }, { dash: 135, gap: 65 }),
+  p('broken-three-long', 'Broken', 'Long 3-Cut Segments', 'segmented', { thickness: 26 }, { dash: 1120, gap: 360 }),
   p('arc-single', 'Broken', 'Open Arc', 'arc', { thickness: 30 }, { dash: 900, gap: 600 }),
   p('arc-multi', 'Broken', 'Multiple Arcs', 'arc', { thickness: 24 }, { dash: 390, gap: 145 }),
   p('arc-fine', 'Broken', 'Fine Arcs', 'arc', { thickness: 13 }, { dash: 280, gap: 120 }),

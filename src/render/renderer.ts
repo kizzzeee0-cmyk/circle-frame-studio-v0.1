@@ -75,6 +75,7 @@ function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
   }
   ctx.closePath()
   ctx.fill()
+  if (ctx.lineWidth > 0) ctx.stroke()
 }
 
 function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number) {
@@ -89,6 +90,7 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
   ctx.bezierCurveTo(10, -14, 14, -2, 0, 7)
   ctx.closePath()
   ctx.fill()
+  if (ctx.lineWidth > 0) ctx.stroke()
   ctx.restore()
 }
 
@@ -187,6 +189,7 @@ function drawFlower(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
   ctx.beginPath()
   ctx.arc(0, 0, size * .22, 0, TAU)
   ctx.fill()
+  if (ctx.lineWidth > 0) ctx.stroke()
   ctx.fillStyle = petal
   ctx.restore()
 }
@@ -202,6 +205,51 @@ function decorationCount(design: FrameDesign, orbitProjectRadius: number) {
     return Math.max(3, Math.min(180, Math.round((TAU * Math.max(40, orbitProjectRadius)) / spacing)))
   }
   return Math.max(3, Math.min(180, Math.round(design.pattern.decorationCount)))
+}
+
+
+function makeOutlineDesign(design: FrameDesign): FrameDesign {
+  const outlineColor = validColor(design.effects.outlineColor, '#FFFFFF')
+  const width = Math.max(1, design.effects.outlineWidth)
+  const next: FrameDesign = structuredClone(design)
+  next.color = outlineColor
+  next.secondaryColor = outlineColor
+  next.gradientMode = 'solid'
+  next.gradientAngle = 0
+  next.gradientStops = next.gradientStops.map(stop => ({ ...stop, color: outlineColor }))
+
+  switch (next.kind) {
+    case 'basic':
+    case 'double':
+    case 'triple':
+    case 'segmented':
+    case 'arc':
+    case 'wavy':
+    case 'scallop':
+    case 'scribble':
+    case 'rough':
+    case 'brush':
+    case 'glossy':
+      next.thickness += width * 2
+      break
+    case 'dotted':
+    case 'sparkle':
+    case 'star':
+    case 'heart':
+    case 'ribbon':
+    case 'flower':
+      next.pattern.decorationSize += width * 2
+      next.pattern.paletteColors = [outlineColor, outlineColor, outlineColor, outlineColor]
+      next.pattern.colorCount = 1
+      break
+    case 'asset':
+      next.pattern.decorationSize += width * 2
+      next.pattern.assetTintMode = 'palette'
+      next.pattern.paletteColors = [outlineColor, outlineColor, outlineColor, outlineColor]
+      next.pattern.colorCount = 1
+      break
+  }
+  return next
 }
 
 function drawDecorationAt(ctx: CanvasRenderingContext2D, design: FrameDesign, x: number, y: number, size: number, angle: number, centerColor: string) {
@@ -387,6 +435,13 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
   ctx.save()
   ctx.globalAlpha = design.opacity
 
+  if (design.effects.outlineEnabled && design.effects.outlineWidth > 0) {
+    ctx.save()
+    const outlined = makeOutlineDesign(design)
+    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight)
+    ctx.restore()
+  }
+
   if (design.effects.shadowEnabled) {
     ctx.save()
     ctx.shadowColor = validColor(design.effects.shadowColor, '#5B547D')
@@ -479,6 +534,7 @@ export function estimateDesignExtent(design: FrameDesign) {
       break
   }
 
+  const outline = design.effects.outlineEnabled ? Math.max(0, design.effects.outlineWidth) * 3 : 0
   const glow = design.effects.glowEnabled ? Math.max(0, design.effects.glowBlur) * 2.6 : 0
   const bloom = Math.max(0, design.effects.bloom) * .12 * 3
   const softBlur = Math.max(0, design.effects.softBlur) * 3
@@ -487,7 +543,7 @@ export function estimateDesignExtent(design: FrameDesign) {
     : 0
   const offset = Math.max(Math.abs(design.offsetX), Math.abs(design.offsetY))
 
-  return geometry + glow + bloom + softBlur + shadow + offset + 8
+  return geometry + outline + glow + bloom + softBlur + shadow + offset + 8
 }
 
 export function getProjectFitScale(project: FrameProject) {

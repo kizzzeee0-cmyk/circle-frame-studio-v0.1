@@ -170,7 +170,12 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
       )}
 
       <section className="property-section">
-        <h3>글로우 · 블러 · 그림자</h3>
+        <h3>외곽선 · 글로우 · 블러 · 그림자</h3>
+        <label className="toggle"><input type="checkbox" checked={design.effects.outlineEnabled} onChange={e => nestedEffects({ outlineEnabled: e.target.checked })} /><span>외곽선 사용</span></label>
+        {design.effects.outlineEnabled && <>
+          <ColorField label="외곽선 색상" value={design.effects.outlineColor} onChange={v => nestedEffects({ outlineColor: v })} eyedrop />
+          <Slider label="외곽선 두께" value={design.effects.outlineWidth} min={1} max={40} suffix="px" onChange={n => nestedEffects({ outlineWidth: n })} />
+        </>}
         <label className="toggle"><input type="checkbox" checked={design.effects.glowEnabled} onChange={e => nestedEffects({ glowEnabled: e.target.checked })} /><span>Glow 사용</span></label>
         {design.effects.glowEnabled && <>
           <ColorField label="Glow 색상" value={design.effects.glowColor} onChange={v => nestedEffects({ glowColor: v })} />

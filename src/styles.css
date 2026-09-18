@@ -200,7 +200,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 4px; }
 }
 .color-count-buttons {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 5px;
   margin: 4px 0 8px;
 }
@@ -238,3 +238,5 @@ input[type="range"] { width: 100%; accent-color: var(--accent); height: 4px; }
 @media (max-width: 1250px) {
   .single-workspace { grid-template-columns: 288px minmax(500px,1fr) 325px; }
 }
+
+.color-count-buttons.four-up { grid-template-columns: repeat(4, 1fr); }

@@ -1,29 +1,43 @@
-# Circle Frame Studio v0.4
+# Circle Frame Studio v0.5
 
-원형 프레임을 하나씩 선택·편집하고 2000×2000 투명 PNG로 저장하는 React/Vite 웹앱입니다.
+원형 프레임을 만들고 **테두리 외부는 전부 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
-## v0.4 핵심 수정
+## v0.5 핵심 업데이트
 
-- **미리보기와 PNG 저장 렌더 해상도를 모두 2000×2000으로 통일**
-- 편집 화면에서 보이던 프레임과 저장 결과의 크기/배치를 동일하게 유지
-- Auto Fit 외곽 계산 강화
-- Glow / Shadow / Bloom / Soft Blur의 확산 범위를 안전 영역 계산에 반영
-- Double / Triple / Wavy / Scribble / Brush 등 프레임 종류별 실제 외곽 범위 계산
-- 하트 / 리본 / 꽃 / 도트 / 사용자 PNG 반복 장식의 외곽 범위 계산 개선
-- 사용자 PNG는 **가장 긴 변을 기준으로 장식 크기 적용**하여 가로로 긴 이미지가 과도하게 튀어나오지 않도록 수정
-- Auto Fit ON 기준 약 50px의 투명 안전 여백 확보
-- v0.3 자동 저장 및 내 프리셋 마이그레이션 지원
+### 1) 리본 모양 개선
+- 기존 리본보다 더 **둥글고 귀엽고 아기자기한 리본 실루엣**으로 변경
+- 루프(윗부분)가 더 말랑하고 둥글게 보이도록 수정
+- 꼬리 부분도 딱딱한 삼각형 느낌보다 더 부드럽게 정리
+- 리본 하이라이트를 아주 약하게 넣어 입체감 개선
 
-기존 v0.3의 단일 프레임 편집, 1~3색 반복 팔레트, PNG/WebP/SVG 업로드 반복 프레임, 낙서/네온/브러시/리본/꽃 프리셋 기능은 그대로 유지됩니다.
+### 2) 패턴 프레임 4색 지원
+- 하트 / 리본 / 꽃 / 별 / 반짝이 / 도트 / 사용자 PNG 반복 프레임에서
+  **1색 / 2색 / 3색 / 4색 반복** 지원
+- 4번째 색상 컬러피커 추가
+- 색상 순환 미리보기 강화
 
-## 실행
+### 3) 프리셋 확장
+- Four Color Heart Ring
+- Four Color Ribbon Ring
+- Four Color Flower Ring
+- Four Color Dots
+- 둥근 리본 기반 프리셋 강화
+
+### 4) 기타 보완 사항
+- v0.4, v0.3 자동 저장 데이터 호환
+- 기존 JSON도 가능한 범위에서 불러오기 유지
+- 단일 프레임 편집 구조 유지
+- 2000×2000 투명 PNG 저장 유지
+- 미리보기 = 저장 결과 기준 유지
+
+## 실행 방법
 
 ```bash
 npm install
 npm run dev
 ```
 
-브라우저에서 `http://localhost:5173/`로 접속합니다.
+브라우저에서 `http://localhost:5173/` 접속.
 
 ## 빌드
 
@@ -31,15 +45,16 @@ npm run dev
 npm run build
 ```
 
-## Cloudflare Pages
+## Cloudflare Pages 권장 설정
 
+- Framework preset: **Vite** 또는 **None**
 - Build command: `npm run build`
 - Build output directory: `dist`
 - Root directory: 비워두기
 
-## 파일
+## 주요 조작
+- 프리셋 클릭: 현재 프레임 교체
+- Alt + 캔버스 클릭: 스포이드 색상 추출
+- `내 PNG로 반복 프레임 만들기`: 투명 PNG/WebP/SVG 업로드
+- JSON 저장/불러오기 지원
 
-- `V04_PLAN.md`: v0.4 수정 계획서
-- `src/render/renderer.ts`: 프레임 렌더링 및 Safe Fit 계산
-- `src/components/CanvasPanel.tsx`: 2000×2000 실제 미리보기 캔버스
-- `src/utils/export.ts`: 2000×2000 투명 PNG 저장

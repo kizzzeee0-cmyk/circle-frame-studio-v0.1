@@ -8,17 +8,23 @@ import { downloadProject, exportPng } from './utils/export'
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v04'
-const LEGACY_AUTOSAVE_KEY = 'circle-frame-studio-project-v03'
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v04'
-const LEGACY_USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v03'
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v05'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v05'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
-  const legacyPattern = source.pattern as (Partial<FrameDesign['pattern']> & { alternateColors?: boolean }) | undefined
-  const paletteColors: [string, string, string] = legacyPattern?.paletteColors?.length === 3
-    ? legacyPattern.paletteColors as [string, string, string]
-    : [source.color ?? base.color, source.secondaryColor ?? base.secondaryColor, '#F3A9C8']
+  const legacyPattern = source.pattern as (Partial<FrameDesign['pattern']> & { alternateColors?: boolean; paletteColors?: string[] }) | undefined
+  const incomingPalette = Array.isArray(legacyPattern?.paletteColors) ? legacyPattern!.paletteColors : []
+  const paletteColors: [string, string, string, string] = [
+    incomingPalette[0] ?? source.color ?? base.color,
+    incomingPalette[1] ?? source.secondaryColor ?? base.secondaryColor,
+    incomingPalette[2] ?? '#F3A9C8',
+    incomingPalette[3] ?? '#B8A5F2',
+  ]
+  const rawColorCount = Number(legacyPattern?.colorCount ?? (legacyPattern?.alternateColors ? 2 : base.pattern.colorCount))
+  const colorCount = rawColorCount >= 4 ? 4 : rawColorCount >= 3 ? 3 : rawColorCount >= 2 ? 2 : 1
   return {
     ...base,
     ...source,
@@ -27,7 +33,7 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
       ...base.pattern,
       ...(legacyPattern ?? {}),
       paletteColors,
-      colorCount: legacyPattern?.colorCount ?? (legacyPattern?.alternateColors ? 2 : base.pattern.colorCount),
+      colorCount,
     },
     gradientStops: source.gradientStops?.length ? source.gradientStops : base.gradientStops,
     id: source.id || uid('design'),
@@ -37,45 +43,42 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
 function normalizeProject(source: any): FrameProject {
   if (source?.design) {
     return {
-      version: '0.4',
+      version: '0.5',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
       design: normalizeDesign(source.design),
     }
   }
-
-  // v0.1 / v0.2 프로젝트 호환: 선택 레이어 하나만 단일 디자인으로 가져옵니다.
   if (Array.isArray(source?.layers) && source.layers.length > 0) {
     const picked = source.layers.find((x: any) => x.id === source.selectedLayerId) ?? source.layers[source.layers.length - 1]
     return {
-      version: '0.4',
+      version: '0.5',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
       design: normalizeDesign(picked),
     }
   }
-
   return makeInitialProject()
 }
 
 function makeInitialProject(): FrameProject {
-  const design = createDesign('heart', 'Three Color Heart Ring')
+  const design = createDesign('ribbon', 'Rounded Ribbon Ring')
   design.radius = 800
   design.pattern.decorationLayout = 'spacing'
-  design.pattern.decorationSpacing = 132
-  design.pattern.decorationSize = 17
-  design.pattern.decorationOffset = 8
+  design.pattern.decorationSpacing = 170
+  design.pattern.decorationSize = 24
+  design.pattern.decorationOffset = 18
   design.pattern.keepUpright = true
-  design.pattern.colorCount = 3
-  design.pattern.paletteColors = ['#F4C455', '#8DC5FF', '#F3A9C8']
-  return { version: '0.4', width: 2000, height: 2000, autoFit: true, design }
+  design.pattern.colorCount = 4
+  design.pattern.paletteColors = ['#FFFFFF', '#F7C7DE', '#B9D8FF', '#F8DF88']
+  return { version: '0.5', width: 2000, height: 2000, autoFit: true, design }
 }
 
 function loadInitialProject() {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY) ?? localStorage.getItem(LEGACY_AUTOSAVE_KEY)
+    const raw = localStorage.getItem(AUTOSAVE_KEY) ?? LEGACY_AUTOSAVE_KEYS.map(key => localStorage.getItem(key)).find(Boolean)
     if (raw) return normalizeProject(JSON.parse(raw))
   } catch {
     /* ignore */
@@ -85,7 +88,7 @@ function loadInitialProject() {
 
 function loadUserPresets(): FramePreset[] {
   try {
-    const raw = localStorage.getItem(USER_PRESETS_KEY) ?? localStorage.getItem(LEGACY_USER_PRESETS_KEY)
+    const raw = localStorage.getItem(USER_PRESETS_KEY) ?? LEGACY_USER_PRESET_KEYS.map(key => localStorage.getItem(key)).find(Boolean)
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
@@ -233,8 +236,8 @@ export default function App() {
         design.pattern.decorationOffset = 10
         design.pattern.keepUpright = true
         design.pattern.assetTintMode = 'original'
-        design.pattern.colorCount = 3
-        design.pattern.paletteColors = ['#F4C455', '#8DC5FF', '#F3A9C8']
+        design.pattern.colorCount = 4
+        design.pattern.paletteColors = ['#F4C455', '#8DC5FF', '#F3A9C8', '#B8A5F2']
         draft.design = design
         return draft
       })
@@ -253,7 +256,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.4 · Preview = Export · Safe PNG Fit</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.5 · Cute Ribbon · 4 Color Pattern Support</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>

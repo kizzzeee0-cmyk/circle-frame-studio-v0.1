@@ -32,7 +32,9 @@ function ColorField({ label, value, onChange, eyedrop = false }: { label: string
     try {
       const result = await new EyeDropperCtor().open()
       onChange(result.sRGBHex.toUpperCase())
-    } catch { /* cancelled */ }
+    } catch {
+      /* cancelled */
+    }
   }
   return (
     <label className="control color-control">
@@ -53,23 +55,29 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
   const setStop = (id: string, partial: Partial<FrameDesign['gradientStops'][number]>) => patch({ gradientStops: design.gradientStops.map(s => s.id === id ? { ...s, ...partial } : s) })
 
   const setPatternColor = (index: number, value: string) => {
-    const next = [...design.pattern.paletteColors] as [string, string, string]
+    const next = [...design.pattern.paletteColors] as [string, string, string, string]
     next[index] = value
     nestedPattern({ paletteColors: next })
   }
 
   const applyPalette = (colors: string[]) => {
-    const three: [string, string, string] = [colors[0], colors[1] ?? colors[0], colors[2] ?? colors[0]]
+    const four: [string, string, string, string] = [
+      colors[0],
+      colors[1] ?? colors[0],
+      colors[2] ?? colors[0],
+      colors[3] ?? colors[1] ?? colors[0],
+    ]
     patch({
       color: colors[0],
       secondaryColor: colors[1] ?? colors[0],
       gradientMode: 'conic',
       gradientStops: [
-        { id: uid('stop'), position: 0, color: three[0] },
-        { id: uid('stop'), position: .5, color: three[1] },
-        { id: uid('stop'), position: 1, color: three[2] },
+        { id: uid('stop'), position: 0, color: four[0] },
+        { id: uid('stop'), position: .35, color: four[1] },
+        { id: uid('stop'), position: .7, color: four[2] },
+        { id: uid('stop'), position: 1, color: four[3] },
       ],
-      pattern: { ...design.pattern, paletteColors: three, colorCount: ['dotted','sparkle','star','heart','ribbon','flower','asset'].includes(design.kind) ? 3 : design.pattern.colorCount },
+      pattern: { ...design.pattern, paletteColors: four, colorCount: ['dotted','sparkle','star','heart','ribbon','flower','asset'].includes(design.kind) ? 4 : design.pattern.colorCount },
     })
   }
 
@@ -106,7 +114,7 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
 
       {isDecoration ? (
         <section className="property-section pattern-color-section">
-          <h3>패턴 색상 · 1/2/3색 반복</h3>
+          <h3>패턴 색상 · 1/2/3/4색 반복</h3>
           {design.kind === 'asset' && (
             <label className="control"><span><b>업로드 PNG 색상 방식</b></span>
               <select value={design.pattern.assetTintMode} onChange={e => nestedPattern({ assetTintMode: e.target.value as 'original' | 'palette' })}>
@@ -116,16 +124,18 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
             </label>
           )}
           {(design.kind !== 'asset' || design.pattern.assetTintMode === 'palette') && <>
-            <div className="color-count-buttons">
-              {[1,2,3].map(n => <button key={n} className={design.pattern.colorCount === n ? 'active' : ''} onClick={() => nestedPattern({ colorCount: n as 1|2|3 })}>{n}색</button>)}
+            <div className="color-count-buttons four-up">
+              {[1,2,3,4].map(n => <button key={n} type="button" className={design.pattern.colorCount === n ? 'active' : ''} onClick={() => nestedPattern({ colorCount: n as 1|2|3|4 })}>{n}색</button>)}
             </div>
             <ColorField label="색상 1" value={design.pattern.paletteColors[0]} onChange={v => setPatternColor(0, v)} eyedrop />
             {design.pattern.colorCount >= 2 && <ColorField label="색상 2" value={design.pattern.paletteColors[1]} onChange={v => setPatternColor(1, v)} />}
             {design.pattern.colorCount >= 3 && <ColorField label="색상 3" value={design.pattern.paletteColors[2]} onChange={v => setPatternColor(2, v)} />}
+            {design.pattern.colorCount >= 4 && <ColorField label="색상 4" value={design.pattern.paletteColors[3]} onChange={v => setPatternColor(3, v)} />}
             <div className="pattern-sequence-preview">
-              {Array.from({length: 12}, (_, i) => <i key={i} style={{background: design.pattern.paletteColors[i % design.pattern.colorCount]}} />)}
+              {Array.from({length: 16}, (_, i) => <i key={i} style={{background: design.pattern.paletteColors[i % design.pattern.colorCount]}} />)}
             </div>
           </>}
+          <p className="hint">하트·리본·꽃·도트·업로드 PNG 프레임에 4가지 색상을 순서대로 반복 적용할 수 있습니다.</p>
         </section>
       ) : (
         <section className="property-section">
@@ -151,49 +161,20 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
             </div>
             <button className="soft-button full" type="button" disabled={design.gradientStops.length >= 8} onClick={() => patch({ gradientStops: [...design.gradientStops, { id: uid('stop'), position: .5, color: design.secondaryColor }] })}>+ Gradient Stop</button>
           </>}
+          <div className="palette-list">
+            {PALETTES.map(p => <button type="button" key={p.id} className="palette-card" onClick={() => applyPalette(p.colors)} title={p.name}>
+              <span>{[0,1,2,3].map(i => <i key={i} style={{ background: p.colors[i] ?? p.colors[p.colors.length - 1] ?? p.colors[0] }} />)}</span><small>{p.name}</small>
+            </button>)}
+          </div>
         </section>
       )}
 
       <section className="property-section">
-        <h3>추천 색상 템플릿</h3>
-        <div className="palette-list">
-          {PALETTES.map(p => <button type="button" key={p.id} className="palette-card" onClick={() => applyPalette(p.colors)} title={p.name}>
-            <span>{p.colors.map(c => <i key={c} style={{ background: c }} />)}</span><small>{p.name}</small>
-          </button>)}
-        </div>
-      </section>
-
-      {isDecoration && (
-        <section className="property-section">
-          <h3>패턴 배치</h3>
-          <label className="control"><span><b>간격 조절 방식</b></span>
-            <select value={design.pattern.decorationLayout} onChange={e => nestedPattern({ decorationLayout: e.target.value as 'count'|'spacing' })}>
-              <option value="spacing">간격(px)로 조절</option>
-              <option value="count">개수로 조절</option>
-            </select>
-          </label>
-          {design.pattern.decorationLayout === 'spacing'
-            ? <Slider label="장식 사이 간격" value={design.pattern.decorationSpacing} min={24} max={420} suffix="px" onChange={n => nestedPattern({ decorationSpacing: n })} />
-            : <Slider label="장식 개수" value={design.pattern.decorationCount} min={3} max={120} onChange={n => nestedPattern({ decorationCount: Math.round(n) })} />}
-          <Slider label="장식 크기" value={design.pattern.decorationSize} min={3} max={110} suffix="px" onChange={n => nestedPattern({ decorationSize: n })} />
-          <Slider label="원과 장식 거리" value={design.pattern.decorationOffset} min={-160} max={160} suffix="px" onChange={n => nestedPattern({ decorationOffset: n })} />
-          <Slider label="배치 시작 각도" value={design.pattern.decorationRotation} min={-180} max={180} suffix="°" onChange={n => nestedPattern({ decorationRotation: n })} />
-          <label className="toggle"><input type="checkbox" checked={design.pattern.keepUpright} onChange={e => nestedPattern({ keepUpright: e.target.checked })} /><span>장식 정방향 유지</span></label>
-          {design.kind === 'asset' && <>
-            <label className="control"><span><b>다른 투명 이미지로 교체</b></span>
-              <input type="file" accept="image/png,image/webp,image/svg+xml,.png,.webp,.svg" onChange={e => onUploadAsset(e.target.files?.[0])} />
-            </label>
-            <div className="mini-badge">{design.pattern.customAssetName || '업로드된 파일 없음'}</div>
-          </>}
-        </section>
-      )}
-
-      <section className="property-section">
-        <h3>글로우 · 네온 · 블러</h3>
-        <label className="toggle"><input type="checkbox" checked={design.effects.glowEnabled} onChange={e => nestedEffects({ glowEnabled: e.target.checked })} /><span>Glow / Neon 사용</span></label>
+        <h3>글로우 · 블러 · 그림자</h3>
+        <label className="toggle"><input type="checkbox" checked={design.effects.glowEnabled} onChange={e => nestedEffects({ glowEnabled: e.target.checked })} /><span>Glow 사용</span></label>
         {design.effects.glowEnabled && <>
           <ColorField label="Glow 색상" value={design.effects.glowColor} onChange={v => nestedEffects({ glowColor: v })} />
-          <Slider label="Glow 크기" value={design.effects.glowBlur} min={0} max={180} suffix="px" onChange={n => nestedEffects({ glowBlur: n })} />
+          <Slider label="Glow 크기" value={design.effects.glowBlur} min={0} max={160} suffix="px" onChange={n => nestedEffects({ glowBlur: n })} />
           <Slider label="Glow 강도" value={design.effects.glowIntensity} min={0} max={1} step={.01} onChange={n => nestedEffects({ glowIntensity: n })} />
           <Slider label="빛 번짐" value={design.effects.bloom} min={0} max={100} onChange={n => nestedEffects({ bloom: n })} />
         </>}
@@ -208,20 +189,40 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
       </section>
 
       <section className="property-section">
-        <h3>종류별 세부 설정</h3>
+        <h3>패턴 세부 설정</h3>
         {['segmented','arc'].includes(design.kind) && <>
           <Slider label="보이는 조각 길이" value={design.pattern.dash} min={15} max={900} suffix="px" onChange={n => nestedPattern({ dash: n })} />
           <Slider label="빈 공간 길이" value={design.pattern.gap} min={5} max={500} suffix="px" onChange={n => nestedPattern({ gap: n })} />
         </>}
-        {['scribble','rough','brush'].includes(design.kind) && <Slider label="낙서 거칠기" value={design.pattern.roughness} min={0} max={60} onChange={n => nestedPattern({ roughness: n })} />}
+        {['scribble','rough','brush'].includes(design.kind) && <Slider label="거칠기" value={design.pattern.roughness} min={0} max={60} onChange={n => nestedPattern({ roughness: n })} />}
         {['scribble','rough'].includes(design.kind) && <Slider label="겹쳐 그리기" value={design.pattern.strokeCount} min={1} max={9} onChange={n => nestedPattern({ strokeCount: Math.round(n) })} />}
         {['wavy','scallop'].includes(design.kind) && <>
           <Slider label="물결 높이" value={design.pattern.waveAmplitude} min={0} max={80} suffix="px" onChange={n => nestedPattern({ waveAmplitude: n })} />
           <Slider label="물결 개수" value={design.pattern.waveCount} min={3} max={48} onChange={n => nestedPattern({ waveCount: Math.round(n) })} />
         </>}
+        {isDecoration && <>
+          <label className="control"><span><b>배치 기준</b></span>
+            <select value={design.pattern.decorationLayout} onChange={e => nestedPattern({ decorationLayout: e.target.value as 'count' | 'spacing' })}>
+              <option value="count">개수 기준</option>
+              <option value="spacing">간격(px) 기준</option>
+            </select>
+          </label>
+          {design.pattern.decorationLayout === 'count'
+            ? <Slider label="장식 개수" value={design.pattern.decorationCount} min={3} max={120} onChange={n => nestedPattern({ decorationCount: Math.round(n) })} />
+            : <Slider label="장식 간격" value={design.pattern.decorationSpacing} min={20} max={300} suffix="px" onChange={n => nestedPattern({ decorationSpacing: n })} />}
+          <Slider label="장식 크기" value={design.pattern.decorationSize} min={3} max={90} suffix="px" onChange={n => nestedPattern({ decorationSize: n })} />
+          <Slider label="장식 거리" value={design.pattern.decorationOffset} min={-140} max={140} suffix="px" onChange={n => nestedPattern({ decorationOffset: n })} />
+          <Slider label="장식 회전 오프셋" value={design.pattern.decorationRotation} min={-180} max={180} suffix="°" onChange={n => nestedPattern({ decorationRotation: n })} />
+          <label className="toggle"><input type="checkbox" checked={design.pattern.keepUpright} onChange={e => nestedPattern({ keepUpright: e.target.checked })} /><span>장식 정방향 유지</span></label>
+        </>}
         {design.kind === 'brush' && <>
           <Slider label="브러시 조각 길이" value={design.pattern.dash} min={15} max={180} suffix="px" onChange={n => nestedPattern({ dash: n })} />
           <Slider label="브러시 간격" value={design.pattern.gap} min={2} max={80} suffix="px" onChange={n => nestedPattern({ gap: n })} />
+        </>}
+        {design.kind === 'asset' && <>
+          <label className="control"><span><b>투명 PNG 업로드</b></span><input type="file" accept="image/png,image/webp,image/svg+xml" onChange={e => onUploadAsset(e.target.files?.[0])} /></label>
+          {design.pattern.customAssetName && <div className="mini-badge">현재 파일: {design.pattern.customAssetName}</div>}
+          <p className="hint">하트 PNG, 리본 PNG, 꽃 PNG, 작은 스티커 PNG를 원형 반복 프레임으로 만들 수 있습니다.</p>
         </>}
         <Slider label="랜덤 Seed" value={design.pattern.seed} min={1} max={9999} onChange={n => nestedPattern({ seed: Math.round(n) })} />
       </section>

@@ -58,8 +58,8 @@ export interface FramePattern {
   decorationRotation: number
   keepUpright: boolean
 
-  colorCount: 1 | 2 | 3
-  paletteColors: [string, string, string]
+  colorCount: 1 | 2 | 3 | 4
+  paletteColors: [string, string, string, string]
 
   customAssetUrl: string
   customAssetName: string
@@ -87,7 +87,7 @@ export interface FrameDesign {
 }
 
 export interface FrameProject {
-  version: '0.4'
+  version: '0.5'
   width: 2000
   height: 2000
   autoFit: boolean

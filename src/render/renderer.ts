@@ -25,12 +25,7 @@ function makeGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: nu
   const angle = (design.gradientAngle * Math.PI) / 180
   if (design.gradientMode === 'linear') {
     const d = r * 1.55
-    gradient = ctx.createLinearGradient(
-      cx - Math.cos(angle) * d,
-      cy - Math.sin(angle) * d,
-      cx + Math.cos(angle) * d,
-      cy + Math.sin(angle) * d,
-    )
+    gradient = ctx.createLinearGradient(cx - Math.cos(angle) * d, cy - Math.sin(angle) * d, cx + Math.cos(angle) * d, cy + Math.sin(angle) * d)
   } else if (design.gradientMode === 'radial') {
     gradient = ctx.createRadialGradient(cx, cy, Math.max(1, r * .2), cx, cy, r * 1.15)
   } else {
@@ -50,18 +45,7 @@ function strokeCircle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: 
   ctx.stroke()
 }
 
-function irregularPath(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  r: number,
-  roughness: number,
-  rotation: number,
-  seed: number,
-  scallop = false,
-  waveCount = 16,
-  amplitude = 12,
-) {
+function irregularPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, roughness: number, rotation: number, seed: number, scallop = false, waveCount = 16, amplitude = 12) {
   const rand = seeded(seed)
   const points = 240
   ctx.beginPath()
@@ -114,32 +98,53 @@ function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
   ctx.rotate(rotation)
   const s = size / 22
   ctx.scale(s, s)
+
+  // 둥글고 아기자기한 리본 실루엣
   ctx.beginPath()
-  ctx.moveTo(-16, -2)
-  ctx.quadraticCurveTo(-7, -12, -1, -3)
-  ctx.quadraticCurveTo(-7, 2, -16, -2)
+  ctx.moveTo(-2.2, -0.8)
+  ctx.bezierCurveTo(-8.5, -12.8, -23.5, -11.3, -18.6, -0.8)
+  ctx.bezierCurveTo(-15.9, 4.8, -8.1, 6.9, -2.2, 2.5)
+  ctx.bezierCurveTo(-0.8, 1.5, -0.3, 0.1, -2.2, -0.8)
   ctx.closePath()
   ctx.fill()
+
   ctx.beginPath()
-  ctx.moveTo(16, -2)
-  ctx.quadraticCurveTo(7, -12, 1, -3)
-  ctx.quadraticCurveTo(7, 2, 16, -2)
+  ctx.moveTo(2.2, -0.8)
+  ctx.bezierCurveTo(8.5, -12.8, 23.5, -11.3, 18.6, -0.8)
+  ctx.bezierCurveTo(15.9, 4.8, 8.1, 6.9, 2.2, 2.5)
+  ctx.bezierCurveTo(0.8, 1.5, 0.3, 0.1, 2.2, -0.8)
   ctx.closePath()
   ctx.fill()
+
   ctx.beginPath()
-  ctx.arc(0, 0, 4.8, 0, TAU)
-  ctx.fill()
-  ctx.beginPath()
-  ctx.moveTo(-3, 4)
-  ctx.lineTo(-10, 17)
-  ctx.lineTo(-1, 12)
+  ctx.moveTo(-2.4, 3.3)
+  ctx.bezierCurveTo(-5.6, 10.5, -11.2, 13.4, -13.1, 20.2)
+  ctx.lineTo(-5.2, 15.8)
+  ctx.lineTo(-1.6, 22)
+  ctx.bezierCurveTo(-0.5, 15.2, 0.4, 10.7, 2.4, 4.1)
   ctx.closePath()
   ctx.fill()
+
   ctx.beginPath()
-  ctx.moveTo(3, 4)
-  ctx.lineTo(10, 17)
-  ctx.lineTo(1, 12)
+  ctx.moveTo(2.4, 3.3)
+  ctx.bezierCurveTo(5.6, 10.5, 11.2, 13.4, 13.1, 20.2)
+  ctx.lineTo(5.2, 15.8)
+  ctx.lineTo(1.6, 22)
+  ctx.bezierCurveTo(0.5, 15.2, -0.4, 10.7, -2.4, 4.1)
   ctx.closePath()
+  ctx.fill()
+
+  const oldAlpha = ctx.globalAlpha
+  ctx.globalAlpha = oldAlpha * 0.18
+  ctx.fillStyle = '#FFFFFF'
+  ctx.beginPath()
+  ctx.ellipse(-9.5, -5.2, 4.4, 2.3, -0.4, 0, TAU)
+  ctx.ellipse(9.5, -5.2, 4.4, 2.3, 0.4, 0, TAU)
+  ctx.fill()
+  ctx.globalAlpha = oldAlpha
+
+  ctx.beginPath()
+  ctx.ellipse(0, 0, 4.8, 5.3, 0, 0, TAU)
   ctx.fill()
   ctx.restore()
 }
@@ -166,7 +171,7 @@ function drawFlower(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
 }
 
 function palette(design: FrameDesign) {
-  const count = Math.max(1, Math.min(3, design.pattern.colorCount))
+  const count = Math.max(1, Math.min(4, design.pattern.colorCount))
   return design.pattern.paletteColors.slice(0, count).map((c, i) => validColor(c, i === 0 ? design.color : design.secondaryColor))
 }
 
@@ -237,8 +242,6 @@ function drawAssetDecorations(ctx: CanvasRenderingContext2D, cx: number, cy: num
     const y = cy + Math.sin(a) * orbit
     const source = design.pattern.assetTintMode === 'palette' ? getTintedImage(url, colors[i % colors.length]) ?? img : img
     const aspect = source.width / Math.max(1, source.height)
-    // decorationSize는 업로드 이미지의 '가장 긴 변의 절반'으로 취급합니다.
-    // 가로로 긴 PNG가 링 밖으로 과도하게 튀어나가 PNG 저장 시 잘리는 문제를 방지합니다.
     const maxSide = size * 2
     const w = aspect >= 1 ? maxSide : maxSide * aspect
     const h = aspect >= 1 ? maxSide / aspect : maxSide
@@ -449,14 +452,12 @@ export function estimateDesignExtent(design: FrameDesign) {
     case 'ribbon':
     case 'flower':
     case 'asset':
-      geometry = Math.abs(r + design.pattern.decorationOffset) + Math.max(1, design.pattern.decorationSize)
+      geometry = Math.abs(r + design.pattern.decorationOffset) + Math.max(1, design.pattern.decorationSize) * 1.1
       break
     default:
       break
   }
 
-  // Canvas의 blur/shadow는 경계 밖으로 여러 blur-radius만큼 퍼질 수 있습니다.
-  // v0.3에서는 이 영역을 작게 계산해 고해상도 PNG에서 외곽이 잘릴 수 있었습니다.
   const glow = design.effects.glowEnabled ? Math.max(0, design.effects.glowBlur) * 2.6 : 0
   const bloom = Math.max(0, design.effects.bloom) * .12 * 3
   const softBlur = Math.max(0, design.effects.softBlur) * 3
@@ -471,7 +472,6 @@ export function estimateDesignExtent(design: FrameDesign) {
 export function getProjectFitScale(project: FrameProject) {
   if (!project.autoFit) return 1
   const extent = estimateDesignExtent(project.design)
-  // 2000×2000 기준 최소 50px의 투명 안전 여백을 유지합니다.
   return Math.min(1.18, 950 / Math.max(1, extent))
 }
 

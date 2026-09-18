@@ -1,89 +1,118 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import CanvasPanel from './components/CanvasPanel'
-import LayerPanel from './components/LayerPanel'
 import PresetBrowser from './components/PresetBrowser'
 import PropertyPanel from './components/PropertyPanel'
-import { createLayer } from './presets'
-import type { FramePreset, FrameProject, RingLayer } from './types'
+import { createDesign } from './presets'
+import type { FrameDesign, FramePreset, FrameProject } from './types'
 import { downloadProject, exportPng } from './utils/export'
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v02'
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v02'
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v04'
+const LEGACY_AUTOSAVE_KEY = 'circle-frame-studio-project-v03'
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v04'
+const LEGACY_USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v03'
 
-function normalizeLayer(source: Partial<RingLayer>): RingLayer {
-  const base = createLayer(source.kind ?? 'basic', source.name ?? 'Layer')
-  const merged: RingLayer = {
+function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
+  const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
+  const legacyPattern = source.pattern as (Partial<FrameDesign['pattern']> & { alternateColors?: boolean }) | undefined
+  const paletteColors: [string, string, string] = legacyPattern?.paletteColors?.length === 3
+    ? legacyPattern.paletteColors as [string, string, string]
+    : [source.color ?? base.color, source.secondaryColor ?? base.secondaryColor, '#F3A9C8']
+  return {
     ...base,
     ...source,
     effects: { ...base.effects, ...(source.effects ?? {}) },
-    pattern: { ...base.pattern, ...(source.pattern ?? {}) },
+    pattern: {
+      ...base.pattern,
+      ...(legacyPattern ?? {}),
+      paletteColors,
+      colorCount: legacyPattern?.colorCount ?? (legacyPattern?.alternateColors ? 2 : base.pattern.colorCount),
+    },
     gradientStops: source.gradientStops?.length ? source.gradientStops : base.gradientStops,
+    id: source.id || uid('design'),
   }
-  if (!merged.id) merged.id = uid('layer')
-  return merged
 }
 
 function normalizeProject(source: any): FrameProject {
-  const layers = Array.isArray(source?.layers) ? source.layers.map(normalizeLayer) : []
-  if (layers.length === 0) return makeInitialProject()
-  return {
-    version: '0.2',
-    width: 2000,
-    height: 2000,
-    autoFit: typeof source?.autoFit === 'boolean' ? source.autoFit : true,
-    selectedLayerId: source?.selectedLayerId ?? layers[0]?.id ?? null,
-    layers,
+  if (source?.design) {
+    return {
+      version: '0.4',
+      width: 2000,
+      height: 2000,
+      autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
+      design: normalizeDesign(source.design),
+    }
   }
+
+  // v0.1 / v0.2 프로젝트 호환: 선택 레이어 하나만 단일 디자인으로 가져옵니다.
+  if (Array.isArray(source?.layers) && source.layers.length > 0) {
+    const picked = source.layers.find((x: any) => x.id === source.selectedLayerId) ?? source.layers[source.layers.length - 1]
+    return {
+      version: '0.4',
+      width: 2000,
+      height: 2000,
+      autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
+      design: normalizeDesign(picked),
+    }
+  }
+
+  return makeInitialProject()
 }
 
 function makeInitialProject(): FrameProject {
-  const base = createLayer('glossy', 'Lavender Glossy')
-  base.radius = 715
-  base.thickness = 62
-  base.gradientMode = 'conic'
-  base.gradientStops = [
-    { id: uid('stop'), position: 0, color: '#7F78C9' },
-    { id: uid('stop'), position: .34, color: '#B0A6EB' },
-    { id: uid('stop'), position: .68, color: '#E3B9DB' },
-    { id: uid('stop'), position: 1, color: '#7F78C9' },
-  ]
-  base.effects.glowEnabled = true
-  base.effects.glowColor = '#A99BEF'
-  base.effects.glowBlur = 34
-  base.effects.glowIntensity = .28
-
-  const deco = createLayer('heart', 'Alt Heart Wreath')
-  deco.radius = 825
-  deco.color = '#F4C455'
-  deco.secondaryColor = '#8DC5FF'
-  deco.pattern.decorationCount = 34
-  deco.pattern.decorationSize = 14
-  deco.pattern.decorationOffset = 0
-  deco.pattern.alternateColors = true
-  deco.pattern.keepUpright = true
-  deco.opacity = .96
-
-  return { version: '0.2', width: 2000, height: 2000, autoFit: true, selectedLayerId: base.id, layers: [base, deco] }
+  const design = createDesign('heart', 'Three Color Heart Ring')
+  design.radius = 800
+  design.pattern.decorationLayout = 'spacing'
+  design.pattern.decorationSpacing = 132
+  design.pattern.decorationSize = 17
+  design.pattern.decorationOffset = 8
+  design.pattern.keepUpright = true
+  design.pattern.colorCount = 3
+  design.pattern.paletteColors = ['#F4C455', '#8DC5FF', '#F3A9C8']
+  return { version: '0.4', width: 2000, height: 2000, autoFit: true, design }
 }
 
 function loadInitialProject() {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY)
+    const raw = localStorage.getItem(AUTOSAVE_KEY) ?? localStorage.getItem(LEGACY_AUTOSAVE_KEY)
     if (raw) return normalizeProject(JSON.parse(raw))
   } catch {
-    /* ignore corrupted autosave */
+    /* ignore */
   }
   return makeInitialProject()
 }
 
 function loadUserPresets(): FramePreset[] {
   try {
-    const raw = localStorage.getItem(USER_PRESETS_KEY)
+    const raw = localStorage.getItem(USER_PRESETS_KEY) ?? localStorage.getItem(LEGACY_USER_PRESETS_KEY)
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
+  }
+}
+
+async function optimizeAsset(file: File): Promise<string> {
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = reject
+      el.src = url
+    })
+    const maxSide = 512
+    const scale = Math.min(1, maxSide / Math.max(1, img.width, img.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(img.width * scale))
+    canvas.height = Math.max(1, Math.round(img.height * scale))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('canvas unavailable')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/png')
+  } finally {
+    URL.revokeObjectURL(url)
   }
 }
 
@@ -122,11 +151,11 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(project))
+    try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(project)) } catch { /* quota */ }
   }, [project])
 
   useEffect(() => {
-    localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(userPresets))
+    try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(userPresets)) } catch { /* quota */ }
   }, [userPresets])
 
   useEffect(() => {
@@ -140,82 +169,39 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [project, redo, undo])
 
-  const selected = project.layers.find(x => x.id === project.selectedLayerId) ?? null
-
-  const addPreset = (preset: FramePreset) => {
+  const selectPreset = (preset: FramePreset) => {
     commit(draft => {
-      const layer = structuredClone(preset.layer)
-      layer.id = uid('layer')
-      layer.name = preset.name
-      layer.locked = false
-      draft.layers.push(layer)
-      draft.selectedLayerId = layer.id
+      const design = structuredClone(preset.design)
+      design.id = uid('design')
+      design.name = preset.name
+      draft.design = design
       return draft
     })
   }
 
-  const updateSelected = (next: RingLayer) => {
+  const updateDesign = (next: FrameDesign) => {
     commit(draft => {
-      const index = draft.layers.findIndex(x => x.id === next.id)
-      if (index >= 0 && !draft.layers[index].locked) draft.layers[index] = structuredClone(next)
+      draft.design = structuredClone(next)
       return draft
     })
   }
 
-  const patchLayer = (id: string, fn: (layer: RingLayer) => void) => commit(draft => {
-    const layer = draft.layers.find(x => x.id === id)
-    if (layer) fn(layer)
-    return draft
-  })
-
-  const duplicateLayer = (id: string) => commit(draft => {
-    const index = draft.layers.findIndex(x => x.id === id)
-    if (index < 0) return draft
-    const copy = structuredClone(draft.layers[index])
-    copy.id = uid('layer')
-    copy.name = `${copy.name} Copy`
-    copy.offsetX += 18
-    copy.offsetY += 18
-    copy.locked = false
-    draft.layers.splice(index + 1, 0, copy)
-    draft.selectedLayerId = copy.id
-    return draft
-  })
-
-  const deleteLayer = (id: string) => commit(draft => {
-    const index = draft.layers.findIndex(x => x.id === id)
-    if (index < 0 || draft.layers[index].locked) return draft
-    draft.layers.splice(index, 1)
-    if (draft.selectedLayerId === id) draft.selectedLayerId = draft.layers[Math.max(0, index - 1)]?.id ?? null
-    return draft
-  })
-
-  const moveLayer = (id: string, direction: -1 | 1) => commit(draft => {
-    const index = draft.layers.findIndex(x => x.id === id)
-    const next = index + direction
-    if (index < 0 || next < 0 || next >= draft.layers.length || draft.layers[index].locked) return draft
-    const [item] = draft.layers.splice(index, 1)
-    draft.layers.splice(next, 0, item)
-    return draft
-  })
-
-  const saveSelectedPreset = () => {
-    if (!selected) return
+  const saveCurrentPreset = () => {
     const preset: FramePreset = {
       id: uid('user-preset'),
       category: '내 프리셋',
-      name: `${selected.name} 저장`,
-      layer: { ...structuredClone(selected), id: uid('preset-layer'), locked: false },
+      name: `${project.design.name} 저장`,
+      design: { ...structuredClone(project.design), id: uid('preset-design') },
     }
     setUserPresets(prev => [preset, ...prev].slice(0, 100))
   }
 
   const sampleColor = (hex: string) => {
-    if (!selected || selected.locked) return
-    const next = structuredClone(selected)
+    const next = structuredClone(project.design)
     next.color = hex
+    next.pattern.paletteColors[0] = hex
     if (next.gradientMode !== 'solid' && next.gradientStops[0]) next.gradientStops[0].color = hex
-    updateSelected(next)
+    updateDesign(next)
   }
 
   const importProject = async (file?: File) => {
@@ -229,22 +215,36 @@ export default function App() {
   }
 
   const uploadAsset = async (file?: File) => {
-    if (!file || !selected) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const next = structuredClone(selected)
-      next.kind = 'asset'
-      next.pattern.customAssetUrl = String(reader.result ?? '')
-      next.pattern.customAssetName = file.name
-      if (next.pattern.decorationSize < 18) next.pattern.decorationSize = 22
-      next.name = next.name.includes('Custom') ? next.name : `${next.name} Asset`
-      updateSelected(next)
+    if (!file) return
+    if (!['image/png', 'image/webp', 'image/svg+xml'].includes(file.type) && !/\.(png|webp|svg)$/i.test(file.name)) {
+      alert('투명 배경 PNG / WebP / SVG 파일을 선택해 주세요.')
+      return
     }
-    reader.readAsDataURL(file)
+    try {
+      const dataUrl = await optimizeAsset(file)
+      commit(draft => {
+        const design = createDesign('asset', '내 PNG 반복 프레임')
+        design.radius = 790
+        design.pattern.customAssetUrl = dataUrl
+        design.pattern.customAssetName = file.name
+        design.pattern.decorationLayout = 'spacing'
+        design.pattern.decorationSpacing = 145
+        design.pattern.decorationSize = 24
+        design.pattern.decorationOffset = 10
+        design.pattern.keepUpright = true
+        design.pattern.assetTintMode = 'original'
+        design.pattern.colorCount = 3
+        design.pattern.paletteColors = ['#F4C455', '#8DC5FF', '#F3A9C8']
+        draft.design = design
+        return draft
+      })
+    } catch {
+      alert('이미지를 불러오지 못했습니다. PNG/WebP/SVG 파일인지 확인해 주세요.')
+    }
   }
 
   const reset = () => {
-    if (!confirm('현재 작업을 초기화할까요? 자동 저장된 작업도 새 프로젝트로 바뀝니다.')) return
+    if (!confirm('현재 프레임을 초기화할까요?')) return
     commit(() => makeInitialProject())
   }
 
@@ -253,10 +253,10 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.2 · Doodle / Neon / Ribbon / Custom PNG Wreath</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.4 · Preview = Export · Safe PNG Fit</span></div>
         </div>
         <div className="toolbar">
-          <button onClick={reset}>새 프로젝트</button>
+          <button onClick={reset}>새 프레임</button>
           <span className="toolbar-sep" />
           <button onClick={undo} title="Ctrl+Z">↶ 실행취소</button>
           <button onClick={redo} title="Ctrl+Y">↷ 다시실행</button>
@@ -269,27 +269,23 @@ export default function App() {
         </div>
       </header>
 
-      <main className="workspace">
-        <PresetBrowser onAdd={addPreset} userPresets={userPresets} />
-        <section className="center-column">
+      <main className="workspace single-workspace">
+        <PresetBrowser
+          onSelect={selectPreset}
+          userPresets={userPresets}
+          onUploadAsset={uploadAsset}
+          currentAssetName={project.design.kind === 'asset' ? project.design.pattern.customAssetName : ''}
+          currentAssetUrl={project.design.kind === 'asset' ? project.design.pattern.customAssetUrl : ''}
+        />
+        <section className="center-column single-center">
           <CanvasPanel project={project} onSampleColor={sampleColor} />
-          <LayerPanel
-            layers={project.layers}
-            selectedId={project.selectedLayerId}
-            onSelect={id => commit(d => ({ ...d, selectedLayerId: id }))}
-            onToggleVisible={id => patchLayer(id, layer => { layer.visible = !layer.visible })}
-            onToggleLock={id => patchLayer(id, layer => { layer.locked = !layer.locked })}
-            onDuplicate={duplicateLayer}
-            onDelete={deleteLayer}
-            onMove={moveLayer}
-          />
         </section>
-        <PropertyPanel layer={selected} onChange={updateSelected} onSavePreset={saveSelectedPreset} onUploadAsset={uploadAsset} />
+        <PropertyPanel design={project.design} onChange={updateDesign} onSavePreset={saveCurrentPreset} onUploadAsset={uploadAsset} />
       </main>
 
       <footer className="statusbar">
-        <span>프리셋 {userPresets.length + project.layers.length} · Alt+클릭 스포이드 · Custom PNG wreath 지원</span>
-        <span>{selected ? `선택: ${selected.name}` : '레이어를 선택하세요'}</span>
+        <span>프리셋을 누르면 현재 프레임이 교체됩니다 · 레이어 없음 · Alt+클릭 스포이드</span>
+        <span>현재 디자인: {project.design.name}</span>
       </footer>
     </div>
   )

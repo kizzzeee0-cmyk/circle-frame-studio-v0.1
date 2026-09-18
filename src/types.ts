@@ -19,6 +19,8 @@ export type RingKind =
   | 'glossy'
 
 export type GradientMode = 'solid' | 'linear' | 'radial' | 'conic'
+export type DecorationLayout = 'count' | 'spacing'
+export type AssetTintMode = 'original' | 'palette'
 
 export interface GradientStop {
   id: string
@@ -26,7 +28,7 @@ export interface GradientStop {
   color: string
 }
 
-export interface LayerEffects {
+export interface FrameEffects {
   glowEnabled: boolean
   glowColor: string
   glowBlur: number
@@ -40,31 +42,35 @@ export interface LayerEffects {
   shadowOffsetY: number
 }
 
-export interface RingPattern {
+export interface FramePattern {
   dash: number
   gap: number
-  segmentCount: number
   roughness: number
   strokeCount: number
   waveAmplitude: number
   waveCount: number
+
+  decorationLayout: DecorationLayout
   decorationCount: number
+  decorationSpacing: number
   decorationSize: number
   decorationOffset: number
   decorationRotation: number
-  alternateColors: boolean
   keepUpright: boolean
+
+  colorCount: 1 | 2 | 3
+  paletteColors: [string, string, string]
+
   customAssetUrl: string
   customAssetName: string
+  assetTintMode: AssetTintMode
   seed: number
 }
 
-export interface RingLayer {
+export interface FrameDesign {
   id: string
   name: string
   kind: RingKind
-  visible: boolean
-  locked: boolean
   radius: number
   thickness: number
   rotation: number
@@ -76,24 +82,23 @@ export interface RingLayer {
   gradientMode: GradientMode
   gradientAngle: number
   gradientStops: GradientStop[]
-  effects: LayerEffects
-  pattern: RingPattern
+  effects: FrameEffects
+  pattern: FramePattern
 }
 
 export interface FrameProject {
-  version: '0.2'
+  version: '0.4'
   width: 2000
   height: 2000
   autoFit: boolean
-  selectedLayerId: string | null
-  layers: RingLayer[]
+  design: FrameDesign
 }
 
 export interface FramePreset {
   id: string
   category: string
   name: string
-  layer: RingLayer
+  design: FrameDesign
 }
 
 export interface PaletteTemplate {

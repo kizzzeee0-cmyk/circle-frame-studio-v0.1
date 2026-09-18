@@ -1,35 +1,29 @@
-# Circle Frame Studio v0.2
+# Circle Frame Studio v0.4
 
-원형 프레임을 조합·수정하고 **테두리 이외의 부분을 모두 투명 배경 PNG**로 추출하는 React/Vite 기반 웹앱입니다.
+원형 프레임을 하나씩 선택·편집하고 2000×2000 투명 PNG로 저장하는 React/Vite 웹앱입니다.
 
-## v0.2 핵심 업데이트
+## v0.4 핵심 수정
 
-- 낙서 / 러프 / 브러시 / 네온 사인 느낌 프리셋 확장
-- 하트 / 리본 / 꽃 패턴 원형 프레임 추가
-- 장식 개수(간격), 크기, 거리, 회전 오프셋 조절
-- 기본 색상 + 보조 색상을 **번갈아 반복**하는 장식 패턴 지원
-- **투명 PNG 업로드 → 원형 반복 배치** 기능 추가
-  - 예: 하트, 리본, 꽃, 캐릭터 스티커 등을 원형 프레임으로 둘러 배치
-- Auto Fit 유지 + 2000×2000 투명 PNG 출력
-- JSON 저장/불러오기, 로컬 자동 저장, 내 프리셋 저장 유지
-- Cloudflare Pages 배포 시 빌드가 더 쉽게 되도록 `build` 스크립트를 `vite build`로 조정
+- **미리보기와 PNG 저장 렌더 해상도를 모두 2000×2000으로 통일**
+- 편집 화면에서 보이던 프레임과 저장 결과의 크기/배치를 동일하게 유지
+- Auto Fit 외곽 계산 강화
+- Glow / Shadow / Bloom / Soft Blur의 확산 범위를 안전 영역 계산에 반영
+- Double / Triple / Wavy / Scribble / Brush 등 프레임 종류별 실제 외곽 범위 계산
+- 하트 / 리본 / 꽃 / 도트 / 사용자 PNG 반복 장식의 외곽 범위 계산 개선
+- 사용자 PNG는 **가장 긴 변을 기준으로 장식 크기 적용**하여 가로로 긴 이미지가 과도하게 튀어나오지 않도록 수정
+- Auto Fit ON 기준 약 50px의 투명 안전 여백 확보
+- v0.3 자동 저장 및 내 프리셋 마이그레이션 지원
 
-## 추천 사용 예시
+기존 v0.3의 단일 프레임 편집, 1~3색 반복 팔레트, PNG/WebP/SVG 업로드 반복 프레임, 낙서/네온/브러시/리본/꽃 프리셋 기능은 그대로 유지됩니다.
 
-- 프로필 사진 원형 테두리
-- 움짤 프사용 네온 링
-- 귀여운 리본/하트 도트 링
-- 꽃/리본 레이스형 프레임
-- 업로드한 투명 PNG를 이용한 커스텀 장식 프레임
-
-## 실행 방법
+## 실행
 
 ```bash
 npm install
 npm run dev
 ```
 
-브라우저에서 `http://localhost:5173/` 접속.
+브라우저에서 `http://localhost:5173/`로 접속합니다.
 
 ## 빌드
 
@@ -37,29 +31,15 @@ npm run dev
 npm run build
 ```
 
-## Cloudflare Pages 권장 설정
+## Cloudflare Pages
 
-- Framework preset: **Vite** 또는 **None**
 - Build command: `npm run build`
 - Build output directory: `dist`
 - Root directory: 비워두기
 
-## 프로젝트 구조
+## 파일
 
-```text
-src/
-├─ components/
-├─ presets/
-├─ render/
-├─ utils/
-├─ App.tsx
-├─ styles.css
-├─ global.d.ts
-└─ vite-env.d.ts
-```
-
-## 참고 사항
-
-- `asset` 종류 레이어를 선택하면 투명 PNG/WebP/SVG를 업로드할 수 있습니다.
-- 업로드한 이미지는 데이터 URL 형태로 프로젝트 JSON에 저장될 수 있으므로, 파일 크기가 너무 크면 JSON도 커질 수 있습니다.
-- 프리셋은 단일 레이어 추가 방식입니다. 여러 레이어를 조합해 더 복잡한 프레임을 만들 수 있습니다.
+- `V04_PLAN.md`: v0.4 수정 계획서
+- `src/render/renderer.ts`: 프레임 렌더링 및 Safe Fit 계산
+- `src/components/CanvasPanel.tsx`: 2000×2000 실제 미리보기 캔버스
+- `src/utils/export.ts`: 2000×2000 투명 PNG 저장

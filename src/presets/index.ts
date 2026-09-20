@@ -117,6 +117,10 @@ export const PRESETS: FramePreset[] = [
   p('rough-bold', 'Scribble', 'Rough Bold', 'rough', { thickness: 18 }, { roughness: 24, strokeCount: 3 }),
   p('doodle-broken', 'Scribble', 'Doodle Broken', 'segmented', { thickness: 16 }, { dash: 110, gap: 26 }, { glowEnabled: false }),
   p('doodle-outline', 'Scribble', 'Loose Doodle Outline', 'rough', { thickness: 7, color: '#A48CE9' }, { roughness: 9, strokeCount: 4 }),
+  p('clean-double-sketch', 'Scribble', 'Clean Double Sketch', 'scribble', { thickness: 8, color: '#EE88AF', opacity: .96 }, { roughness: 2, strokeCount: 2 }),
+  p('soft-twin-sketch', 'Scribble', 'Soft Twin Sketch', 'scribble', { thickness: 10, color: '#F09BB9', opacity: .9 }, { roughness: 3, strokeCount: 2 }),
+  p('pastel-double-ring', 'Scribble', 'Pastel Double Ring', 'scribble', { thickness: 9, color: '#F4A4C2', opacity: .94 }, { roughness: 2.4, strokeCount: 2 }),
+  p('clean-twin-outline', 'Scribble', 'Clean Twin Outline', 'scribble', { thickness: 7, color: '#C08CCF', opacity: .98 }, { roughness: 1.2, strokeCount: 2 }),
 
   p('brush-dry', 'Brush', 'Dry Brush Circle', 'brush', { thickness: 34 }, { dash: 85, gap: 15, roughness: 25 }),
   p('brush-ink', 'Brush', 'Ink Brush Ring', 'brush', { thickness: 52 }, { dash: 115, gap: 10, roughness: 18 }),

@@ -281,6 +281,30 @@ function drawDecorations(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
   }
 }
 
+
+function drawEqualSegments(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rotation: number, dash: number, gap: number) {
+  const circumference = TAU * r
+  const safeDash = Math.max(1, dash)
+  const safeGap = Math.max(0, gap)
+
+  let count = Math.max(1, Math.round(circumference / Math.max(1, safeDash + safeGap)))
+  // gap이 너무 커서 실제 세그먼트 길이가 0 이하가 되는 경우를 방지
+  while (count > 1 && circumference - safeGap * count <= count) count -= 1
+
+  const segmentLength = Math.max(1, (circumference - safeGap * count) / count)
+  const segAngle = segmentLength / r
+  const gapAngle = safeGap / r
+  const startBase = rotation - Math.PI / 2
+
+  for (let i = 0; i < count; i++) {
+    const start = startBase + i * (segAngle + gapAngle)
+    const end = start + segAngle
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, start, end)
+    ctx.stroke()
+  }
+}
+
 function drawDots(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, design: FrameDesign, rotation: number, scale: number) {
   const orbitProject = design.radius + design.pattern.decorationOffset
   const orbit = r + design.pattern.decorationOffset * scale
@@ -386,7 +410,10 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
       strokeCircle(ctx, cx, cy, r + ringGap, rot)
       break
     }
-    case 'segmented':
+    case 'segmented': {
+      drawEqualSegments(ctx, cx, cy, r, rot, Math.max(1, design.pattern.dash * scale), Math.max(0, design.pattern.gap * scale))
+      break
+    }
     case 'arc': {
       ctx.setLineDash([Math.max(1, design.pattern.dash * scale), Math.max(1, design.pattern.gap * scale)])
       ctx.lineDashOffset = -(design.rotation / 360) * TAU * r

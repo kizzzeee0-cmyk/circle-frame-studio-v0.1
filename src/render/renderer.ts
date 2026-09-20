@@ -276,6 +276,7 @@ function drawDecorations(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
     const color = colors[i % colors.length]
     const centerColor = colors[(i + 1) % colors.length] ?? color
     ctx.fillStyle = color
+    ctx.strokeStyle = color
     drawDecorationAt(ctx, design, x, y, size, a, centerColor)
   }
 }

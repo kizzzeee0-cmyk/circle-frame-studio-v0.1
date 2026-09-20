@@ -24,6 +24,8 @@ const basePattern = () => ({
   strokeCount: 4,
   waveAmplitude: 18,
   waveCount: 20,
+  bulgeAmplitude: 12,
+  bulgeCount: 16,
   decorationLayout: 'count' as const,
   decorationCount: 18,
   decorationSpacing: 120,

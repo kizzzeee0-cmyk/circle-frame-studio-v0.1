@@ -55,7 +55,12 @@ export function getTintedImage(url: string, color: string) {
 }
 
 export async function preloadProjectAssets(project: FrameProject) {
-  const url = project.design.pattern.customAssetUrl
-  if (!url) return
-  await Promise.allSettled([loadImage(url)])
+  const urls = new Set<string>()
+  if (project.design.pattern.customAssetUrl) urls.add(project.design.pattern.customAssetUrl)
+  for (const layer of project.layers ?? []) {
+    const url = layer.design.pattern.customAssetUrl
+    if (url) urls.add(url)
+  }
+  if (!urls.size) return
+  await Promise.allSettled([...urls].map(loadImage))
 }

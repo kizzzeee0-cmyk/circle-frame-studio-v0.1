@@ -3,15 +3,15 @@ import CanvasPanel from './components/CanvasPanel'
 import PresetBrowser from './components/PresetBrowser'
 import PropertyPanel from './components/PropertyPanel'
 import { createDesign } from './presets'
-import type { FrameDesign, FramePreset, FrameProject } from './types'
+import type { FrameDesign, FrameLayer, FramePreset, FrameProject } from './types'
 import { downloadProject, exportPng } from './utils/export'
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v016'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v016'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v017'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v017'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -34,31 +34,71 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
       ...(legacyPattern ?? {}),
       paletteColors,
       colorCount,
+      bulgeAmplitude: Number(legacyPattern?.bulgeAmplitude ?? base.pattern.bulgeAmplitude),
+      bulgeCount: Math.max(0, Math.round(Number(legacyPattern?.bulgeCount ?? base.pattern.bulgeCount))),
     },
     gradientStops: source.gradientStops?.length ? source.gradientStops : base.gradientStops,
     id: source.id || uid('design'),
   }
 }
 
-function normalizeProject(source: any): FrameProject {
-  if (source?.design) {
-    return {
-      version: '0.16',
-      width: 2000,
-      height: 2000,
-      autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
-      design: normalizeDesign(source.design),
-    }
+function makeLayerFromDesign(source: Partial<FrameDesign>, layerName?: string): FrameLayer {
+  const design = normalizeDesign(source)
+  return {
+    id: uid('layer'),
+    name: layerName || design.name || '레이어',
+    visible: true,
+    design,
   }
+}
+
+function syncSelectedLayer(draft: FrameProject): FrameProject {
+  if (!draft.layers.length) {
+    const layer = makeLayerFromDesign(createDesign('basic', 'Circle Ring'), '레이어 1')
+    draft.layers = [layer]
+    draft.selectedLayerId = layer.id
+  }
+  const active = draft.layers.find(layer => layer.id === draft.selectedLayerId) ?? draft.layers[draft.layers.length - 1]
+  draft.selectedLayerId = active.id
+  draft.design = structuredClone(active.design)
+  return draft
+}
+
+function normalizeProject(source: any): FrameProject {
   if (Array.isArray(source?.layers) && source.layers.length > 0) {
-    const picked = source.layers.find((x: any) => x.id === source.selectedLayerId) ?? source.layers[source.layers.length - 1]
-    return {
-      version: '0.16',
+    const layers = source.layers.map((layer: any, index: number) => {
+      if (layer?.design) {
+        const normalized = makeLayerFromDesign(layer.design, layer.name || layer.design?.name || `레이어 ${index + 1}`)
+        normalized.id = layer.id || normalized.id
+        normalized.visible = layer.visible !== false
+        return normalized
+      }
+      const normalized = makeLayerFromDesign(layer, layer?.name || `레이어 ${index + 1}`)
+      normalized.id = layer?.id || normalized.id
+      normalized.visible = layer?.visible !== false
+      return normalized
+    })
+    return syncSelectedLayer({
+      version: '0.17',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
-      design: normalizeDesign(picked),
-    }
+      design: normalizeDesign(source.design ?? layers[layers.length - 1].design),
+      layers,
+      selectedLayerId: source.selectedLayerId ?? layers[layers.length - 1].id,
+    })
+  }
+  if (source?.design) {
+    const layer = makeLayerFromDesign(source.design, source.design?.name || '레이어 1')
+    return syncSelectedLayer({
+      version: '0.17',
+      width: 2000,
+      height: 2000,
+      autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
+      design: structuredClone(layer.design),
+      layers: [layer],
+      selectedLayerId: layer.id,
+    })
   }
   return makeInitialProject()
 }
@@ -73,7 +113,16 @@ function makeInitialProject(): FrameProject {
   design.pattern.keepUpright = true
   design.pattern.colorCount = 2
   design.pattern.paletteColors = ['#F8AFCF', '#FBD4E5', '#F8AFCF', '#FBD4E5']
-  return { version: '0.16', width: 2000, height: 2000, autoFit: true, design }
+  const layer = makeLayerFromDesign(design, design.name)
+  return {
+    version: '0.17',
+    width: 2000,
+    height: 2000,
+    autoFit: true,
+    design: structuredClone(layer.design),
+    layers: [layer],
+    selectedLayerId: layer.id,
+  }
 }
 
 function loadInitialProject() {
@@ -131,7 +180,8 @@ export default function App() {
       undoRef.current.push(structuredClone(prev))
       if (undoRef.current.length > 80) undoRef.current.shift()
       redoRef.current = []
-      return updater(structuredClone(prev))
+      const next = updater(structuredClone(prev))
+      return syncSelectedLayer(next)
     })
   }, [])
 
@@ -140,7 +190,7 @@ export default function App() {
       const last = undoRef.current.pop()
       if (!last) return prev
       redoRef.current.push(structuredClone(prev))
-      return last
+      return syncSelectedLayer(last)
     })
   }, [])
 
@@ -149,7 +199,7 @@ export default function App() {
       const next = redoRef.current.pop()
       if (!next) return prev
       undoRef.current.push(structuredClone(prev))
-      return next
+      return syncSelectedLayer(next)
     })
   }, [])
 
@@ -177,13 +227,27 @@ export default function App() {
       const design = structuredClone(preset.design)
       design.id = uid('design')
       design.name = preset.name
-      draft.design = design
+      const index = draft.layers.findIndex(layer => layer.id === draft.selectedLayerId)
+      if (index >= 0) {
+        draft.layers[index].design = design
+        draft.layers[index].name = design.name
+      } else {
+        const layer = makeLayerFromDesign(design, design.name)
+        draft.layers.push(layer)
+        draft.selectedLayerId = layer.id
+      }
+      draft.design = structuredClone(design)
       return draft
     })
   }
 
   const updateDesign = (next: FrameDesign) => {
     commit(draft => {
+      const index = draft.layers.findIndex(layer => layer.id === draft.selectedLayerId)
+      if (index >= 0) {
+        draft.layers[index].design = structuredClone(next)
+        draft.layers[index].name = next.name
+      }
       draft.design = structuredClone(next)
       return draft
     })
@@ -238,6 +302,15 @@ export default function App() {
         design.pattern.assetTintMode = 'original'
         design.pattern.colorCount = 4
         design.pattern.paletteColors = ['#F4C455', '#8DC5FF', '#F3A9C8', '#B8A5F2']
+        const index = draft.layers.findIndex(layer => layer.id === draft.selectedLayerId)
+        if (index >= 0) {
+          draft.layers[index].design = design
+          draft.layers[index].name = design.name
+        } else {
+          const layer = makeLayerFromDesign(design, design.name)
+          draft.layers.push(layer)
+          draft.selectedLayerId = layer.id
+        }
         draft.design = design
         return draft
       })
@@ -251,12 +324,85 @@ export default function App() {
     commit(() => makeInitialProject())
   }
 
+  const addLayer = () => {
+    commit(draft => {
+      const base = structuredClone(draft.design)
+      base.id = uid('design')
+      base.name = `${base.name} Copy`
+      const layer = makeLayerFromDesign(base, `레이어 ${draft.layers.length + 1}`)
+      layer.design.name = base.name
+      draft.layers.unshift(layer)
+      draft.selectedLayerId = layer.id
+      draft.design = structuredClone(layer.design)
+      return draft
+    })
+  }
+
+  const selectLayer = (layerId: string) => {
+    commit(draft => {
+      const layer = draft.layers.find(item => item.id === layerId)
+      if (layer) {
+        draft.selectedLayerId = layerId
+        draft.design = structuredClone(layer.design)
+      }
+      return draft
+    })
+  }
+
+  const renameLayer = (layerId: string, name: string) => {
+    commit(draft => {
+      const layer = draft.layers.find(item => item.id === layerId)
+      if (layer) {
+        layer.name = name
+        layer.design.name = name
+        if (draft.selectedLayerId === layerId) draft.design.name = name
+      }
+      return draft
+    })
+  }
+
+  const toggleLayerVisibility = (layerId: string) => {
+    commit(draft => {
+      const layer = draft.layers.find(item => item.id === layerId)
+      if (layer) layer.visible = !layer.visible
+      return draft
+    })
+  }
+
+  const moveLayer = (layerId: string, direction: -1 | 1) => {
+    commit(draft => {
+      const index = draft.layers.findIndex(item => item.id === layerId)
+      if (index < 0) return draft
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= draft.layers.length) return draft
+      const [layer] = draft.layers.splice(index, 1)
+      draft.layers.splice(nextIndex, 0, layer)
+      return draft
+    })
+  }
+
+  const deleteLayer = (layerId: string) => {
+    if (project.layers.length <= 1) {
+      alert('레이어는 최소 1개 이상 있어야 합니다.')
+      return
+    }
+    commit(draft => {
+      draft.layers = draft.layers.filter(layer => layer.id !== layerId)
+      if (draft.selectedLayerId === layerId && draft.layers.length) {
+        draft.selectedLayerId = draft.layers[0].id
+      }
+      return draft
+    })
+  }
+
+  const currentAssetLayer = project.layers.find(layer => layer.id === project.selectedLayerId)?.design ?? project.design
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.16 · Stable Effect Scale</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.17 · Layered Frame Builder</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>
@@ -277,18 +423,31 @@ export default function App() {
           onSelect={selectPreset}
           userPresets={userPresets}
           onUploadAsset={uploadAsset}
-          currentAssetName={project.design.kind === 'asset' ? project.design.pattern.customAssetName : ''}
-          currentAssetUrl={project.design.kind === 'asset' ? project.design.pattern.customAssetUrl : ''}
+          currentAssetName={currentAssetLayer.kind === 'asset' ? currentAssetLayer.pattern.customAssetName : ''}
+          currentAssetUrl={currentAssetLayer.kind === 'asset' ? currentAssetLayer.pattern.customAssetUrl : ''}
         />
         <section className="center-column single-center">
           <CanvasPanel project={project} onSampleColor={sampleColor} />
         </section>
-        <PropertyPanel design={project.design} onChange={updateDesign} onSavePreset={saveCurrentPreset} onUploadAsset={uploadAsset} />
+        <PropertyPanel
+          design={project.design}
+          onChange={updateDesign}
+          onSavePreset={saveCurrentPreset}
+          onUploadAsset={uploadAsset}
+          layers={project.layers}
+          selectedLayerId={project.selectedLayerId}
+          onAddLayer={addLayer}
+          onSelectLayer={selectLayer}
+          onRenameLayer={renameLayer}
+          onToggleLayerVisibility={toggleLayerVisibility}
+          onMoveLayer={moveLayer}
+          onDeleteLayer={deleteLayer}
+        />
       </main>
 
       <footer className="statusbar">
-        <span>프리셋을 누르면 현재 프레임이 교체됩니다 · 레이어 없음 · Alt+클릭 스포이드</span>
-        <span>현재 디자인: {project.design.name}</span>
+        <span>프리셋은 현재 선택된 레이어만 교체됩니다 · 레이어 순서 변경 가능 · Alt+클릭 스포이드</span>
+        <span>현재 레이어: {project.layers.find(layer => layer.id === project.selectedLayerId)?.name ?? project.design.name} · 총 {project.layers.length}개</span>
       </footer>
     </div>
   )

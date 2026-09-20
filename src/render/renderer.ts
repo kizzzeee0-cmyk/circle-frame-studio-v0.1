@@ -45,13 +45,14 @@ function strokeCircle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: 
   ctx.stroke()
 }
 
-function irregularPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, roughness: number, rotation: number, seed: number, scallop = false, waveCount = 16, amplitude = 12) {
+function irregularPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, roughness: number, rotation: number, seed: number, scallop = false, waveCount = 0, amplitude = 0) {
   const rand = seeded(seed)
   const points = 240
   ctx.beginPath()
   for (let i = 0; i <= points; i++) {
     const t = (i / points) * TAU + rotation - Math.PI / 2
-    const wave = scallop ? Math.abs(Math.sin((t + rotation) * waveCount / 2)) * amplitude : Math.sin((t + rotation) * waveCount) * amplitude
+    const hasBulge = waveCount > 0 && amplitude !== 0
+    const wave = !hasBulge ? 0 : scallop ? Math.abs(Math.sin((t + rotation) * waveCount / 2)) * amplitude : Math.sin((t + rotation) * waveCount) * amplitude
     const noise = scallop ? 0 : (rand() - .5) * roughness * 2
     const rr = r + wave + noise
     const x = cx + Math.cos(t) * rr
@@ -433,7 +434,7 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
     case 'scribble': {
       const count = Math.max(2, Math.round(design.pattern.strokeCount))
       for (let i = 0; i < count; i++) {
-        irregularPath(ctx, cx, cy, r + (i - count / 2) * design.thickness * .42 * scale, design.pattern.roughness * scale, rot, design.pattern.seed + i * 97)
+        irregularPath(ctx, cx, cy, r + (i - count / 2) * design.thickness * .42 * scale, design.pattern.roughness * scale, rot, design.pattern.seed + i * 97, false, design.pattern.bulgeCount, design.pattern.bulgeAmplitude * scale)
         ctx.stroke()
       }
       break
@@ -441,7 +442,7 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
     case 'rough': {
       const count = Math.max(1, Math.round(design.pattern.strokeCount))
       for (let i = 0; i < count; i++) {
-        irregularPath(ctx, cx, cy, r, design.pattern.roughness * scale, rot, design.pattern.seed + i * 41)
+        irregularPath(ctx, cx, cy, r, design.pattern.roughness * scale, rot, design.pattern.seed + i * 41, false, design.pattern.bulgeCount, design.pattern.bulgeAmplitude * scale)
         ctx.stroke()
       }
       break
@@ -538,14 +539,14 @@ export function estimateDesignExtent(design: FrameDesign) {
     case 'scribble': {
       const count = Math.max(2, Math.round(design.pattern.strokeCount))
       const outerStrokeOffset = (count / 2) * thickness * .42
-      geometry = r + outerStrokeOffset + Math.abs(design.pattern.roughness) + halfLine
+      geometry = r + outerStrokeOffset + Math.abs(design.pattern.roughness) + Math.abs(design.pattern.bulgeAmplitude) + halfLine
       break
     }
     case 'rough':
-      geometry = r + Math.abs(design.pattern.roughness) + halfLine
+      geometry = r + Math.abs(design.pattern.roughness) + Math.abs(design.pattern.bulgeAmplitude) + halfLine
       break
     case 'brush':
-      geometry = r + Math.abs(design.pattern.roughness) + thickness
+      geometry = r + Math.abs(design.pattern.roughness) + Math.abs(design.pattern.bulgeAmplitude) + thickness
       break
     case 'dotted':
       geometry = Math.abs(r + design.pattern.decorationOffset) + Math.max(1, design.pattern.decorationSize) / 2
@@ -572,9 +573,17 @@ export function estimateDesignExtent(design: FrameDesign) {
   return geometry + outline + offset + 8
 }
 
+function projectLayers(project: FrameProject) {
+  if (Array.isArray(project.layers) && project.layers.length) {
+    return project.layers.filter(layer => layer.visible !== false).map(layer => layer.design).reverse()
+  }
+  return [project.design]
+}
+
 export function getProjectFitScale(project: FrameProject) {
   if (!project.autoFit) return 1
-  const extent = estimateDesignExtent(project.design)
+  const designs = projectLayers(project)
+  const extent = Math.max(...designs.map(estimateDesignExtent), estimateDesignExtent(project.design))
   return Math.min(1.18, 950 / Math.max(1, extent))
 }
 
@@ -585,5 +594,7 @@ export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, 
   const baseScale = canvas.width / project.width
   const fitScale = forcedFitScale ?? getProjectFitScale(project)
   const scale = baseScale * fitScale
-  drawDesign(ctx, project.design, scale, canvas.width, canvas.height)
+  for (const design of projectLayers(project)) {
+    drawDesign(ctx, design, scale, canvas.width, canvas.height)
+  }
 }

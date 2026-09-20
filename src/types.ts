@@ -52,6 +52,8 @@ export interface FramePattern {
   strokeCount: number
   waveAmplitude: number
   waveCount: number
+  bulgeAmplitude: number
+  bulgeCount: number
 
   decorationLayout: DecorationLayout
   decorationCount: number
@@ -89,12 +91,21 @@ export interface FrameDesign {
   pattern: FramePattern
 }
 
+export interface FrameLayer {
+  id: string
+  name: string
+  visible: boolean
+  design: FrameDesign
+}
+
 export interface FrameProject {
-  version: '0.16'
+  version: '0.17'
   width: 2000
   height: 2000
   autoFit: boolean
   design: FrameDesign
+  layers: FrameLayer[]
+  selectedLayerId: string
 }
 
 export interface FramePreset {

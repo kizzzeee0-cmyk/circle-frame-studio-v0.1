@@ -1,12 +1,20 @@
-import type { FrameDesign, GradientMode } from '../types'
+import type { FrameDesign, FrameLayer, GradientMode } from '../types'
 import { PALETTES } from '../presets/palettes'
 import { uid } from '../utils/id'
 
 interface Props {
   design: FrameDesign
+  layers: FrameLayer[]
+  selectedLayerId: string
   onChange: (next: FrameDesign) => void
   onSavePreset: () => void
   onUploadAsset: (file?: File) => void
+  onAddLayer: () => void
+  onSelectLayer: (layerId: string) => void
+  onRenameLayer: (layerId: string, name: string) => void
+  onToggleLayerVisibility: (layerId: string) => void
+  onMoveLayer: (layerId: string, direction: -1 | 1) => void
+  onDeleteLayer: (layerId: string) => void
 }
 
 function hexOkay(value: string) {
@@ -48,7 +56,20 @@ function ColorField({ label, value, onChange, eyedrop = false }: { label: string
   )
 }
 
-export default function PropertyPanel({ design, onChange, onSavePreset, onUploadAsset }: Props) {
+export default function PropertyPanel({
+  design,
+  layers,
+  selectedLayerId,
+  onChange,
+  onSavePreset,
+  onUploadAsset,
+  onAddLayer,
+  onSelectLayer,
+  onRenameLayer,
+  onToggleLayerVisibility,
+  onMoveLayer,
+  onDeleteLayer,
+}: Props) {
   const patch = (partial: Partial<FrameDesign>) => onChange({ ...design, ...partial })
   const nestedEffects = (partial: Partial<FrameDesign['effects']>) => patch({ effects: { ...design.effects, ...partial } })
   const nestedPattern = (partial: Partial<FrameDesign['pattern']>) => patch({ pattern: { ...design.pattern, ...partial } })
@@ -92,6 +113,41 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
       </div>
 
       <section className="property-section">
+        <h3>레이어</h3>
+        <div className="layer-actions">
+          <button type="button" className="soft-button" onClick={onAddLayer}>+ 레이어 추가</button>
+        </div>
+        <div className="layer-list">
+          {layers.map((layer, index) => {
+            const active = layer.id === selectedLayerId
+            return (
+              <div key={layer.id} className={active ? 'layer-card active' : 'layer-card'}>
+                <div className="layer-row-top">
+                  <button type="button" className="layer-select" onClick={() => onSelectLayer(layer.id)} title="이 레이어 편집">
+                    <strong>#{index + 1}</strong>
+                    <span>{layer.visible ? '보임' : '숨김'}</span>
+                  </button>
+                  <input
+                    className="layer-name-input"
+                    value={layer.name}
+                    onChange={e => onRenameLayer(layer.id, e.target.value)}
+                    onFocus={() => onSelectLayer(layer.id)}
+                  />
+                </div>
+                <div className="layer-row-actions">
+                  <button type="button" className="tiny-button" onClick={() => onToggleLayerVisibility(layer.id)}>{layer.visible ? '숨기기' : '보이기'}</button>
+                  <button type="button" className="tiny-button" disabled={index === 0} onClick={() => onMoveLayer(layer.id, -1)}>위로</button>
+                  <button type="button" className="tiny-button" disabled={index === layers.length - 1} onClick={() => onMoveLayer(layer.id, 1)}>아래로</button>
+                  <button type="button" className="tiny-button" disabled={layers.length <= 1} onClick={() => onDeleteLayer(layer.id)}>삭제</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <p className="hint">위에 있는 레이어가 더 앞쪽에 그려집니다. 서로 다른 프레임 2개를 추가해 겹쳐서 하나의 원형 프레임처럼 만들 수 있습니다.</p>
+      </section>
+
+      <section className="property-section">
         <h3>기본</h3>
         <label className="control"><span><b>이름</b></span><input value={design.name} onChange={e => patch({ name: e.target.value })} /></label>
         <label className="control"><span><b>프레임 종류</b></span>
@@ -118,8 +174,8 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
           {design.kind === 'asset' && (
             <label className="control"><span><b>업로드 PNG 색상 방식</b></span>
               <select value={design.pattern.assetTintMode} onChange={e => nestedPattern({ assetTintMode: e.target.value as 'original' | 'palette' })}>
-                <option value="original">원본 이미지 색상 유지</option>
-                <option value="palette">투명 모양만 사용해 팔레트 색상 적용</option>
+                <option value="original">원본 색상 유지</option>
+                <option value="palette">팔레트 색상으로 재색칠</option>
               </select>
             </label>
           )}
@@ -200,6 +256,8 @@ export default function PropertyPanel({ design, onChange, onSavePreset, onUpload
           <Slider label="빈 공간 길이" value={design.pattern.gap} min={5} max={500} suffix="px" onChange={n => nestedPattern({ gap: n })} />
         </>}
         {['scribble','rough','brush'].includes(design.kind) && <Slider label="거칠기" value={design.pattern.roughness} min={0} max={60} onChange={n => nestedPattern({ roughness: n })} />}
+        {['scribble','rough','brush'].includes(design.kind) && <Slider label="볼록한 정도" value={design.pattern.bulgeAmplitude} min={0} max={40} suffix="px" onChange={n => nestedPattern({ bulgeAmplitude: n })} />}
+        {['scribble','rough','brush'].includes(design.kind) && <Slider label="볼록 개수" value={design.pattern.bulgeCount} min={0} max={36} onChange={n => nestedPattern({ bulgeCount: Math.round(n) })} />}
         {['scribble','rough'].includes(design.kind) && <Slider label="겹쳐 그리기" value={design.pattern.strokeCount} min={1} max={9} onChange={n => nestedPattern({ strokeCount: Math.round(n) })} />}
         {['wavy','scallop'].includes(design.kind) && <>
           <Slider label="물결 높이" value={design.pattern.waveAmplitude} min={0} max={80} suffix="px" onChange={n => nestedPattern({ waveAmplitude: n })} />

@@ -1,25 +1,74 @@
 # Circle Frame Studio v0.18
 
-이번 버전은 **흰색 + 한가지색** 조합의 2색 그라데이션 원형 프레임을 더 자연스럽게 만들기 위한 업데이트입니다.
+원형 프레임을 만들고 **테두리 외부는 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
-## 주요 추가
-- Soft Lavender Duo
-- Soft Pink Duo
-- Soft Sky Duo
-- Soft Mint Duo
-- Inner White Lavender
-- Outer White Lavender
-- Glossy Lavender Duo
-- Pastel Sheen Purple
+## v0.17 핵심 업데이트
 
-그라데이션 연결부가 어색하게 끊기지 않도록 stop 비율을 부드럽게 조정했습니다.
+### 1) 낙서형 원의 볼록함 세부 조절 추가
+이제 Scribble / Rough / Brush 계열에서 아래 항목을 따로 조절할 수 있습니다.
 
-## 실행
+- **거칠기**: 손그림 느낌의 랜덤 흔들림 강도
+- **볼록한 정도**: 둥글게 튀어나오는 굴곡 강도
+- **볼록 개수**: 볼록한 부분이 몇 개 생길지 조절
+
+즉, 기존처럼 거칠기를 낮춰도 지나치게 볼록한 느낌이 남는 문제를 줄이고,
+보다 **매끈한 낙서형**부터 **살짝 손그린 느낌**까지 세밀하게 조절할 수 있습니다.
+
+### 2) 레이어 추가 / 순서 변경 기능
+이제 프레임을 **레이어로 여러 개 겹쳐서** 하나의 결과물로 만들 수 있습니다.
+
+지원 기능:
+- **레이어 추가**
+- **레이어 선택 후 개별 편집**
+- **레이어 이름 변경**
+- **레이어 보이기 / 숨기기**
+- **레이어 순서 위/아래 이동**
+- **레이어 삭제**
+
+예를 들어:
+- 아래 레이어에는 깔끔한 원형 2중선
+- 위 레이어에는 하트 / 별 / 낙서형 라인
+
+처럼 조합해서 **하나의 복합 프레임**을 만들 수 있습니다.
+
+## 유지 기능
+- Glow / Shadow 사용 시 원 크기 유지
+- 끊긴형(Broken) 균등 길이 유지
+- 별/스파클 전체 색상 일괄 변경 유지
+- 손그림 2겹 원 프리셋 유지
+- 1/2/3/4색 패턴 반복 유지
+- PNG 업로드 반복 프레임 유지
+- 미리보기 = 저장 결과 일치 유지
+- 2000×2000 투명 PNG 저장 유지
+
+## 실행 방법
+
 ```bash
 npm install
 npm run dev
 ```
 
-## Cloudflare Pages
-- Build command: `npm run build`
-- Build output directory: `dist`
+브라우저에서 `http://localhost:5173/` 접속.
+
+## 빌드
+
+```bash
+npm run build
+```
+
+
+## v0.18 추가 업데이트 — 2색 그라데이션 원
+
+기존 프레임과 레이어 기능은 모두 유지하면서, **흰색 + 한 가지 색상**만으로 구성된 자연스러운 2색 그라데이션 원형 프리셋을 추가했습니다.
+
+추가 프리셋:
+- Lavender White Duo
+- Lavender White Wide
+- Lavender Inner White
+- Lavender Soft Gloss
+- Pink White Duo
+- Sky White Duo
+- Mint White Duo
+- Peach White Duo
+
+이 프리셋들은 기존의 원 둘레 방향(conic) 그라데이션과 달리 **선 두께 방향(radial)** 으로 흰색과 메인 색상이 부드럽게 섞이도록 만들었습니다.

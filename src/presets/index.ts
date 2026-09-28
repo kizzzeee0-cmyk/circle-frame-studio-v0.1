@@ -64,6 +64,7 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
     ],
     twoToneFlow: {
       enabled: false,
+      repeatCount: 1,
       colorA: '#9389DE',
       colorB: '#FFFFFF',
       whiteCenter: 0.53,
@@ -169,7 +170,7 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#B79BF1', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#B79BF1', colorB: '#FFFFFF',
       whiteCenter: .54, whiteWidth: .24, blendWidth: .12, rotation: -14,
       glossStrength: .16, innerHighlight: .12, outerHighlight: .09,
     },
@@ -181,7 +182,7 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#AD8CEA', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#AD8CEA', colorB: '#FFFFFF',
       whiteCenter: .55, whiteWidth: .34, blendWidth: .11, rotation: -12,
       glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
     },
@@ -193,7 +194,7 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#A983E8', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#A983E8', colorB: '#FFFFFF',
       whiteCenter: .53, whiteWidth: .25, blendWidth: .10, rotation: -16,
       glossStrength: .30, innerHighlight: .23, outerHighlight: .16,
     },
@@ -205,7 +206,7 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#BFA8F3', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#BFA8F3', colorB: '#FFFFFF',
       whiteCenter: .55, whiteWidth: .18, blendWidth: .18, rotation: -10,
       glossStrength: .10, innerHighlight: .07, outerHighlight: .06,
     },
@@ -217,7 +218,7 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#F1A1C1', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#F1A1C1', colorB: '#FFFFFF',
       whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
       glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
     },
@@ -229,7 +230,7 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#83D8C1', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#83D8C1', colorB: '#FFFFFF',
       whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
       glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
     },
@@ -241,7 +242,7 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#9FC7F2', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#9FC7F2', colorB: '#FFFFFF',
       whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
       glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
     },
@@ -253,11 +254,97 @@ export const PRESETS: FramePreset[] = [
     secondaryColor: '#FFFFFF',
     gradientMode: 'conic',
     twoToneFlow: {
-      enabled: true, colorA: '#F3B099', colorB: '#FFFFFF',
+      enabled: true, repeatCount: 1, colorA: '#F3B099', colorB: '#FFFFFF',
       whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
       glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
     },
   }),
+
+  // v0.20 — 실제 선택 색상은 2개지만, 둘레에는 흰색 → 선택색 → 흰색 → 선택색의 4구간으로 반복
+  p('flow4-lavender-balanced', 'TwoToneFlow4', 'Lavender 4-Segment Flow', 'basic', {
+    thickness: 108,
+    color: '#A98AE9',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#A98AE9', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .18, innerHighlight: .13, outerHighlight: .10,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#A98AE9', glowBlur: 18, glowIntensity: .10 }),
+
+  p('flow4-lavender-wide-white', 'TwoToneFlow4', 'Lavender 4-Segment Wide White', 'basic', {
+    thickness: 110,
+    color: '#AE91EC',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#AE91EC', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .52, blendWidth: .09, rotation: -8,
+      glossStrength: .16, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
+  p('flow4-lavender-soft', 'TwoToneFlow4', 'Lavender 4-Segment Soft', 'basic', {
+    thickness: 98,
+    color: '#B9A2F0',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#B9A2F0', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .38, blendWidth: .16, rotation: -8,
+      glossStrength: .12, innerHighlight: .08, outerHighlight: .07,
+    },
+  }),
+
+  p('flow4-lavender-glossy', 'TwoToneFlow4', 'Lavender 4-Segment Glossy', 'basic', {
+    thickness: 116,
+    color: '#9F7CE6',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#9F7CE6', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .40, blendWidth: .10, rotation: -10,
+      glossStrength: .32, innerHighlight: .24, outerHighlight: .17,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#9F7CE6', glowBlur: 22, glowIntensity: .13 }),
+
+  p('flow4-pink', 'TwoToneFlow4', 'Pink 4-Segment Flow', 'basic', {
+    thickness: 106,
+    color: '#F1A0C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#F1A0C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .17, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
+  p('flow4-mint', 'TwoToneFlow4', 'Mint 4-Segment Flow', 'basic', {
+    thickness: 106,
+    color: '#86D8C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#86D8C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .17, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
+  p('flow4-sky', 'TwoToneFlow4', 'Sky 4-Segment Flow', 'basic', {
+    thickness: 106,
+    color: '#94C2F0',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#94C2F0', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .17, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
 
   p('glow-soft', 'Glow', 'Soft Glow Ring', 'basic', { thickness: 22 }, {}, { glowEnabled: true, glowBlur: 42, glowIntensity: .45 }),
   p('glow-neon', 'Glow', 'Neon Circle', 'basic', { thickness: 20, color: '#9A8CFF' }, {}, { glowEnabled: true, glowColor: '#8C7BFF', glowBlur: 70, glowIntensity: .85, bloom: 20 }),

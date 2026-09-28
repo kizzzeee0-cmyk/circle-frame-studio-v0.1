@@ -40,19 +40,31 @@ function mixHex(a: string, b: string, amount: number) {
 
 function makeTwoToneFlowGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: number, cy: number) {
   const flow = design.twoToneFlow
+  const repeatCount = flow.repeatCount === 2 ? 2 : 1
   const angle = ((flow.rotation + design.gradientAngle) * Math.PI) / 180 - Math.PI / 2
   const gradient = ctx.createConicGradient(angle, cx, cy)
   const center = ((flow.whiteCenter % 1) + 1) % 1
-  const halfWhite = Math.min(.48, Math.max(.01, flow.whiteWidth / 2))
-  const blend = Math.min(.35, Math.max(.005, flow.blendWidth))
+  const halfWhite = Math.min(.45, Math.max(.01, flow.whiteWidth / 2))
+
+  // 흰색 길이를 늘려도 연결부가 찌그러지거나 색상 구간을 잡아먹지 않도록
+  // 남은 반 주기 안에서만 blend 폭을 자동 제한한다.
+  const maxBlend = Math.max(.005, .495 - halfWhite)
+  const blend = Math.min(maxBlend, Math.max(.005, flow.blendWidth))
+
   const colorA = validColor(flow.colorA, validColor(design.color))
   const colorB = validColor(flow.colorB, '#FFFFFF')
-  const samples = 96
+  const samples = repeatCount === 2 ? 160 : 112
 
   for (let i = 0; i <= samples; i++) {
     const t = i / samples
-    const rawDistance = Math.abs(t - center)
+
+    // repeatCount=1: 흰색 + 선택색상
+    // repeatCount=2: 흰색 + 선택색상 + 흰색 + 선택색상
+    // 각 반복 주기를 동일한 비율로 계산해 네 구간의 길이가 좌우 대칭으로 유지된다.
+    const cycleT = ((t * repeatCount) % 1 + 1) % 1
+    const rawDistance = Math.abs(cycleT - center)
     const distance = Math.min(rawDistance, 1 - rawDistance)
+
     let whiteMix = 0
     if (distance <= halfWhite) {
       whiteMix = 1
@@ -61,8 +73,10 @@ function makeTwoToneFlowGradient(ctx: CanvasRenderingContext2D, design: FrameDes
       const smooth = x * x * (3 - 2 * x)
       whiteMix = 1 - smooth
     }
+
     gradient.addColorStop(t, mixHex(colorA, colorB, whiteMix))
   }
+
   return gradient
 }
 
@@ -70,11 +84,10 @@ function drawTwoToneFlowHighlights(ctx: CanvasRenderingContext2D, design: FrameD
   const flow = design.twoToneFlow
   if (!flow.enabled || !['basic', 'double', 'triple', 'glossy'].includes(design.kind)) return
 
+  const repeatCount = flow.repeatCount === 2 ? 2 : 1
   const baseAngle = ((flow.rotation + design.gradientAngle) * Math.PI) / 180 - Math.PI / 2
-  const centerAngle = baseAngle + flow.whiteCenter * TAU
-  const span = Math.min(TAU * .82, Math.max(.15, (flow.whiteWidth + flow.blendWidth * 1.35) * TAU))
-  const start = centerAngle - span / 2
-  const end = centerAngle + span / 2
+  const cycleAngle = TAU / repeatCount
+  const span = Math.min(cycleAngle * .82, Math.max(.15, (flow.whiteWidth + flow.blendWidth * 1.35) * cycleAngle))
   const thickness = design.thickness * scale
   const highlightColor = validColor(flow.colorB, '#FFFFFF')
 
@@ -83,28 +96,34 @@ function drawTwoToneFlowHighlights(ctx: CanvasRenderingContext2D, design: FrameD
   ctx.lineCap = 'round'
   ctx.strokeStyle = highlightColor
 
-  if (flow.glossStrength > 0) {
-    ctx.globalAlpha *= clamp01(flow.glossStrength) * .42
-    ctx.lineWidth = Math.max(1, thickness * .12)
-    ctx.beginPath()
-    ctx.arc(cx, cy, r, start + span * .08, end - span * .08)
-    ctx.stroke()
-  }
+  for (let i = 0; i < repeatCount; i++) {
+    const centerAngle = baseAngle + ((flow.whiteCenter + i) / repeatCount) * TAU
+    const start = centerAngle - span / 2
+    const end = centerAngle + span / 2
 
-  if (flow.outerHighlight > 0) {
-    ctx.globalAlpha = design.opacity * clamp01(flow.outerHighlight) * .55
-    ctx.lineWidth = Math.max(1, thickness * .075)
-    ctx.beginPath()
-    ctx.arc(cx, cy, r + thickness * .38, start, end)
-    ctx.stroke()
-  }
+    if (flow.glossStrength > 0) {
+      ctx.globalAlpha = design.opacity * clamp01(flow.glossStrength) * .42
+      ctx.lineWidth = Math.max(1, thickness * .12)
+      ctx.beginPath()
+      ctx.arc(cx, cy, r, start + span * .08, end - span * .08)
+      ctx.stroke()
+    }
 
-  if (flow.innerHighlight > 0) {
-    ctx.globalAlpha = design.opacity * clamp01(flow.innerHighlight) * .55
-    ctx.lineWidth = Math.max(1, thickness * .075)
-    ctx.beginPath()
-    ctx.arc(cx, cy, Math.max(1, r - thickness * .38), start, end)
-    ctx.stroke()
+    if (flow.outerHighlight > 0) {
+      ctx.globalAlpha = design.opacity * clamp01(flow.outerHighlight) * .55
+      ctx.lineWidth = Math.max(1, thickness * .075)
+      ctx.beginPath()
+      ctx.arc(cx, cy, r + thickness * .38, start, end)
+      ctx.stroke()
+    }
+
+    if (flow.innerHighlight > 0) {
+      ctx.globalAlpha = design.opacity * clamp01(flow.innerHighlight) * .55
+      ctx.lineWidth = Math.max(1, thickness * .075)
+      ctx.beginPath()
+      ctx.arc(cx, cy, Math.max(1, r - thickness * .38), start, end)
+      ctx.stroke()
+    }
   }
 
   ctx.restore()

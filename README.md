@@ -1,4 +1,4 @@
-# Circle Frame Studio v0.19
+# Circle Frame Studio v0.20
 
 원형 프레임을 만들고 **테두리 외부는 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
@@ -80,3 +80,28 @@ v0.18에서 추가했던 **두께 방향(radial) 2색 그라데이션**을 사�
 - Mint Flow Soft
 - Sky Flow Soft
 - Peach Flow Soft
+
+
+## v0.20 — 흰색 + 선택색상 4구간 반복 그라데이션
+
+v0.19의 **흰색 + 선택색상 2구간 흐름**은 그대로 유지하면서,
+새로운 **4구간 반복 모드**를 추가했습니다.
+
+4구간 모드는 실제로 선택하는 색상은 2개뿐입니다.
+
+`흰색 → 선택색상 → 흰색 → 선택색상`
+
+- 두 흰색 구간은 항상 같은 길이
+- 두 선택색상 구간도 항상 같은 길이
+- 흰색 구간 길이를 변경해도 네 구간의 균형이 깨지지 않음
+- 연결 부드러움은 남은 색상 구간 범위 안에서 자동 제한되어 급격한 이음선 방지
+- 기존 2구간 흐름 모드와 자유형 4색 Gradient Stop 기능 모두 유지
+
+추가 프리셋:
+- Lavender 4-Segment Flow
+- Lavender 4-Segment Wide White
+- Lavender 4-Segment Soft
+- Lavender 4-Segment Glossy
+- Pink 4-Segment Flow
+- Mint 4-Segment Flow
+- Sky 4-Segment Flow

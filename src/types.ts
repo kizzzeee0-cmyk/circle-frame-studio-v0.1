@@ -74,6 +74,7 @@ export interface FramePattern {
 
 export interface TwoToneFlowSettings {
   enabled: boolean
+  repeatCount: 1 | 2
   colorA: string
   colorB: string
   whiteCenter: number
@@ -113,7 +114,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.19'
+  version: '0.20'
   width: 2000
   height: 2000
   autoFit: boolean

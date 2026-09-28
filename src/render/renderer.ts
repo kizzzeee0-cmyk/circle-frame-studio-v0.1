@@ -18,7 +18,100 @@ function seeded(seed: number) {
   }
 }
 
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value))
+}
+
+function mixHex(a: string, b: string, amount: number) {
+  const read = (value: string, fallback: string) => {
+    const clean = (/^#[0-9A-Fa-f]{6}$/.test(value) ? value : fallback).slice(1)
+    return [
+      parseInt(clean.slice(0, 2), 16),
+      parseInt(clean.slice(2, 4), 16),
+      parseInt(clean.slice(4, 6), 16),
+    ]
+  }
+  const ca = read(a, '#9389DE')
+  const cb = read(b, '#FFFFFF')
+  const t = clamp01(amount)
+  const hex = ca.map((v, i) => Math.round(v + (cb[i] - v) * t).toString(16).padStart(2, '0')).join('')
+  return `#${hex}`
+}
+
+function makeTwoToneFlowGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: number, cy: number) {
+  const flow = design.twoToneFlow
+  const angle = ((flow.rotation + design.gradientAngle) * Math.PI) / 180 - Math.PI / 2
+  const gradient = ctx.createConicGradient(angle, cx, cy)
+  const center = ((flow.whiteCenter % 1) + 1) % 1
+  const halfWhite = Math.min(.48, Math.max(.01, flow.whiteWidth / 2))
+  const blend = Math.min(.35, Math.max(.005, flow.blendWidth))
+  const colorA = validColor(flow.colorA, validColor(design.color))
+  const colorB = validColor(flow.colorB, '#FFFFFF')
+  const samples = 96
+
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples
+    const rawDistance = Math.abs(t - center)
+    const distance = Math.min(rawDistance, 1 - rawDistance)
+    let whiteMix = 0
+    if (distance <= halfWhite) {
+      whiteMix = 1
+    } else if (distance < halfWhite + blend) {
+      const x = clamp01((distance - halfWhite) / blend)
+      const smooth = x * x * (3 - 2 * x)
+      whiteMix = 1 - smooth
+    }
+    gradient.addColorStop(t, mixHex(colorA, colorB, whiteMix))
+  }
+  return gradient
+}
+
+function drawTwoToneFlowHighlights(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: number, cy: number, r: number, scale: number) {
+  const flow = design.twoToneFlow
+  if (!flow.enabled || !['basic', 'double', 'triple', 'glossy'].includes(design.kind)) return
+
+  const baseAngle = ((flow.rotation + design.gradientAngle) * Math.PI) / 180 - Math.PI / 2
+  const centerAngle = baseAngle + flow.whiteCenter * TAU
+  const span = Math.min(TAU * .82, Math.max(.15, (flow.whiteWidth + flow.blendWidth * 1.35) * TAU))
+  const start = centerAngle - span / 2
+  const end = centerAngle + span / 2
+  const thickness = design.thickness * scale
+  const highlightColor = validColor(flow.colorB, '#FFFFFF')
+
+  ctx.save()
+  ctx.shadowBlur = 0
+  ctx.lineCap = 'round'
+  ctx.strokeStyle = highlightColor
+
+  if (flow.glossStrength > 0) {
+    ctx.globalAlpha *= clamp01(flow.glossStrength) * .42
+    ctx.lineWidth = Math.max(1, thickness * .12)
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, start + span * .08, end - span * .08)
+    ctx.stroke()
+  }
+
+  if (flow.outerHighlight > 0) {
+    ctx.globalAlpha = design.opacity * clamp01(flow.outerHighlight) * .55
+    ctx.lineWidth = Math.max(1, thickness * .075)
+    ctx.beginPath()
+    ctx.arc(cx, cy, r + thickness * .38, start, end)
+    ctx.stroke()
+  }
+
+  if (flow.innerHighlight > 0) {
+    ctx.globalAlpha = design.opacity * clamp01(flow.innerHighlight) * .55
+    ctx.lineWidth = Math.max(1, thickness * .075)
+    ctx.beginPath()
+    ctx.arc(cx, cy, Math.max(1, r - thickness * .38), start, end)
+    ctx.stroke()
+  }
+
+  ctx.restore()
+}
+
 function makeGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: number, cy: number, r: number) {
+  if (design.twoToneFlow.enabled) return makeTwoToneFlowGradient(ctx, design, cx, cy)
   const stops = [...design.gradientStops].sort((a, b) => a.position - b.position)
   if (design.gradientMode === 'solid') return validColor(design.color)
   let gradient: CanvasGradient
@@ -218,6 +311,7 @@ function makeOutlineDesign(design: FrameDesign): FrameDesign {
   next.gradientMode = 'solid'
   next.gradientAngle = 0
   next.gradientStops = next.gradientStops.map(stop => ({ ...stop, color: outlineColor }))
+  next.twoToneFlow = { ...next.twoToneFlow, enabled: false, colorA: outlineColor, colorB: outlineColor }
 
   switch (next.kind) {
     case 'basic':
@@ -510,6 +604,13 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.restore()
   } else {
     drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight)
+  }
+
+  if (design.twoToneFlow.enabled) {
+    const cx = canvasWidth / 2 + design.offsetX * scale
+    const cy = canvasHeight / 2 + design.offsetY * scale
+    const r = design.radius * scale
+    drawTwoToneFlowHighlights(ctx, design, cx, cy, r, scale)
   }
 
   ctx.restore()

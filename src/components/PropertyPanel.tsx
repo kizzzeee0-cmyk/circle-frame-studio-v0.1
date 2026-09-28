@@ -73,6 +73,7 @@ export default function PropertyPanel({
   const patch = (partial: Partial<FrameDesign>) => onChange({ ...design, ...partial })
   const nestedEffects = (partial: Partial<FrameDesign['effects']>) => patch({ effects: { ...design.effects, ...partial } })
   const nestedPattern = (partial: Partial<FrameDesign['pattern']>) => patch({ pattern: { ...design.pattern, ...partial } })
+  const nestedTwoTone = (partial: Partial<FrameDesign['twoToneFlow']>) => patch({ twoToneFlow: { ...design.twoToneFlow, ...partial } })
   const setStop = (id: string, partial: Partial<FrameDesign['gradientStops'][number]>) => patch({ gradientStops: design.gradientStops.map(s => s.id === id ? { ...s, ...partial } : s) })
 
   const setPatternColor = (index: number, value: string) => {
@@ -195,33 +196,68 @@ export default function PropertyPanel({
         </section>
       ) : (
         <section className="property-section">
-          <h3>선 색상 · 그라데이션</h3>
-          <ColorField label="기본 색상" value={design.color} onChange={v => patch({ color: v })} eyedrop />
-          <ColorField label="보조 색상" value={design.secondaryColor} onChange={v => patch({ secondaryColor: v })} />
-          <label className="control"><span><b>채우기 방식</b></span>
-            <select value={design.gradientMode} onChange={e => patch({ gradientMode: e.target.value as GradientMode })}>
-              <option value="solid">Solid</option><option value="linear">Linear Gradient</option><option value="radial">Radial Gradient</option><option value="conic">Angular / Conic</option>
-            </select>
+          <h3>{design.twoToneFlow.enabled ? '2색 흐름 그라데이션' : '선 색상 · 그라데이션'}</h3>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={design.twoToneFlow.enabled}
+              onChange={e => nestedTwoTone({
+                enabled: e.target.checked,
+                colorA: design.color,
+                colorB: design.twoToneFlow.colorB || '#FFFFFF',
+              })}
+            />
+            <span>2색 흐름 모드</span>
           </label>
-          {design.gradientMode !== 'solid' && <>
-            <Slider label="그라데이션 각도" value={design.gradientAngle} min={-180} max={180} suffix="°" onChange={n => patch({ gradientAngle: n })} />
-            <div className="gradient-preview" style={{ background: `linear-gradient(90deg, ${[...design.gradientStops].sort((a,b)=>a.position-b.position).map(s => `${s.color} ${s.position*100}%`).join(',')})` }} />
-            <div className="stops">
-              {design.gradientStops.map(stop => <div className="stop-row" key={stop.id}>
-                <input type="color" value={hexOkay(stop.color) ? stop.color : '#9389DE'} onChange={e => setStop(stop.id, { color: e.target.value.toUpperCase() })} />
-                <input className="hex-input" value={stop.color} onChange={e => setStop(stop.id, { color: e.target.value.toUpperCase() })} />
-                <input type="range" min={0} max={1} step={.01} value={stop.position} onChange={e => setStop(stop.id, { position: Number(e.target.value) })} />
-                <span>{Math.round(stop.position * 100)}%</span>
-                <button type="button" disabled={design.gradientStops.length <= 2} onClick={() => patch({ gradientStops: design.gradientStops.filter(s => s.id !== stop.id) })}>×</button>
-              </div>)}
+
+          {design.twoToneFlow.enabled ? <>
+            <ColorField
+              label="메인 색상"
+              value={design.twoToneFlow.colorA}
+              onChange={v => patch({ color: v, twoToneFlow: { ...design.twoToneFlow, colorA: v } })}
+              eyedrop
+            />
+            <ColorField
+              label="흰색 / 보조 색상"
+              value={design.twoToneFlow.colorB}
+              onChange={v => patch({ secondaryColor: v, twoToneFlow: { ...design.twoToneFlow, colorB: v } })}
+            />
+            <Slider label="흰색 구간 위치" value={design.twoToneFlow.whiteCenter} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ whiteCenter: n })} />
+            <Slider label="흰색 구간 길이" value={design.twoToneFlow.whiteWidth} min={.04} max={.55} step={.01} onChange={n => nestedTwoTone({ whiteWidth: n })} />
+            <Slider label="연결 부드러움" value={design.twoToneFlow.blendWidth} min={.01} max={.30} step={.01} onChange={n => nestedTwoTone({ blendWidth: n })} />
+            <Slider label="흐름 회전" value={design.twoToneFlow.rotation} min={-180} max={180} suffix="°" onChange={n => nestedTwoTone({ rotation: n })} />
+            <Slider label="반짝임" value={design.twoToneFlow.glossStrength} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ glossStrength: n })} />
+            <Slider label="안쪽 빛" value={design.twoToneFlow.innerHighlight} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ innerHighlight: n })} />
+            <Slider label="바깥쪽 빛" value={design.twoToneFlow.outerHighlight} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ outerHighlight: n })} />
+            <p className="hint">흰색과 메인색이 원의 두께 방향이 아니라 <b>원 둘레를 따라</b> 흐릅니다. 흰색 구간 위치·길이·연결 부드러움을 따로 조절할 수 있습니다.</p>
+          </> : <>
+            <ColorField label="기본 색상" value={design.color} onChange={v => patch({ color: v })} eyedrop />
+            <ColorField label="보조 색상" value={design.secondaryColor} onChange={v => patch({ secondaryColor: v })} />
+            <label className="control"><span><b>채우기 방식</b></span>
+              <select value={design.gradientMode} onChange={e => patch({ gradientMode: e.target.value as GradientMode })}>
+                <option value="solid">Solid</option><option value="linear">Linear Gradient</option><option value="radial">Radial Gradient</option><option value="conic">Angular / Conic</option>
+              </select>
+            </label>
+            {design.gradientMode !== 'solid' && <>
+              <Slider label="그라데이션 각도" value={design.gradientAngle} min={-180} max={180} suffix="°" onChange={n => patch({ gradientAngle: n })} />
+              <div className="gradient-preview" style={{ background: `linear-gradient(90deg, ${[...design.gradientStops].sort((a,b)=>a.position-b.position).map(s => `${s.color} ${s.position*100}%`).join(',')})` }} />
+              <div className="stops">
+                {design.gradientStops.map(stop => <div className="stop-row" key={stop.id}>
+                  <input type="color" value={hexOkay(stop.color) ? stop.color : '#9389DE'} onChange={e => setStop(stop.id, { color: e.target.value.toUpperCase() })} />
+                  <input className="hex-input" value={stop.color} onChange={e => setStop(stop.id, { color: e.target.value.toUpperCase() })} />
+                  <input type="range" min={0} max={1} step={.01} value={stop.position} onChange={e => setStop(stop.id, { position: Number(e.target.value) })} />
+                  <span>{Math.round(stop.position * 100)}%</span>
+                  <button type="button" disabled={design.gradientStops.length <= 2} onClick={() => patch({ gradientStops: design.gradientStops.filter(s => s.id !== stop.id) })}>×</button>
+                </div>)}
+              </div>
+              <button className="soft-button full" type="button" disabled={design.gradientStops.length >= 8} onClick={() => patch({ gradientStops: [...design.gradientStops, { id: uid('stop'), position: .5, color: design.secondaryColor }] })}>+ Gradient Stop</button>
+            </>}
+            <div className="palette-list">
+              {PALETTES.map(p => <button type="button" key={p.id} className="palette-card" onClick={() => applyPalette(p.colors)} title={p.name}>
+                <span>{[0,1,2,3].map(i => <i key={i} style={{ background: p.colors[i] ?? p.colors[p.colors.length - 1] ?? p.colors[0] }} />)}</span><small>{p.name}</small>
+              </button>)}
             </div>
-            <button className="soft-button full" type="button" disabled={design.gradientStops.length >= 8} onClick={() => patch({ gradientStops: [...design.gradientStops, { id: uid('stop'), position: .5, color: design.secondaryColor }] })}>+ Gradient Stop</button>
           </>}
-          <div className="palette-list">
-            {PALETTES.map(p => <button type="button" key={p.id} className="palette-card" onClick={() => applyPalette(p.colors)} title={p.name}>
-              <span>{[0,1,2,3].map(i => <i key={i} style={{ background: p.colors[i] ?? p.colors[p.colors.length - 1] ?? p.colors[0] }} />)}</span><small>{p.name}</small>
-            </button>)}
-          </div>
         </section>
       )}
 

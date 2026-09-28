@@ -1,4 +1,4 @@
-# Circle Frame Studio v0.18
+# Circle Frame Studio v0.19
 
 원형 프레임을 만들고 **테두리 외부는 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
@@ -57,18 +57,26 @@ npm run build
 ```
 
 
-## v0.18 추가 업데이트 — 2색 그라데이션 원
 
-기존 프레임과 레이어 기능은 모두 유지하면서, **흰색 + 한 가지 색상**만으로 구성된 자연스러운 2색 그라데이션 원형 프리셋을 추가했습니다.
+
+## v0.19 — 2색 흐름 그라데이션
+
+v0.18에서 추가했던 **두께 방향(radial) 2색 그라데이션**을 사용자가 원한 형태로 다시 설계했습니다.
+
+이번 v0.19의 2색 흐름은:
+- **흰색 + 메인색 1개**
+- 색상이 **원 둘레 방향으로 흐름**
+- 흰색 구간의 위치 / 길이 / 연결 부드러움 조절
+- 전체 흐름 회전
+- 반짝임 / 안쪽 빛 / 바깥쪽 빛 조절
+- 기존 모든 프레임, 레이어, PNG 반복, 4컬러, Glow/Shadow/Outline 기능 유지
 
 추가 프리셋:
-- Lavender White Duo
-- Lavender White Wide
-- Lavender Inner White
-- Lavender Soft Gloss
-- Pink White Duo
-- Sky White Duo
-- Mint White Duo
-- Peach White Duo
-
-이 프리셋들은 기존의 원 둘레 방향(conic) 그라데이션과 달리 **선 두께 방향(radial)** 으로 흰색과 메인 색상이 부드럽게 섞이도록 만들었습니다.
+- Lavender Flow Soft
+- Lavender Flow Wide White
+- Lavender Flow Glossy
+- Lavender Flow Subtle
+- Pink Flow Soft
+- Mint Flow Soft
+- Sky Flow Soft
+- Peach Flow Soft

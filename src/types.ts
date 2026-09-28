@@ -72,6 +72,19 @@ export interface FramePattern {
   seed: number
 }
 
+export interface TwoToneFlowSettings {
+  enabled: boolean
+  colorA: string
+  colorB: string
+  whiteCenter: number
+  whiteWidth: number
+  blendWidth: number
+  rotation: number
+  glossStrength: number
+  innerHighlight: number
+  outerHighlight: number
+}
+
 export interface FrameDesign {
   id: string
   name: string
@@ -87,6 +100,7 @@ export interface FrameDesign {
   gradientMode: GradientMode
   gradientAngle: number
   gradientStops: GradientStop[]
+  twoToneFlow: TwoToneFlowSettings
   effects: FrameEffects
   pattern: FramePattern
 }
@@ -99,7 +113,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.18'
+  version: '0.19'
   width: 2000
   height: 2000
   autoFit: boolean

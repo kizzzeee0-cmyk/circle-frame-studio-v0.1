@@ -14,7 +14,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.18', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: '0.19', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
       if (!cancelled && ref.current) renderProject(ref.current, project, 1)
     }
@@ -50,7 +50,7 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'flower', label: '꽃' },
   { key: 'star', label: '별/반짝이' },
   { key: 'gradient', label: '그라데이션' },
-  { key: 'twotone', label: '2색 그라데이션' },
+  { key: 'twotoneflow', label: '2색 흐름' },
   { key: 'glow', label: '글로우' },
   { key: '3d', label: '3D' },
   { key: 'abstract', label: '추상' },
@@ -78,8 +78,8 @@ function matchesCategory(preset: FramePreset, key: string) {
     case 'ribbon': return kind === 'ribbon' || name.includes('ribbon')
     case 'flower': return kind === 'flower' || name.includes('flower')
     case 'star': return kind === 'star' || kind === 'sparkle' || name.includes('star') || name.includes('sparkle')
-    case 'gradient': return preset.category === 'Gradient' || preset.category === 'TwoTone' || preset.design.gradientMode !== 'solid' || name.includes('gradient')
-    case 'twotone': return preset.category === 'TwoTone'
+    case 'gradient': return preset.category === 'Gradient' || preset.category === 'TwoToneFlow' || preset.design.gradientMode !== 'solid' || name.includes('gradient')
+    case 'twotoneflow': return preset.category === 'TwoToneFlow'
     case 'glow': return preset.category === 'Glow' || preset.design.effects.glowEnabled || name.includes('glow') || name.includes('neon')
     case '3d': return preset.category === '3D' || kind === 'glossy' || name.includes('glossy')
     case 'abstract': return preset.category === 'Abstract' || name.includes('abstract') || name.includes('organic')

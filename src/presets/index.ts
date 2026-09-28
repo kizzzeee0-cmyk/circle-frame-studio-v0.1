@@ -62,6 +62,18 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
       { id: 's3', position: 0.72, color: '#F0BDD7' },
       { id: 's4', position: 1, color: '#8DC5FF' },
     ],
+    twoToneFlow: {
+      enabled: false,
+      colorA: '#9389DE',
+      colorB: '#FFFFFF',
+      whiteCenter: 0.53,
+      whiteWidth: 0.24,
+      blendWidth: 0.12,
+      rotation: 0,
+      glossStrength: 0.14,
+      innerHighlight: 0.10,
+      outerHighlight: 0.08,
+    },
     effects: baseEffects(),
     pattern: basePattern(),
   }
@@ -150,125 +162,101 @@ export const PRESETS: FramePreset[] = [
   p('gradient-double', 'Gradient', 'Double Gradient', 'double', { thickness: 22, gradientMode: 'conic' }),
   p('gradient-segment', 'Gradient', 'Segment Gradient', 'segmented', { thickness: 38, gradientMode: 'conic' }, { dash: 175, gap: 70 }),
 
-  // v0.18 — 흰색 + 한 가지색, 링 두께 방향으로 자연스럽게 이어지는 2색 그라데이션
-  p('twotone-lavender-soft', 'TwoTone', 'Lavender White Duo', 'basic', {
+  // v0.19 — 흰색 + 한 가지색이 원 둘레를 따라 흐르는 2색 그라데이션
+  p('flow-lavender-soft', 'TwoToneFlow', 'Lavender Flow Soft', 'basic', {
     thickness: 104,
     color: '#B79BF1',
     secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'twl1', position: 0, color: '#B79BF1' },
-      { id: 'twl2', position: .775, color: '#B79BF1' },
-      { id: 'twl3', position: .815, color: '#FFFFFF' },
-      { id: 'twl4', position: .855, color: '#FFFFFF' },
-      { id: 'twl5', position: .905, color: '#B79BF1' },
-      { id: 'twl6', position: 1, color: '#B79BF1' },
-    ],
-  }, {}, { glowEnabled: true, glowColor: '#B79BF1', glowBlur: 16, glowIntensity: .14 }),
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#B79BF1', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .24, blendWidth: .12, rotation: -14,
+      glossStrength: .16, innerHighlight: .12, outerHighlight: .09,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#B79BF1', glowBlur: 18, glowIntensity: .12 }),
 
-  p('twotone-lavender-wide', 'TwoTone', 'Lavender White Wide', 'basic', {
-    thickness: 116,
-    color: '#AA88EA',
-    secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'tww1', position: 0, color: '#AA88EA' },
-      { id: 'tww2', position: .765, color: '#AA88EA' },
-      { id: 'tww3', position: .805, color: '#FFFFFF' },
-      { id: 'tww4', position: .865, color: '#FFFFFF' },
-      { id: 'tww5', position: .915, color: '#AA88EA' },
-      { id: 'tww6', position: 1, color: '#AA88EA' },
-    ],
-  }),
-
-  p('twotone-lavender-inner', 'TwoTone', 'Lavender Inner White', 'basic', {
-    thickness: 96,
-    color: '#B8A0F0',
-    secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'twi1', position: 0, color: '#B8A0F0' },
-      { id: 'twi2', position: .77, color: '#B8A0F0' },
-      { id: 'twi3', position: .80, color: '#FFFFFF' },
-      { id: 'twi4', position: .845, color: '#FFFFFF' },
-      { id: 'twi5', position: .905, color: '#B8A0F0' },
-      { id: 'twi6', position: 1, color: '#B8A0F0' },
-    ],
-  }),
-
-  p('twotone-lavender-glossy', 'TwoTone', 'Lavender Soft Gloss', 'glossy', {
+  p('flow-lavender-wide', 'TwoToneFlow', 'Lavender Flow Wide White', 'basic', {
     thickness: 108,
-    color: '#B69AF0',
+    color: '#AD8CEA',
     secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'twg1', position: 0, color: '#B69AF0' },
-      { id: 'twg2', position: .77, color: '#B69AF0' },
-      { id: 'twg3', position: .81, color: '#FFFFFF' },
-      { id: 'twg4', position: .85, color: '#FFFFFF' },
-      { id: 'twg5', position: .90, color: '#B69AF0' },
-      { id: 'twg6', position: 1, color: '#B69AF0' },
-    ],
-  }, {}, { glowEnabled: true, glowColor: '#B69AF0', glowBlur: 20, glowIntensity: .16 }),
-
-  p('twotone-pink-soft', 'TwoTone', 'Pink White Duo', 'basic', {
-    thickness: 104,
-    color: '#F29BBC',
-    secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'twp1', position: 0, color: '#F29BBC' },
-      { id: 'twp2', position: .775, color: '#F29BBC' },
-      { id: 'twp3', position: .815, color: '#FFFFFF' },
-      { id: 'twp4', position: .855, color: '#FFFFFF' },
-      { id: 'twp5', position: .905, color: '#F29BBC' },
-      { id: 'twp6', position: 1, color: '#F29BBC' },
-    ],
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#AD8CEA', colorB: '#FFFFFF',
+      whiteCenter: .55, whiteWidth: .34, blendWidth: .11, rotation: -12,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
   }),
 
-  p('twotone-sky-soft', 'TwoTone', 'Sky White Duo', 'basic', {
-    thickness: 104,
-    color: '#9FC8F4',
+  p('flow-lavender-glossy', 'TwoToneFlow', 'Lavender Flow Glossy', 'basic', {
+    thickness: 112,
+    color: '#A983E8',
     secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'tws1', position: 0, color: '#9FC8F4' },
-      { id: 'tws2', position: .775, color: '#9FC8F4' },
-      { id: 'tws3', position: .815, color: '#FFFFFF' },
-      { id: 'tws4', position: .855, color: '#FFFFFF' },
-      { id: 'tws5', position: .905, color: '#9FC8F4' },
-      { id: 'tws6', position: 1, color: '#9FC8F4' },
-    ],
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#A983E8', colorB: '#FFFFFF',
+      whiteCenter: .53, whiteWidth: .25, blendWidth: .10, rotation: -16,
+      glossStrength: .30, innerHighlight: .23, outerHighlight: .16,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#A983E8', glowBlur: 22, glowIntensity: .14 }),
+
+  p('flow-lavender-subtle', 'TwoToneFlow', 'Lavender Flow Subtle', 'basic', {
+    thickness: 92,
+    color: '#BFA8F3',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#BFA8F3', colorB: '#FFFFFF',
+      whiteCenter: .55, whiteWidth: .18, blendWidth: .18, rotation: -10,
+      glossStrength: .10, innerHighlight: .07, outerHighlight: .06,
+    },
   }),
 
-  p('twotone-mint-soft', 'TwoTone', 'Mint White Duo', 'basic', {
+  p('flow-pink-soft', 'TwoToneFlow', 'Pink Flow Soft', 'basic', {
     thickness: 104,
-    color: '#91D9C4',
+    color: '#F1A1C1',
     secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'twm1', position: 0, color: '#91D9C4' },
-      { id: 'twm2', position: .775, color: '#91D9C4' },
-      { id: 'twm3', position: .815, color: '#FFFFFF' },
-      { id: 'twm4', position: .855, color: '#FFFFFF' },
-      { id: 'twm5', position: .905, color: '#91D9C4' },
-      { id: 'twm6', position: 1, color: '#91D9C4' },
-    ],
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#F1A1C1', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
   }),
 
-  p('twotone-peach-soft', 'TwoTone', 'Peach White Duo', 'basic', {
+  p('flow-mint-soft', 'TwoToneFlow', 'Mint Flow Soft', 'basic', {
     thickness: 104,
-    color: '#F5B39E',
+    color: '#83D8C1',
     secondaryColor: '#FFFFFF',
-    gradientMode: 'radial',
-    gradientStops: [
-      { id: 'twpe1', position: 0, color: '#F5B39E' },
-      { id: 'twpe2', position: .775, color: '#F5B39E' },
-      { id: 'twpe3', position: .815, color: '#FFFFFF' },
-      { id: 'twpe4', position: .855, color: '#FFFFFF' },
-      { id: 'twpe5', position: .905, color: '#F5B39E' },
-      { id: 'twpe6', position: 1, color: '#F5B39E' },
-    ],
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#83D8C1', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow-sky-soft', 'TwoToneFlow', 'Sky Flow Soft', 'basic', {
+    thickness: 104,
+    color: '#9FC7F2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#9FC7F2', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow-peach-soft', 'TwoToneFlow', 'Peach Flow Soft', 'basic', {
+    thickness: 104,
+    color: '#F3B099',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, colorA: '#F3B099', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
   }),
 
   p('glow-soft', 'Glow', 'Soft Glow Ring', 'basic', { thickness: 22 }, {}, { glowEnabled: true, glowBlur: 42, glowIntensity: .45 }),

@@ -147,6 +147,8 @@ function makeGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: nu
   return gradient
 }
 
+const embossMaskCache = new Map<string, HTMLCanvasElement>()
+
 function makeEmbossMaskDesign(design: FrameDesign): FrameDesign {
   const white = '#FFFFFF'
   const next: FrameDesign = structuredClone(design)
@@ -177,10 +179,62 @@ function makeEmbossMaskDesign(design: FrameDesign): FrameDesign {
     paletteColors: [white, white, white, white],
     assetTintMode: 'palette',
   }
+  if (next.kind === 'glossy') next.kind = 'basic'
   return next
 }
 
-function drawEmbossPass(
+function embossMaskKey(design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number) {
+  const p = design.pattern
+  return JSON.stringify([
+    canvasWidth, canvasHeight, scale.toFixed(4),
+    design.kind, design.radius, design.thickness, design.rotation, design.offsetX, design.offsetY,
+    p.dash, p.gap, p.roughness, p.strokeCount, p.waveAmplitude, p.waveCount, p.bulgeAmplitude, p.bulgeCount,
+    p.decorationLayout, p.decorationCount, p.decorationSpacing, p.decorationSize, p.decorationOffset,
+    p.decorationRotation, p.keepUpright, p.seed, p.customAssetUrl,
+  ])
+}
+
+function getEmbossMask(design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number) {
+  const canCache = design.kind !== 'asset'
+  const key = canCache ? embossMaskKey(design, scale, canvasWidth, canvasHeight) : ''
+  if (canCache) {
+    const cached = embossMaskCache.get(key)
+    if (cached) return cached
+  }
+
+  const maskCanvas = document.createElement('canvas')
+  maskCanvas.width = canvasWidth
+  maskCanvas.height = canvasHeight
+  const mctx = maskCanvas.getContext('2d')
+  if (!mctx) return maskCanvas
+
+  drawDesignCore(mctx, makeEmbossMaskDesign(design), scale, canvasWidth, canvasHeight)
+
+  if (canCache) {
+    embossMaskCache.set(key, maskCanvas)
+    while (embossMaskCache.size > 12) {
+      const first = embossMaskCache.keys().next().value
+      if (typeof first === 'string') embossMaskCache.delete(first)
+      else break
+    }
+  }
+  return maskCanvas
+}
+
+function makeEmbossEdgeMask(maskCanvas: HTMLCanvasElement, shiftX: number, shiftY: number) {
+  const edge = document.createElement('canvas')
+  edge.width = maskCanvas.width
+  edge.height = maskCanvas.height
+  const ectx = edge.getContext('2d')
+  if (!ectx) return edge
+
+  ectx.drawImage(maskCanvas, 0, 0)
+  ectx.globalCompositeOperation = 'destination-out'
+  ectx.drawImage(maskCanvas, shiftX, shiftY)
+  return edge
+}
+
+function drawEmbossEdgePass(
   target: CanvasRenderingContext2D,
   maskCanvas: HTMLCanvasElement,
   shiftX: number,
@@ -188,7 +242,10 @@ function drawEmbossPass(
   blur: number,
   color: string,
   alpha: number,
+  blendMode: GlobalCompositeOperation,
 ) {
+  if (alpha <= 0) return
+  const edgeMask = makeEmbossEdgeMask(maskCanvas, shiftX, shiftY)
   const temp = document.createElement('canvas')
   temp.width = maskCanvas.width
   temp.height = maskCanvas.height
@@ -197,19 +254,53 @@ function drawEmbossPass(
 
   tctx.save()
   tctx.filter = blur > 0 ? `blur(${blur}px)` : 'none'
-  tctx.globalAlpha = alpha
-  tctx.drawImage(maskCanvas, shiftX, shiftY)
+  tctx.drawImage(edgeMask, 0, 0)
   tctx.restore()
 
   tctx.globalCompositeOperation = 'source-in'
   tctx.fillStyle = color
   tctx.fillRect(0, 0, temp.width, temp.height)
 
-  // 프레임의 원래 알파 내부로 다시 제한해서 중앙 투명 영역과 외곽 투명을 유지한다.
   tctx.globalCompositeOperation = 'destination-in'
   tctx.drawImage(maskCanvas, 0, 0)
 
+  target.save()
+  target.globalAlpha *= clamp01(alpha)
+  target.globalCompositeOperation = blendMode
   target.drawImage(temp, 0, 0)
+  target.restore()
+}
+
+function drawEmbossMidtonePass(
+  target: CanvasRenderingContext2D,
+  maskCanvas: HTMLCanvasElement,
+  color: string,
+  alpha: number,
+  blendMode: GlobalCompositeOperation,
+) {
+  if (alpha <= 0) return
+  const temp = document.createElement('canvas')
+  temp.width = maskCanvas.width
+  temp.height = maskCanvas.height
+  const tctx = temp.getContext('2d')
+  if (!tctx) return
+
+  tctx.drawImage(maskCanvas, 0, 0)
+  tctx.globalCompositeOperation = 'source-in'
+  tctx.fillStyle = color
+  tctx.fillRect(0, 0, temp.width, temp.height)
+
+  target.save()
+  target.globalAlpha *= clamp01(alpha)
+  target.globalCompositeOperation = blendMode
+  target.drawImage(temp, 0, 0)
+  target.restore()
+}
+
+function resolveEmbossBlend(mode: FrameDesign['effects']['embossHighlightBlend']): GlobalCompositeOperation {
+  if (mode === 'soft-light') return 'soft-light'
+  if (mode === 'normal') return 'source-over'
+  return 'screen'
 }
 
 function drawEmbossEffect(
@@ -222,37 +313,67 @@ function drawEmbossEffect(
   const fx = design.effects
   if (!fx.embossEnabled) return
 
-  const maskCanvas = document.createElement('canvas')
-  maskCanvas.width = canvasWidth
-  maskCanvas.height = canvasHeight
-  const mctx = maskCanvas.getContext('2d')
-  if (!mctx) return
-
-  drawDesignCore(mctx, makeEmbossMaskDesign(design), scale, canvasWidth, canvasHeight)
-
+  const maskCanvas = getEmbossMask(design, scale, canvasWidth, canvasHeight)
   const angle = (fx.embossLightAngle * Math.PI) / 180
   const altitude = clamp01(fx.embossLightAltitude / 90)
-  const size = Math.max(1, fx.embossSize * scale)
+  const thicknessPx = Math.max(1, design.thickness * scale)
+  const requestedSize = Math.max(1, fx.embossSize * scale)
+  const edgeSize = Math.min(requestedSize, Math.max(1, thicknessPx * .48))
   const softness = Math.max(0, fx.embossSoftness * scale)
   const depth = Math.max(0, fx.embossDepth)
+  const sharpness = clamp01(fx.embossHighlightSharpness)
+  const baseRetention = clamp01(fx.embossBaseRetention)
+  const effectMix = 1 - baseRetention * .74
 
-  const travel = size * (0.22 + depth * 0.9) * (0.2 + (1 - altitude) * 0.8)
+  // size는 효과 폭, depth는 명암 대비에 집중시켜 깊이를 올려도 형상이 밀려 보이지 않도록 한다.
+  const altitudeTravel = .22 + (1 - altitude) * .78
+  const travel = Math.min(edgeSize * .70, thicknessPx * .32) * altitudeTravel
   const dx = Math.cos(angle) * travel
   const dy = Math.sin(angle) * travel
-  const blurSoft = softness + size * (0.14 + (1 - altitude) * 0.18)
-  const blurSharp = Math.max(0, softness * 0.33)
-  const highlightAlpha = clamp01(fx.embossHighlightOpacity) * Math.min(1, 0.45 + depth * 0.75)
-  const shadowAlpha = clamp01(fx.embossShadowOpacity) * Math.min(1, 0.45 + depth * 0.75)
   const sign = fx.embossMode === 'concave' ? -1 : 1
 
-  ctx.save()
-  // 가늘고 비교적 선명한 밝은 면 + 넓고 부드러운 밝은 면
-  drawEmbossPass(ctx, maskCanvas, dx * sign, dy * sign, blurSharp, validColor(fx.embossHighlightColor, '#FFFFFF'), highlightAlpha * 0.75)
-  drawEmbossPass(ctx, maskCanvas, dx * sign, dy * sign, blurSoft, validColor(fx.embossHighlightColor, '#FFFFFF'), highlightAlpha * 0.52)
+  // 빛이 높을수록 위치 차이는 줄고 중앙 밝기는 늘어나며 그림자는 약해진다.
+  const depthGain = Math.min(1.35, .26 + depth * .78)
+  const highlightAltitude = .82 + altitude * .18
+  const shadowAltitude = .42 + (1 - altitude) * .58
 
-  // 반대편은 더 넓고 부드러운 그림자를 합성해 튜브의 둥근 몸통을 만든다.
-  drawEmbossPass(ctx, maskCanvas, -dx * sign, -dy * sign, blurSoft + size * 0.1, validColor(fx.embossShadowColor, '#6B58B1'), shadowAlpha * 0.78)
-  drawEmbossPass(ctx, maskCanvas, -dx * sign, -dy * sign, blurSharp + 0.5, validColor(fx.embossShadowColor, '#6B58B1'), shadowAlpha * 0.38)
+  const coreBlur = Math.max(.15, softness * (.52 - sharpness * .46))
+  const mediumBlur = Math.max(.35, softness * (.55 + (1 - sharpness) * .25) + edgeSize * .035)
+  const softBlur = Math.max(.65, softness + edgeSize * (.10 + (1 - altitude) * .12))
+
+  const highlightColor = validColor(fx.embossHighlightColor, '#FFFFFF')
+  const representativeColor = design.twoToneFlow.enabled
+    ? validColor(design.twoToneFlow.colorA, validColor(design.color))
+    : validColor(design.color)
+  const autoShadow = mixHex(representativeColor, '#000000', .12 + clamp01(fx.embossAutoShadowDarkness) * .52)
+  const shadowColor = fx.embossAutoShadowColor
+    ? autoShadow
+    : validColor(fx.embossShadowColor, autoShadow)
+
+  const highlightAlpha = clamp01(fx.embossHighlightOpacity) * depthGain * effectMix * highlightAltitude
+  const shadowAlpha = clamp01(fx.embossShadowOpacity) * depthGain * effectMix * shadowAltitude
+  const highlightBlend = resolveEmbossBlend(fx.embossHighlightBlend)
+
+  ctx.save()
+
+  // 중앙 볼륨: 볼록은 살짝 들어 올리고, 오목은 중앙 중간톤을 살짝 눌러준다.
+  const midtone = clamp01(fx.embossMidtoneStrength) * (.34 + altitude * .36) * depthGain * effectMix
+  if (fx.embossMode === 'convex') {
+    drawEmbossMidtonePass(ctx, maskCanvas, highlightColor, midtone * .34, 'soft-light')
+  } else {
+    drawEmbossMidtonePass(ctx, maskCanvas, shadowColor, midtone * .42, 'multiply')
+  }
+
+  // Highlight: 빛 방향의 면에 얇은 코어 + 중간 밴드 + 넓은 소프트 밴드를 겹친다.
+  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign * .42, -dy * sign * .42, coreBlur, highlightColor, highlightAlpha * .58, highlightBlend)
+  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign * .72, -dy * sign * .72, mediumBlur, highlightColor, highlightAlpha * .40, highlightBlend)
+  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign, -dy * sign, softBlur, highlightColor, highlightAlpha * .22, 'soft-light')
+
+  // Shadow: 반대쪽은 코어를 약하게, 소프트 그림자를 넓게 만들어 검은 외곽선처럼 보이지 않게 한다.
+  drawEmbossEdgePass(ctx, maskCanvas, dx * sign * .48, dy * sign * .48, mediumBlur * .82, shadowColor, shadowAlpha * .26, 'multiply')
+  drawEmbossEdgePass(ctx, maskCanvas, dx * sign * .82, dy * sign * .82, softBlur * 1.08, shadowColor, shadowAlpha * .46, 'multiply')
+  drawEmbossEdgePass(ctx, maskCanvas, dx * sign, dy * sign, softBlur * 1.35 + edgeSize * .03, shadowColor, shadowAlpha * .22, 'multiply')
+
   ctx.restore()
 }
 

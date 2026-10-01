@@ -310,10 +310,26 @@ export default function PropertyPanel({
 
           <ColorField label="밝은 부분 색상" value={design.effects.embossHighlightColor} onChange={v => nestedEffects({ embossHighlightColor: v })} eyedrop />
           <Slider label="밝은 부분 불투명도" value={design.effects.embossHighlightOpacity} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossHighlightOpacity: n })} />
-          <ColorField label="그림자 부분 색상" value={design.effects.embossShadowColor} onChange={v => nestedEffects({ embossShadowColor: v })} eyedrop />
+
+          <label className="control"><span><b>하이라이트 혼합</b></span>
+            <select value={design.effects.embossHighlightBlend} onChange={e => nestedEffects({ embossHighlightBlend: e.target.value as 'screen' | 'soft-light' | 'normal' })}>
+              <option value="screen">Screen · 광택형</option>
+              <option value="soft-light">Soft Light · 자연스러운 타입</option>
+              <option value="normal">Normal · 선명한 타입</option>
+            </select>
+          </label>
+
+          <Slider label="기존 색상 유지량" value={design.effects.embossBaseRetention} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossBaseRetention: n })} />
+          <Slider label="하이라이트 선명도" value={design.effects.embossHighlightSharpness} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossHighlightSharpness: n })} />
+          <Slider label="중앙 볼륨" value={design.effects.embossMidtoneStrength} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossMidtoneStrength: n })} />
+
+          <label className="toggle"><input type="checkbox" checked={design.effects.embossAutoShadowColor} onChange={e => nestedEffects({ embossAutoShadowColor: e.target.checked })} /><span>그림자 색상 자동 추천</span></label>
+          {design.effects.embossAutoShadowColor
+            ? <Slider label="자동 그림자 어둡기" value={design.effects.embossAutoShadowDarkness} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossAutoShadowDarkness: n })} />
+            : <ColorField label="그림자 부분 색상" value={design.effects.embossShadowColor} onChange={v => nestedEffects({ embossShadowColor: v })} eyedrop />}
           <Slider label="그림자 부분 불투명도" value={design.effects.embossShadowOpacity} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossShadowOpacity: n })} />
 
-          <p className="hint">기존 테두리 색상과 그라데이션 위에 밝은 면과 그림자 면을 합성합니다. 중앙 투명 영역은 그대로 유지되고, 미리보기와 저장 PNG에 동일하게 적용됩니다.</p>
+          <p className="hint">v0.22는 한 줄짜리 하이라이트가 아니라 여러 단계의 밝은 면·중간톤·부드러운 그림자를 겹쳐 튜브 단면이 둥글게 보이도록 합니다. 얇은 링에서는 효과 폭을 자동으로 줄이고, 입체감 깊이는 위치 이동보다 명암 대비에 더 크게 반영됩니다.</p>
         </>}
 
         <label className="toggle"><input type="checkbox" checked={design.effects.glowEnabled} onChange={e => nestedEffects({ glowEnabled: e.target.checked })} /><span>Glow 사용</span></label>

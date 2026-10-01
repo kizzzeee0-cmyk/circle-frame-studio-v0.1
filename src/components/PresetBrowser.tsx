@@ -14,7 +14,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.21', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: '0.22', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
       if (!cancelled && ref.current) renderProject(ref.current, project, 1)
     }
@@ -53,6 +53,7 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'twotoneflow', label: '2색 흐름' },
   { key: 'twotoneflow4', label: '2색 4구간' },
   { key: 'glow', label: '글로우' },
+  { key: 'emboss', label: '입체감' },
   { key: '3d', label: '3D' },
   { key: 'abstract', label: '추상' },
   { key: 'fourcolor', label: '4컬러' },
@@ -83,7 +84,8 @@ function matchesCategory(preset: FramePreset, key: string) {
     case 'twotoneflow': return preset.category === 'TwoToneFlow' || preset.category === 'TwoToneFlow4'
     case 'twotoneflow4': return preset.category === 'TwoToneFlow4' || (preset.design.twoToneFlow.enabled && preset.design.twoToneFlow.repeatCount === 2)
     case 'glow': return preset.category === 'Glow' || preset.design.effects.glowEnabled || name.includes('glow') || name.includes('neon')
-    case '3d': return preset.category === '3D' || kind === 'glossy' || name.includes('glossy')
+    case 'emboss': return preset.category === 'Emboss' || preset.design.effects.embossEnabled
+    case '3d': return preset.category === '3D' || preset.category === 'Emboss' || preset.design.effects.embossEnabled || kind === 'glossy' || name.includes('glossy')
     case 'abstract': return preset.category === 'Abstract' || name.includes('abstract') || name.includes('organic')
     case 'fourcolor': return colorCount >= 4 || name.includes('four color') || name.includes('4 color')
     default:

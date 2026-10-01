@@ -40,6 +40,12 @@ export interface FrameEffects {
   embossShadowColor: string
   embossShadowOpacity: number
   embossMode: 'convex' | 'concave'
+  embossHighlightBlend: 'screen' | 'soft-light' | 'normal'
+  embossBaseRetention: number
+  embossHighlightSharpness: number
+  embossAutoShadowColor: boolean
+  embossAutoShadowDarkness: number
+  embossMidtoneStrength: number
   glowEnabled: boolean
   glowColor: string
   glowBlur: number
@@ -125,7 +131,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.21'
+  version: '0.22'
   width: 2000
   height: 2000
   autoFit: boolean

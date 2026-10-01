@@ -285,12 +285,37 @@ export default function PropertyPanel({
       )}
 
       <section className="property-section">
-        <h3>외곽선 · 글로우 · 블러 · 그림자</h3>
+        <h3>외곽선 · 입체감 · 글로우 · 블러 · 그림자</h3>
+
         <label className="toggle"><input type="checkbox" checked={design.effects.outlineEnabled} onChange={e => nestedEffects({ outlineEnabled: e.target.checked })} /><span>외곽선 사용</span></label>
         {design.effects.outlineEnabled && <>
           <ColorField label="외곽선 색상" value={design.effects.outlineColor} onChange={v => nestedEffects({ outlineColor: v })} eyedrop />
           <Slider label="외곽선 두께" value={design.effects.outlineWidth} min={1} max={40} suffix="px" onChange={n => nestedEffects({ outlineWidth: n })} />
         </>}
+
+        <label className="toggle"><input type="checkbox" checked={design.effects.embossEnabled} onChange={e => nestedEffects({ embossEnabled: e.target.checked })} /><span>입체감 사용 (경사 · 엠보스)</span></label>
+        {design.effects.embossEnabled && <>
+          <Slider label="입체감 크기" value={design.effects.embossSize} min={1} max={80} suffix="px" onChange={n => nestedEffects({ embossSize: n })} />
+          <Slider label="입체감 깊이" value={design.effects.embossDepth} min={0} max={1.5} step={.01} onChange={n => nestedEffects({ embossDepth: n })} />
+          <Slider label="부드러움" value={design.effects.embossSoftness} min={0} max={60} suffix="px" onChange={n => nestedEffects({ embossSoftness: n })} />
+          <Slider label="빛 방향" value={design.effects.embossLightAngle} min={-180} max={180} suffix="°" onChange={n => nestedEffects({ embossLightAngle: n })} />
+          <Slider label="빛 높이" value={design.effects.embossLightAltitude} min={0} max={90} suffix="°" onChange={n => nestedEffects({ embossLightAltitude: n })} />
+
+          <label className="control"><span><b>입체 타입</b></span>
+            <select value={design.effects.embossMode} onChange={e => nestedEffects({ embossMode: e.target.value as 'convex' | 'concave' })}>
+              <option value="convex">볼록</option>
+              <option value="concave">오목</option>
+            </select>
+          </label>
+
+          <ColorField label="밝은 부분 색상" value={design.effects.embossHighlightColor} onChange={v => nestedEffects({ embossHighlightColor: v })} eyedrop />
+          <Slider label="밝은 부분 불투명도" value={design.effects.embossHighlightOpacity} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossHighlightOpacity: n })} />
+          <ColorField label="그림자 부분 색상" value={design.effects.embossShadowColor} onChange={v => nestedEffects({ embossShadowColor: v })} eyedrop />
+          <Slider label="그림자 부분 불투명도" value={design.effects.embossShadowOpacity} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossShadowOpacity: n })} />
+
+          <p className="hint">기존 테두리 색상과 그라데이션 위에 밝은 면과 그림자 면을 합성합니다. 중앙 투명 영역은 그대로 유지되고, 미리보기와 저장 PNG에 동일하게 적용됩니다.</p>
+        </>}
+
         <label className="toggle"><input type="checkbox" checked={design.effects.glowEnabled} onChange={e => nestedEffects({ glowEnabled: e.target.checked })} /><span>Glow 사용</span></label>
         {design.effects.glowEnabled && <>
           <ColorField label="Glow 색상" value={design.effects.glowColor} onChange={v => nestedEffects({ glowColor: v })} />

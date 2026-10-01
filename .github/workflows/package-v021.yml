@@ -1,7 +1,8 @@
-name: Package Circle Frame Studio v0.20
+name: Package Circle Frame Studio v0.21
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
   package:
@@ -25,7 +26,7 @@ jobs:
       - name: Upload source ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Circle-Frame-Studio-v0.20
+          name: Circle-Frame-Studio-v0.21
           if-no-files-found: error
           retention-days: 30
           path: |

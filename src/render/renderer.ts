@@ -147,6 +147,115 @@ function makeGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: nu
   return gradient
 }
 
+function makeEmbossMaskDesign(design: FrameDesign): FrameDesign {
+  const white = '#FFFFFF'
+  const next: FrameDesign = structuredClone(design)
+  next.opacity = 1
+  next.color = white
+  next.secondaryColor = white
+  next.gradientMode = 'solid'
+  next.gradientAngle = 0
+  next.gradientStops = next.gradientStops.map(stop => ({ ...stop, color: white }))
+  next.twoToneFlow = {
+    ...next.twoToneFlow,
+    enabled: false,
+    colorA: white,
+    colorB: white,
+  }
+  next.effects = {
+    ...next.effects,
+    glowEnabled: false,
+    bloom: 0,
+    softBlur: 0,
+    shadowEnabled: false,
+    outlineEnabled: false,
+    embossEnabled: false,
+  }
+  next.pattern = {
+    ...next.pattern,
+    colorCount: 1,
+    paletteColors: [white, white, white, white],
+    assetTintMode: 'palette',
+  }
+  return next
+}
+
+function drawEmbossPass(
+  target: CanvasRenderingContext2D,
+  maskCanvas: HTMLCanvasElement,
+  shiftX: number,
+  shiftY: number,
+  blur: number,
+  color: string,
+  alpha: number,
+) {
+  const temp = document.createElement('canvas')
+  temp.width = maskCanvas.width
+  temp.height = maskCanvas.height
+  const tctx = temp.getContext('2d')
+  if (!tctx) return
+
+  tctx.save()
+  tctx.filter = blur > 0 ? `blur(${blur}px)` : 'none'
+  tctx.globalAlpha = alpha
+  tctx.drawImage(maskCanvas, shiftX, shiftY)
+  tctx.restore()
+
+  tctx.globalCompositeOperation = 'source-in'
+  tctx.fillStyle = color
+  tctx.fillRect(0, 0, temp.width, temp.height)
+
+  // 프레임의 원래 알파 내부로 다시 제한해서 중앙 투명 영역과 외곽 투명을 유지한다.
+  tctx.globalCompositeOperation = 'destination-in'
+  tctx.drawImage(maskCanvas, 0, 0)
+
+  target.drawImage(temp, 0, 0)
+}
+
+function drawEmbossEffect(
+  ctx: CanvasRenderingContext2D,
+  design: FrameDesign,
+  scale: number,
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  const fx = design.effects
+  if (!fx.embossEnabled) return
+
+  const maskCanvas = document.createElement('canvas')
+  maskCanvas.width = canvasWidth
+  maskCanvas.height = canvasHeight
+  const mctx = maskCanvas.getContext('2d')
+  if (!mctx) return
+
+  drawDesignCore(mctx, makeEmbossMaskDesign(design), scale, canvasWidth, canvasHeight)
+
+  const angle = (fx.embossLightAngle * Math.PI) / 180
+  const altitude = clamp01(fx.embossLightAltitude / 90)
+  const size = Math.max(1, fx.embossSize * scale)
+  const softness = Math.max(0, fx.embossSoftness * scale)
+  const depth = Math.max(0, fx.embossDepth)
+
+  const travel = size * (0.22 + depth * 0.9) * (0.2 + (1 - altitude) * 0.8)
+  const dx = Math.cos(angle) * travel
+  const dy = Math.sin(angle) * travel
+  const blurSoft = softness + size * (0.14 + (1 - altitude) * 0.18)
+  const blurSharp = Math.max(0, softness * 0.33)
+  const highlightAlpha = clamp01(fx.embossHighlightOpacity) * Math.min(1, 0.45 + depth * 0.75)
+  const shadowAlpha = clamp01(fx.embossShadowOpacity) * Math.min(1, 0.45 + depth * 0.75)
+  const sign = fx.embossMode === 'concave' ? -1 : 1
+
+  ctx.save()
+  // 가늘고 비교적 선명한 밝은 면 + 넓고 부드러운 밝은 면
+  drawEmbossPass(ctx, maskCanvas, dx * sign, dy * sign, blurSharp, validColor(fx.embossHighlightColor, '#FFFFFF'), highlightAlpha * 0.75)
+  drawEmbossPass(ctx, maskCanvas, dx * sign, dy * sign, blurSoft, validColor(fx.embossHighlightColor, '#FFFFFF'), highlightAlpha * 0.52)
+
+  // 반대편은 더 넓고 부드러운 그림자를 합성해 튜브의 둥근 몸통을 만든다.
+  drawEmbossPass(ctx, maskCanvas, -dx * sign, -dy * sign, blurSoft + size * 0.1, validColor(fx.embossShadowColor, '#6B58B1'), shadowAlpha * 0.78)
+  drawEmbossPass(ctx, maskCanvas, -dx * sign, -dy * sign, blurSharp + 0.5, validColor(fx.embossShadowColor, '#6B58B1'), shadowAlpha * 0.38)
+  ctx.restore()
+}
+
 function beginRingPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rotation = 0) {
   ctx.beginPath()
   ctx.arc(cx, cy, r, -Math.PI / 2 + rotation, Math.PI * 1.5 + rotation)
@@ -630,6 +739,10 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     const cy = canvasHeight / 2 + design.offsetY * scale
     const r = design.radius * scale
     drawTwoToneFlowHighlights(ctx, design, cx, cy, r, scale)
+  }
+
+  if (design.effects.embossEnabled) {
+    drawEmbossEffect(ctx, design, scale, canvasWidth, canvasHeight)
   }
 
   ctx.restore()

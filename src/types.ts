@@ -29,6 +29,17 @@ export interface GradientStop {
 }
 
 export interface FrameEffects {
+  embossEnabled: boolean
+  embossSize: number
+  embossDepth: number
+  embossSoftness: number
+  embossLightAngle: number
+  embossLightAltitude: number
+  embossHighlightColor: string
+  embossHighlightOpacity: number
+  embossShadowColor: string
+  embossShadowOpacity: number
+  embossMode: 'convex' | 'concave'
   glowEnabled: boolean
   glowColor: string
   glowBlur: number
@@ -114,7 +125,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.20'
+  version: '0.21'
   width: 2000
   height: 2000
   autoFit: boolean

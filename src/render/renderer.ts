@@ -303,6 +303,12 @@ function resolveEmbossBlend(mode: FrameDesign['effects']['embossHighlightBlend']
   return 'screen'
 }
 
+function resolveEmbossShadowBlend(mode: FrameDesign['effects']['embossShadowBlend']): GlobalCompositeOperation {
+  if (mode === 'soft-light') return 'soft-light'
+  if (mode === 'normal') return 'source-over'
+  return 'multiply'
+}
+
 function drawEmbossEffect(
   ctx: CanvasRenderingContext2D,
   design: FrameDesign,
@@ -318,34 +324,47 @@ function drawEmbossEffect(
   const altitude = clamp01(fx.embossLightAltitude / 90)
   const thicknessPx = Math.max(1, design.thickness * scale)
   const requestedSize = Math.max(1, fx.embossSize * scale)
-  const edgeSize = Math.min(requestedSize, Math.max(1, thicknessPx * .48))
+  const edgeSize = Math.min(requestedSize, Math.max(1, thicknessPx * .58))
   const softness = Math.max(0, fx.embossSoftness * scale)
-  const depth = Math.max(0, fx.embossDepth)
+  const depth = Math.max(.01, fx.embossDepth)
   const sharpness = clamp01(fx.embossHighlightSharpness)
   const baseRetention = clamp01(fx.embossBaseRetention)
-  const effectMix = 1 - baseRetention * .74
 
-  // size는 효과 폭, depth는 명암 대비에 집중시켜 깊이를 올려도 형상이 밀려 보이지 않도록 한다.
-  const altitudeTravel = .22 + (1 - altitude) * .78
-  const travel = Math.min(edgeSize * .70, thicknessPx * .32) * altitudeTravel
+  const style = fx.embossStyle ?? 'inner-bevel'
+  const technique = fx.embossTechnique ?? 'smooth'
+  const direction = fx.embossDirection ?? 'up'
+
+  // Style / technique are intentionally separate so changing depth does not just make the ring look thicker.
+  const techniqueCore = technique === 'chisel-hard' ? 1.38 : technique === 'chisel-soft' ? 1.18 : 1
+  const techniqueBlur = technique === 'chisel-hard' ? .38 : technique === 'chisel-soft' ? .72 : 1
+  const techniqueSoftSpread = technique === 'chisel-hard' ? .64 : technique === 'chisel-soft' ? .80 : 1
+  const styleSpread = style === 'outer-bevel' ? 1.12 : .96
+  const styleMidtone = style === 'outer-bevel' ? .74 : 1
+
+  // Keep the original base color visible, but allow bevel contrast to become much stronger than v0.22.
+  const effectMix = .38 + (1 - baseRetention) * .98
+  const altitudeTravel = .24 + (1 - altitude) * .76
+  const travel = Math.min(edgeSize * .78, thicknessPx * .38) * altitudeTravel * styleSpread
   const dx = Math.cos(angle) * travel
   const dy = Math.sin(angle) * travel
-  const sign = fx.embossMode === 'concave' ? -1 : 1
 
-  // 빛이 높을수록 위치 차이는 줄고 중앙 밝기는 늘어나며 그림자는 약해진다.
-  const depthGain = Math.min(1.35, .26 + depth * .78)
-  const highlightAltitude = .82 + altitude * .18
-  const shadowAltitude = .42 + (1 - altitude) * .58
+  // Convex/concave and Up/Down both affect light/shadow orientation.
+  const sign = (fx.embossMode === 'concave' ? -1 : 1) * (direction === 'down' ? -1 : 1)
 
-  const coreBlur = Math.max(.15, softness * (.52 - sharpness * .46))
-  const mediumBlur = Math.max(.35, softness * (.55 + (1 - sharpness) * .25) + edgeSize * .035)
-  const softBlur = Math.max(.65, softness + edgeSize * (.10 + (1 - altitude) * .12))
+  // Depth primarily increases tonal contrast, not geometry displacement.
+  const depthGain = Math.min(2.2, .34 + depth * 1.05)
+  const highlightAltitude = .78 + altitude * .30
+  const shadowAltitude = .50 + (1 - altitude) * .66
 
-  const highlightColor = validColor(fx.embossHighlightColor, '#FFFFFF')
+  const coreBlur = Math.max(.08, softness * (.46 - sharpness * .40) * techniqueBlur)
+  const mediumBlur = Math.max(.28, (softness * (.54 + (1 - sharpness) * .22) + edgeSize * .035) * (.86 + techniqueBlur * .14))
+  const softBlur = Math.max(.65, (softness + edgeSize * (.14 + (1 - altitude) * .18)) / techniqueSoftSpread)
+
+  const highlightColor = validColor(fx.embossHighlightColor, '#FFF9C5')
   const representativeColor = design.twoToneFlow.enabled
     ? validColor(design.twoToneFlow.colorA, validColor(design.color))
     : validColor(design.color)
-  const autoShadow = mixHex(representativeColor, '#000000', .12 + clamp01(fx.embossAutoShadowDarkness) * .52)
+  const autoShadow = mixHex(representativeColor, '#000000', .16 + clamp01(fx.embossAutoShadowDarkness) * .58)
   const shadowColor = fx.embossAutoShadowColor
     ? autoShadow
     : validColor(fx.embossShadowColor, autoShadow)
@@ -353,26 +372,29 @@ function drawEmbossEffect(
   const highlightAlpha = clamp01(fx.embossHighlightOpacity) * depthGain * effectMix * highlightAltitude
   const shadowAlpha = clamp01(fx.embossShadowOpacity) * depthGain * effectMix * shadowAltitude
   const highlightBlend = resolveEmbossBlend(fx.embossHighlightBlend)
+  const shadowBlend = resolveEmbossShadowBlend(fx.embossShadowBlend)
 
   ctx.save()
 
-  // 중앙 볼륨: 볼록은 살짝 들어 올리고, 오목은 중앙 중간톤을 살짝 눌러준다.
-  const midtone = clamp01(fx.embossMidtoneStrength) * (.34 + altitude * .36) * depthGain * effectMix
+  // A center-body pass is essential: without it the result reads as a thick stroke rather than a rounded tube.
+  const midtone = clamp01(fx.embossMidtoneStrength) * (.34 + altitude * .34) * depthGain * effectMix * styleMidtone
   if (fx.embossMode === 'convex') {
-    drawEmbossMidtonePass(ctx, maskCanvas, highlightColor, midtone * .34, 'soft-light')
+    drawEmbossMidtonePass(ctx, maskCanvas, highlightColor, midtone * .45, 'soft-light')
+    drawEmbossMidtonePass(ctx, maskCanvas, shadowColor, midtone * .14, shadowBlend)
   } else {
-    drawEmbossMidtonePass(ctx, maskCanvas, shadowColor, midtone * .42, 'multiply')
+    drawEmbossMidtonePass(ctx, maskCanvas, shadowColor, midtone * .52, shadowBlend)
+    drawEmbossMidtonePass(ctx, maskCanvas, highlightColor, midtone * .11, 'soft-light')
   }
 
-  // Highlight: 빛 방향의 면에 얇은 코어 + 중간 밴드 + 넓은 소프트 밴드를 겹친다.
-  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign * .42, -dy * sign * .42, coreBlur, highlightColor, highlightAlpha * .58, highlightBlend)
-  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign * .72, -dy * sign * .72, mediumBlur, highlightColor, highlightAlpha * .40, highlightBlend)
-  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign, -dy * sign, softBlur, highlightColor, highlightAlpha * .22, 'soft-light')
+  // Thin bright core + medium highlight + soft light wrap.
+  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign * .34, -dy * sign * .34, coreBlur, highlightColor, highlightAlpha * (.76 * techniqueCore), highlightBlend)
+  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign * .62, -dy * sign * .62, mediumBlur, highlightColor, highlightAlpha * .52, highlightBlend)
+  drawEmbossEdgePass(ctx, maskCanvas, -dx * sign, -dy * sign, softBlur, highlightColor, highlightAlpha * .28, 'soft-light')
 
-  // Shadow: 반대쪽은 코어를 약하게, 소프트 그림자를 넓게 만들어 검은 외곽선처럼 보이지 않게 한다.
-  drawEmbossEdgePass(ctx, maskCanvas, dx * sign * .48, dy * sign * .48, mediumBlur * .82, shadowColor, shadowAlpha * .26, 'multiply')
-  drawEmbossEdgePass(ctx, maskCanvas, dx * sign * .82, dy * sign * .82, softBlur * 1.08, shadowColor, shadowAlpha * .46, 'multiply')
-  drawEmbossEdgePass(ctx, maskCanvas, dx * sign, dy * sign, softBlur * 1.35 + edgeSize * .03, shadowColor, shadowAlpha * .22, 'multiply')
+  // Shadow uses its own blend mode. Multiply is the default, matching Photoshop-like bevel controls.
+  drawEmbossEdgePass(ctx, maskCanvas, dx * sign * .38, dy * sign * .38, mediumBlur * .72, shadowColor, shadowAlpha * .36, shadowBlend)
+  drawEmbossEdgePass(ctx, maskCanvas, dx * sign * .74, dy * sign * .74, softBlur, shadowColor, shadowAlpha * .60, shadowBlend)
+  drawEmbossEdgePass(ctx, maskCanvas, dx * sign, dy * sign, softBlur * 1.26 + edgeSize * .025, shadowColor, shadowAlpha * .30, shadowBlend)
 
   ctx.restore()
 }

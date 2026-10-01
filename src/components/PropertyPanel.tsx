@@ -295,27 +295,63 @@ export default function PropertyPanel({
 
         <label className="toggle"><input type="checkbox" checked={design.effects.embossEnabled} onChange={e => nestedEffects({ embossEnabled: e.target.checked })} /><span>입체감 사용 (경사 · 엠보스)</span></label>
         {design.effects.embossEnabled && <>
-          <Slider label="입체감 크기" value={design.effects.embossSize} min={1} max={80} suffix="px" onChange={n => nestedEffects({ embossSize: n })} />
-          <Slider label="입체감 깊이" value={design.effects.embossDepth} min={0} max={1.5} step={.01} onChange={n => nestedEffects({ embossDepth: n })} />
-          <Slider label="부드러움" value={design.effects.embossSoftness} min={0} max={60} suffix="px" onChange={n => nestedEffects({ embossSoftness: n })} />
-          <Slider label="빛 방향" value={design.effects.embossLightAngle} min={-180} max={180} suffix="°" onChange={n => nestedEffects({ embossLightAngle: n })} />
-          <Slider label="빛 높이" value={design.effects.embossLightAltitude} min={0} max={90} suffix="°" onChange={n => nestedEffects({ embossLightAltitude: n })} />
-
-          <label className="control"><span><b>입체 타입</b></span>
-            <select value={design.effects.embossMode} onChange={e => nestedEffects({ embossMode: e.target.value as 'convex' | 'concave' })}>
-              <option value="convex">볼록</option>
-              <option value="concave">오목</option>
+          <label className="control"><span><b>스타일</b></span>
+            <select value={design.effects.embossStyle} onChange={e => nestedEffects({ embossStyle: e.target.value as 'inner-bevel' | 'outer-bevel' })}>
+              <option value="inner-bevel">내부 경사</option>
+              <option value="outer-bevel">외부 경사</option>
             </select>
           </label>
 
-          <ColorField label="밝은 부분 색상" value={design.effects.embossHighlightColor} onChange={v => nestedEffects({ embossHighlightColor: v })} eyedrop />
-          <Slider label="밝은 부분 불투명도" value={design.effects.embossHighlightOpacity} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossHighlightOpacity: n })} />
+          <label className="control"><span><b>기법</b></span>
+            <select value={design.effects.embossTechnique} onChange={e => nestedEffects({ embossTechnique: e.target.value as 'smooth' | 'chisel-soft' | 'chisel-hard' })}>
+              <option value="smooth">매끄럽게</option>
+              <option value="chisel-soft">부드럽게 깎기</option>
+              <option value="chisel-hard">단단하게 깎기</option>
+            </select>
+          </label>
 
-          <label className="control"><span><b>하이라이트 혼합</b></span>
+          <Slider label="깊이" value={Math.round(design.effects.embossDepth * 100)} min={1} max={300} suffix="%" onChange={n => nestedEffects({ embossDepth: n / 100 })} />
+
+          <label className="control"><span><b>방향</b></span>
+            <select value={design.effects.embossDirection} onChange={e => nestedEffects({ embossDirection: e.target.value as 'up' | 'down' })}>
+              <option value="up">위로</option>
+              <option value="down">아래로</option>
+            </select>
+          </label>
+
+          <Slider label="크기" value={design.effects.embossSize} min={1} max={100} suffix="px" onChange={n => nestedEffects({ embossSize: n })} />
+          <Slider label="부드럽게" value={design.effects.embossSoftness} min={0} max={60} suffix="px" onChange={n => nestedEffects({ embossSoftness: n })} />
+          <Slider label="각도" value={design.effects.embossLightAngle < 0 ? design.effects.embossLightAngle + 360 : design.effects.embossLightAngle} min={0} max={360} suffix="°" onChange={n => nestedEffects({ embossLightAngle: n > 180 ? n - 360 : n })} />
+          <Slider label="높이" value={design.effects.embossLightAltitude} min={0} max={90} suffix="°" onChange={n => nestedEffects({ embossLightAltitude: n })} />
+
+          <label className="control"><span><b>밝은 영역 모드</b></span>
             <select value={design.effects.embossHighlightBlend} onChange={e => nestedEffects({ embossHighlightBlend: e.target.value as 'screen' | 'soft-light' | 'normal' })}>
-              <option value="screen">Screen · 광택형</option>
-              <option value="soft-light">Soft Light · 자연스러운 타입</option>
-              <option value="normal">Normal · 선명한 타입</option>
+              <option value="screen">스크린</option>
+              <option value="soft-light">소프트 라이트</option>
+              <option value="normal">일반</option>
+            </select>
+          </label>
+          <Slider label="밝은 영역 불투명도" value={Math.round(design.effects.embossHighlightOpacity * 100)} min={0} max={100} suffix="%" onChange={n => nestedEffects({ embossHighlightOpacity: n / 100 })} />
+          <ColorField label="밝은 영역 색상" value={design.effects.embossHighlightColor} onChange={v => nestedEffects({ embossHighlightColor: v })} eyedrop />
+
+          <label className="control"><span><b>그림자 모드</b></span>
+            <select value={design.effects.embossShadowBlend} onChange={e => nestedEffects({ embossShadowBlend: e.target.value as 'multiply' | 'soft-light' | 'normal' })}>
+              <option value="multiply">곱하기</option>
+              <option value="soft-light">소프트 라이트</option>
+              <option value="normal">일반</option>
+            </select>
+          </label>
+          <Slider label="그림자 불투명도" value={Math.round(design.effects.embossShadowOpacity * 100)} min={0} max={100} suffix="%" onChange={n => nestedEffects({ embossShadowOpacity: n / 100 })} />
+
+          <label className="toggle"><input type="checkbox" checked={design.effects.embossAutoShadowColor} onChange={e => nestedEffects({ embossAutoShadowColor: e.target.checked })} /><span>그림자 색상 자동 추천</span></label>
+          {design.effects.embossAutoShadowColor
+            ? <Slider label="자동 그림자 어둡기" value={Math.round(design.effects.embossAutoShadowDarkness * 100)} min={0} max={100} suffix="%" onChange={n => nestedEffects({ embossAutoShadowDarkness: n / 100 })} />
+            : <ColorField label="그림자 색상" value={design.effects.embossShadowColor} onChange={v => nestedEffects({ embossShadowColor: v })} eyedrop />}
+
+          <label className="control"><span><b>볼록 / 오목</b></span>
+            <select value={design.effects.embossMode} onChange={e => nestedEffects({ embossMode: e.target.value as 'convex' | 'concave' })}>
+              <option value="convex">볼록</option>
+              <option value="concave">오목</option>
             </select>
           </label>
 
@@ -323,13 +359,7 @@ export default function PropertyPanel({
           <Slider label="하이라이트 선명도" value={design.effects.embossHighlightSharpness} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossHighlightSharpness: n })} />
           <Slider label="중앙 볼륨" value={design.effects.embossMidtoneStrength} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossMidtoneStrength: n })} />
 
-          <label className="toggle"><input type="checkbox" checked={design.effects.embossAutoShadowColor} onChange={e => nestedEffects({ embossAutoShadowColor: e.target.checked })} /><span>그림자 색상 자동 추천</span></label>
-          {design.effects.embossAutoShadowColor
-            ? <Slider label="자동 그림자 어둡기" value={design.effects.embossAutoShadowDarkness} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossAutoShadowDarkness: n })} />
-            : <ColorField label="그림자 부분 색상" value={design.effects.embossShadowColor} onChange={v => nestedEffects({ embossShadowColor: v })} eyedrop />}
-          <Slider label="그림자 부분 불투명도" value={design.effects.embossShadowOpacity} min={0} max={1} step={.01} onChange={n => nestedEffects({ embossShadowOpacity: n })} />
-
-          <p className="hint">v0.22는 한 줄짜리 하이라이트가 아니라 여러 단계의 밝은 면·중간톤·부드러운 그림자를 겹쳐 튜브 단면이 둥글게 보이도록 합니다. 얇은 링에서는 효과 폭을 자동으로 줄이고, 입체감 깊이는 위치 이동보다 명암 대비에 더 크게 반영됩니다.</p>
+          <p className="hint">한 번 맞춘 경사·엠보스 값은 다른 프레임 프리셋을 선택해도 유지됩니다. 밝은 면은 Screen, 어두운 면은 Multiply를 기본으로 사용해 단순히 선이 굵어지는 것이 아니라 밝은 면/중앙 볼륨/그림자 면이 분리되도록 했습니다.</p>
         </>}
 
         <label className="toggle"><input type="checkbox" checked={design.effects.glowEnabled} onChange={e => nestedEffects({ glowEnabled: e.target.checked })} /><span>Glow 사용</span></label>

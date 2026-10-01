@@ -8,10 +8,10 @@ import { downloadProject, exportPng } from './utils/export'
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v022'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v022'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v023'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v023'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -57,6 +57,38 @@ function makeLayerFromDesign(source: Partial<FrameDesign>, layerName?: string): 
   }
 }
 
+function mergeEmbossSettings(target: FrameDesign, source: FrameDesign): FrameDesign {
+  return {
+    ...target,
+    effects: {
+      ...target.effects,
+      // Once the user has tuned bevel/emboss, changing the frame preset should not reset it.
+      // A preset can still turn emboss ON if the current frame had it OFF.
+      embossEnabled: source.effects.embossEnabled || target.effects.embossEnabled,
+      embossSize: source.effects.embossSize,
+      embossDepth: source.effects.embossDepth,
+      embossSoftness: source.effects.embossSoftness,
+      embossLightAngle: source.effects.embossLightAngle,
+      embossLightAltitude: source.effects.embossLightAltitude,
+      embossHighlightColor: source.effects.embossHighlightColor,
+      embossHighlightOpacity: source.effects.embossHighlightOpacity,
+      embossShadowColor: source.effects.embossShadowColor,
+      embossShadowOpacity: source.effects.embossShadowOpacity,
+      embossMode: source.effects.embossMode,
+      embossStyle: source.effects.embossStyle,
+      embossTechnique: source.effects.embossTechnique,
+      embossDirection: source.effects.embossDirection,
+      embossHighlightBlend: source.effects.embossHighlightBlend,
+      embossShadowBlend: source.effects.embossShadowBlend,
+      embossBaseRetention: source.effects.embossBaseRetention,
+      embossHighlightSharpness: source.effects.embossHighlightSharpness,
+      embossAutoShadowColor: source.effects.embossAutoShadowColor,
+      embossAutoShadowDarkness: source.effects.embossAutoShadowDarkness,
+      embossMidtoneStrength: source.effects.embossMidtoneStrength,
+    },
+  }
+}
+
 function syncSelectedLayer(draft: FrameProject): FrameProject {
   if (!draft.layers.length) {
     const layer = makeLayerFromDesign(createDesign('basic', 'Circle Ring'), '레이어 1')
@@ -84,7 +116,7 @@ function normalizeProject(source: any): FrameProject {
       return normalized
     })
     return syncSelectedLayer({
-      version: '0.22',
+      version: '0.23',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -96,7 +128,7 @@ function normalizeProject(source: any): FrameProject {
   if (source?.design) {
     const layer = makeLayerFromDesign(source.design, source.design?.name || '레이어 1')
     return syncSelectedLayer({
-      version: '0.22',
+      version: '0.23',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -120,7 +152,7 @@ function makeInitialProject(): FrameProject {
   design.pattern.paletteColors = ['#F8AFCF', '#FBD4E5', '#F8AFCF', '#FBD4E5']
   const layer = makeLayerFromDesign(design, design.name)
   return {
-    version: '0.22',
+    version: '0.23',
     width: 2000,
     height: 2000,
     autoFit: true,
@@ -229,7 +261,8 @@ export default function App() {
 
   const selectPreset = (preset: FramePreset) => {
     commit(draft => {
-      const design = structuredClone(preset.design)
+      let design = structuredClone(preset.design)
+      design = mergeEmbossSettings(design, draft.design)
       design.id = uid('design')
       design.name = preset.name
       const index = draft.layers.findIndex(layer => layer.id === draft.selectedLayerId)
@@ -407,7 +440,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.22 · Natural Emboss / Bevel Shading</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.23 · Photoshop-style Emboss Controls</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>

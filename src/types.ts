@@ -40,7 +40,11 @@ export interface FrameEffects {
   embossShadowColor: string
   embossShadowOpacity: number
   embossMode: 'convex' | 'concave'
+  embossStyle: 'inner-bevel' | 'outer-bevel'
+  embossTechnique: 'smooth' | 'chisel-soft' | 'chisel-hard'
+  embossDirection: 'up' | 'down'
   embossHighlightBlend: 'screen' | 'soft-light' | 'normal'
+  embossShadowBlend: 'multiply' | 'soft-light' | 'normal'
   embossBaseRetention: number
   embossHighlightSharpness: number
   embossAutoShadowColor: boolean
@@ -131,7 +135,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.22'
+  version: '0.23'
   width: 2000
   height: 2000
   autoFit: boolean

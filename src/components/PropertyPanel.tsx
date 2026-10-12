@@ -226,15 +226,17 @@ export default function PropertyPanel({
             <label className="control"><span><b>둘레 색상 구성</b></span>
               <select
                 value={design.twoToneFlow.repeatCount}
-                onChange={e => nestedTwoTone({ repeatCount: Number(e.target.value) as 1 | 2 })}
+                onChange={e => nestedTwoTone({ repeatCount: Number(e.target.value) as 1 | 2 | 3 | 4 })}
               >
                 <option value={1}>2구간 · 흰색 → 선택색상</option>
                 <option value={2}>4구간 · 흰색 → 선택색상 → 흰색 → 선택색상</option>
+                <option value={3}>6구간 · 흰색 → 선택색상 → 흰색 → 선택색상 → 흰색 → 선택색상</option>
+                <option value={4}>8구간 · 흰색 → 선택색상 → 흰색 → 선택색상 → 흰색 → 선택색상 → 흰색 → 선택색상</option>
               </select>
             </label>
 
-            <Slider label={design.twoToneFlow.repeatCount === 2 ? '4구간 패턴 위치' : '흰색 구간 위치'} value={design.twoToneFlow.whiteCenter} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ whiteCenter: n })} />
-            <Slider label={design.twoToneFlow.repeatCount === 2 ? '각 흰색 구간 길이' : '흰색 구간 길이'} value={design.twoToneFlow.whiteWidth} min={.04} max={.70} step={.01} onChange={n => nestedTwoTone({ whiteWidth: n })} />
+            <Slider label={`${design.twoToneFlow.repeatCount * 2}구간 패턴 위치`} value={design.twoToneFlow.whiteCenter} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ whiteCenter: n })} />
+            <Slider label={design.twoToneFlow.repeatCount > 1 ? '각 흰색 구간 길이' : '흰색 구간 길이'} value={design.twoToneFlow.whiteWidth} min={.04} max={.70} step={.01} onChange={n => nestedTwoTone({ whiteWidth: n })} />
             <Slider label="연결 부드러움" value={design.twoToneFlow.blendWidth} min={.01} max={.30} step={.01} onChange={n => nestedTwoTone({ blendWidth: n })} />
             <Slider label="흐름 회전" value={design.twoToneFlow.rotation} min={-180} max={180} suffix="°" onChange={n => nestedTwoTone({ rotation: n })} />
             <Slider label="반짝임" value={design.twoToneFlow.glossStrength} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ glossStrength: n })} />
@@ -242,15 +244,16 @@ export default function PropertyPanel({
             <Slider label="바깥쪽 빛" value={design.twoToneFlow.outerHighlight} min={0} max={1} step={.01} onChange={n => nestedTwoTone({ outerHighlight: n })} />
 
             <div className="pattern-sequence-preview" title="둘레 반복 순서 미리보기">
-              {Array.from({ length: design.twoToneFlow.repeatCount === 2 ? 12 : 8 }, (_, i) => {
-                const isWhite = design.twoToneFlow.repeatCount === 2 ? Math.floor(i / 3) % 2 === 0 : i < 4
+              {Array.from({ length: design.twoToneFlow.repeatCount * 4 + 4 }, (_, i) => {
+                const chunk = Math.floor(i / 2)
+                const isWhite = chunk % 2 === 0
                 return <i key={i} style={{ background: isWhite ? design.twoToneFlow.colorB : design.twoToneFlow.colorA }} />
               })}
             </div>
 
             <p className="hint">
-              {design.twoToneFlow.repeatCount === 2
-                ? <>실제 선택 색상은 <b>흰색 + 선택색상 2개</b>지만, 원 둘레에는 <b>흰색 → 선택색상 → 흰색 → 선택색상</b>의 4구간으로 반복됩니다. 흰색 길이를 바꿔도 두 흰색 구간과 두 선택색상 구간이 서로 대칭을 유지하도록 자동 계산합니다.</>
+              {design.twoToneFlow.repeatCount > 1
+                ? <>실제 선택 색상은 <b>흰색 + 선택색상 2개</b>지만, 원 둘레에는 <b>{design.twoToneFlow.repeatCount * 2}구간</b>으로 <b>흰색 → 선택색상</b>이 번갈아 반복됩니다. 흰색 길이를 바꿔도 모든 흰색 구간과 모든 선택색상 구간이 서로 같은 길이와 대칭을 유지하도록 자동 계산합니다.</>
                 : <>흰색과 선택색상이 원의 두께 방향이 아니라 <b>원 둘레를 따라</b> 한 번씩 흐릅니다.</>}
             </p>
           </> : <>

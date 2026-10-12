@@ -557,6 +557,54 @@ export const PRESETS: FramePreset[] = [
     },
   }),
 
+  p('flow6-lavender', 'TwoToneFlow6', 'Lavender 6-Segment Flow', 'basic', {
+    thickness: 104,
+    color: '#A98AE9',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 3, colorA: '#A98AE9', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .34, blendWidth: .09, rotation: -8,
+      glossStrength: .16, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow6-pink', 'TwoToneFlow6', 'Pink 6-Segment Flow', 'basic', {
+    thickness: 104,
+    color: '#F1A0C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 3, colorA: '#F1A0C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .34, blendWidth: .09, rotation: -8,
+      glossStrength: .16, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow8-lavender', 'TwoToneFlow8', 'Lavender 8-Segment Flow', 'basic', {
+    thickness: 102,
+    color: '#A98AE9',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 4, colorA: '#A98AE9', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .26, blendWidth: .08, rotation: -8,
+      glossStrength: .14, innerHighlight: .10, outerHighlight: .08,
+    },
+  }),
+
+  p('flow8-mint', 'TwoToneFlow8', 'Mint 8-Segment Flow', 'basic', {
+    thickness: 102,
+    color: '#86D8C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 4, colorA: '#86D8C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .26, blendWidth: .08, rotation: -8,
+      glossStrength: .14, innerHighlight: .10, outerHighlight: .08,
+    },
+  }),
+
 
   p('glow-soft', 'Glow', 'Soft Glow Ring', 'basic', { thickness: 22 }, {}, { glowEnabled: true, glowBlur: 42, glowIntensity: .45 }),
   p('glow-neon', 'Glow', 'Neon Circle', 'basic', { thickness: 20, color: '#9A8CFF' }, {}, { glowEnabled: true, glowColor: '#8C7BFF', glowBlur: 70, glowIntensity: .85, bloom: 20 }),

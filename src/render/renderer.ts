@@ -40,7 +40,7 @@ function mixHex(a: string, b: string, amount: number) {
 
 function makeTwoToneFlowGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: number, cy: number) {
   const flow = design.twoToneFlow
-  const repeatCount = flow.repeatCount === 2 ? 2 : 1
+  const repeatCount = Math.max(1, Math.min(4, flow.repeatCount || 1))
   const angle = ((flow.rotation + design.gradientAngle) * Math.PI) / 180 - Math.PI / 2
   const gradient = ctx.createConicGradient(angle, cx, cy)
   const center = ((flow.whiteCenter % 1) + 1) % 1
@@ -53,14 +53,13 @@ function makeTwoToneFlowGradient(ctx: CanvasRenderingContext2D, design: FrameDes
 
   const colorA = validColor(flow.colorA, validColor(design.color))
   const colorB = validColor(flow.colorB, '#FFFFFF')
-  const samples = repeatCount === 2 ? 160 : 112
+  const samples = 96 + repeatCount * 40
 
   for (let i = 0; i <= samples; i++) {
     const t = i / samples
 
-    // repeatCount=1: 흰색 + 선택색상
-    // repeatCount=2: 흰색 + 선택색상 + 흰색 + 선택색상
-    // 각 반복 주기를 동일한 비율로 계산해 네 구간의 길이가 좌우 대칭으로 유지된다.
+    // repeatCount=1/2/3/4 => 2/4/6/8구간
+    // 각 반복 주기를 동일한 비율로 계산해 모든 흰색/선택색상 구간 길이를 균등하게 유지한다.
     const cycleT = ((t * repeatCount) % 1 + 1) % 1
     const rawDistance = Math.abs(cycleT - center)
     const distance = Math.min(rawDistance, 1 - rawDistance)
@@ -84,7 +83,7 @@ function drawTwoToneFlowHighlights(ctx: CanvasRenderingContext2D, design: FrameD
   const flow = design.twoToneFlow
   if (!flow.enabled || !['basic', 'double', 'triple', 'glossy'].includes(design.kind)) return
 
-  const repeatCount = flow.repeatCount === 2 ? 2 : 1
+  const repeatCount = Math.max(1, Math.min(4, flow.repeatCount || 1))
   const baseAngle = ((flow.rotation + design.gradientAngle) * Math.PI) / 180 - Math.PI / 2
   const cycleAngle = TAU / repeatCount
   const span = Math.min(cycleAngle * .82, Math.max(.15, (flow.whiteWidth + flow.blendWidth * 1.35) * cycleAngle))

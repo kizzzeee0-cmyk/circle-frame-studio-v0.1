@@ -14,7 +14,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.23', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: '0.24', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
       if (!cancelled && ref.current) renderProject(ref.current, project, 1)
     }
@@ -52,6 +52,8 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'gradient', label: '그라데이션' },
   { key: 'twotoneflow', label: '2색 흐름' },
   { key: 'twotoneflow4', label: '2색 4구간' },
+  { key: 'twotoneflow6', label: '2색 6구간' },
+  { key: 'twotoneflow8', label: '2색 8구간' },
   { key: 'glow', label: '글로우' },
   { key: 'emboss', label: '입체감' },
   { key: '3d', label: '3D' },
@@ -80,9 +82,11 @@ function matchesCategory(preset: FramePreset, key: string) {
     case 'ribbon': return kind === 'ribbon' || name.includes('ribbon')
     case 'flower': return kind === 'flower' || name.includes('flower')
     case 'star': return kind === 'star' || kind === 'sparkle' || name.includes('star') || name.includes('sparkle')
-    case 'gradient': return preset.category === 'Gradient' || preset.category === 'TwoToneFlow' || preset.category === 'TwoToneFlow4' || preset.design.gradientMode !== 'solid' || name.includes('gradient')
-    case 'twotoneflow': return preset.category === 'TwoToneFlow' || preset.category === 'TwoToneFlow4'
+    case 'gradient': return preset.category === 'Gradient' || preset.category === 'TwoToneFlow' || preset.category === 'TwoToneFlow4' || preset.category === 'TwoToneFlow6' || preset.category === 'TwoToneFlow8' || preset.design.gradientMode !== 'solid' || name.includes('gradient')
+    case 'twotoneflow': return preset.category === 'TwoToneFlow' || preset.category === 'TwoToneFlow4' || preset.category === 'TwoToneFlow6' || preset.category === 'TwoToneFlow8'
     case 'twotoneflow4': return preset.category === 'TwoToneFlow4' || (preset.design.twoToneFlow.enabled && preset.design.twoToneFlow.repeatCount === 2)
+    case 'twotoneflow6': return preset.category === 'TwoToneFlow6' || (preset.design.twoToneFlow.enabled && preset.design.twoToneFlow.repeatCount === 3)
+    case 'twotoneflow8': return preset.category === 'TwoToneFlow8' || (preset.design.twoToneFlow.enabled && preset.design.twoToneFlow.repeatCount === 4)
     case 'glow': return preset.category === 'Glow' || preset.design.effects.glowEnabled || name.includes('glow') || name.includes('neon')
     case 'emboss': return preset.category === 'Emboss' || preset.design.effects.embossEnabled
     case '3d': return preset.category === '3D' || preset.category === 'Emboss' || preset.design.effects.embossEnabled || kind === 'glossy' || name.includes('glossy')

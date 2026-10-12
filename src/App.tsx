@@ -2,16 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import CanvasPanel from './components/CanvasPanel'
 import PresetBrowser from './components/PresetBrowser'
 import PropertyPanel from './components/PropertyPanel'
+import RecentSavesModal from './components/RecentSavesModal'
 import { createDesign } from './presets'
 import type { FrameDesign, FrameLayer, FramePreset, FrameProject } from './types'
 import { downloadProject, exportPng } from './utils/export'
+import { addRecentSave, clearRecentSaves, deleteRecentSave, listRecentSaves, type RecentSaveRecord, type RecentSaveSource } from './utils/recentSaves'
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v024'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v024'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v025'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v025'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -116,7 +118,7 @@ function normalizeProject(source: any): FrameProject {
       return normalized
     })
     return syncSelectedLayer({
-      version: '0.24',
+      version: '0.25',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -128,7 +130,7 @@ function normalizeProject(source: any): FrameProject {
   if (source?.design) {
     const layer = makeLayerFromDesign(source.design, source.design?.name || '레이어 1')
     return syncSelectedLayer({
-      version: '0.24',
+      version: '0.25',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -152,7 +154,7 @@ function makeInitialProject(): FrameProject {
   design.pattern.paletteColors = ['#F8AFCF', '#FBD4E5', '#F8AFCF', '#FBD4E5']
   const layer = makeLayerFromDesign(design, design.name)
   return {
-    version: '0.24',
+    version: '0.25',
     width: 2000,
     height: 2000,
     autoFit: true,
@@ -208,6 +210,9 @@ async function optimizeAsset(file: File): Promise<string> {
 export default function App() {
   const [project, setProject] = useState<FrameProject>(loadInitialProject)
   const [userPresets, setUserPresets] = useState<FramePreset[]>(loadUserPresets)
+  const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([])
+  const [recentOpen, setRecentOpen] = useState(false)
+  const [recentLoading, setRecentLoading] = useState(false)
   const undoRef = useRef<FrameProject[]>([])
   const redoRef = useRef<FrameProject[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
@@ -248,12 +253,34 @@ export default function App() {
     try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(userPresets)) } catch { /* quota */ }
   }, [userPresets])
 
+  const refreshRecentSaves = useCallback(async () => {
+    setRecentLoading(true)
+    try {
+      setRecentSaves(await listRecentSaves())
+    } catch (error) {
+      console.warn('최근 저장 내역을 불러오지 못했습니다.', error)
+      setRecentSaves([])
+    } finally {
+      setRecentLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (recentOpen) void refreshRecentSaves()
+  }, [recentOpen, refreshRecentSaves])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return
       if (e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo() }
       if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo() }
-      if (e.key.toLowerCase() === 's') { e.preventDefault(); downloadProject(project) }
+      if (e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        downloadProject(project)
+        void addRecentSave(project, 'json')
+          .then(({ records }) => setRecentSaves(records))
+          .catch(error => console.warn('최근 저장 내역 기록 실패', error))
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -289,6 +316,54 @@ export default function App() {
       draft.design = structuredClone(next)
       return draft
     })
+  }
+
+  const recordRecentSave = async (source: RecentSaveSource) => {
+    try {
+      const { records } = await addRecentSave(project, source)
+      setRecentSaves(records)
+    } catch (error) {
+      console.warn('최근 저장 내역 기록 실패', error)
+      alert('파일은 저장했지만 최근 저장 내역을 기록하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.')
+    }
+  }
+
+  const handlePngExport = async () => {
+    try {
+      await exportPng(project)
+      await recordRecentSave('png')
+    } catch {
+      alert('PNG 파일을 저장하지 못했습니다.')
+    }
+  }
+
+  const handleJsonSave = async () => {
+    downloadProject(project)
+    await recordRecentSave('json')
+  }
+
+  const loadRecentSave = (record: RecentSaveRecord) => {
+    if (!confirm('최근 저장 내역을 불러오면 현재 작업 상태가 바뀝니다. 계속할까요?')) return
+    commit(() => normalizeProject(record.project))
+    setRecentOpen(false)
+  }
+
+  const removeRecentSave = async (id: string) => {
+    try {
+      await deleteRecentSave(id)
+      await refreshRecentSaves()
+    } catch {
+      alert('저장 내역을 삭제하지 못했습니다.')
+    }
+  }
+
+  const removeAllRecentSaves = async () => {
+    try {
+      await clearRecentSaves()
+      setRecentSaves([])
+    } catch {
+      alert('최근 저장 내역을 삭제하지 못했습니다.')
+    }
   }
 
   const saveCurrentPreset = () => {
@@ -440,7 +515,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.24 · Multi-segment Two-tone Flow</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.25 · Recent Save History</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>
@@ -448,11 +523,12 @@ export default function App() {
           <button onClick={undo} title="Ctrl+Z">↶ 실행취소</button>
           <button onClick={redo} title="Ctrl+Y">↷ 다시실행</button>
           <span className="toolbar-sep" />
-          <button onClick={() => downloadProject(project)}>JSON 저장</button>
+          <button onClick={() => void handleJsonSave()}>JSON 저장</button>
           <button onClick={() => fileInput.current?.click()}>JSON 불러오기</button>
+          <button onClick={() => setRecentOpen(true)}>최근 저장 내역</button>
           <input ref={fileInput} hidden type="file" accept="application/json,.json" onChange={e => importProject(e.target.files?.[0])} />
           <label className="autofit"><input type="checkbox" checked={project.autoFit} onChange={e => commit(d => ({ ...d, autoFit: e.target.checked }))} /> Auto Fit</label>
-          <button className="primary-button" onClick={() => exportPng(project)}>PNG 내보내기</button>
+          <button className="primary-button" onClick={() => void handlePngExport()}>PNG 내보내기</button>
         </div>
       </header>
 
@@ -482,6 +558,16 @@ export default function App() {
           onDeleteLayer={deleteLayer}
         />
       </main>
+
+      <RecentSavesModal
+        open={recentOpen}
+        records={recentSaves}
+        loading={recentLoading}
+        onClose={() => setRecentOpen(false)}
+        onLoad={loadRecentSave}
+        onDelete={removeRecentSave}
+        onClear={removeAllRecentSaves}
+      />
 
       <footer className="statusbar">
         <span>프리셋은 현재 선택된 레이어만 교체됩니다 · 레이어 순서 변경 가능 · Alt+클릭 스포이드</span>

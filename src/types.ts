@@ -135,7 +135,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.24'
+  version: '0.25'
   width: 2000
   height: 2000
   autoFit: boolean

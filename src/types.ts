@@ -93,6 +93,12 @@ export interface FramePattern {
   seed: number
 }
 
+export interface TripleRingSettings {
+  attached: boolean
+  colors: [string, string, string]
+  widths: [number, number, number]
+}
+
 export interface TwoToneFlowSettings {
   enabled: boolean
   repeatCount: 1 | 2 | 3 | 4
@@ -123,6 +129,7 @@ export interface FrameDesign {
   gradientAngle: number
   gradientStops: GradientStop[]
   twoToneFlow: TwoToneFlowSettings
+  tripleRing: TripleRingSettings
   effects: FrameEffects
   pattern: FramePattern
 }
@@ -135,7 +142,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.25'
+  version: '0.26'
   width: 2000
   height: 2000
   autoFit: boolean

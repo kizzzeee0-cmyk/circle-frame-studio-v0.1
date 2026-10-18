@@ -14,7 +14,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.24', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: '0.26', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
       if (!cancelled && ref.current) renderProject(ref.current, project, 1)
     }
@@ -39,6 +39,7 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'mine', label: '내 프리셋' },
   { key: 'basic', label: '기본' },
   { key: 'minimal', label: '미니멀' },
+  { key: 'triple', label: '트리플' },
   { key: 'broken', label: '끊긴형' },
   { key: 'dot', label: '도트' },
   { key: 'wavy', label: '물결' },
@@ -72,6 +73,7 @@ function matchesCategory(preset: FramePreset, key: string) {
     case 'mine': return preset.category === '내 프리셋'
     case 'basic': return preset.category === 'Basic'
     case 'minimal': return preset.category === 'Minimal'
+    case 'triple': return preset.category === 'Triple' || kind === 'triple'
     case 'broken': return preset.category === 'Broken'
     case 'dot': return preset.category === 'Dot' || kind === 'dotted'
     case 'wavy': return preset.category === 'Wavy' || kind === 'wavy' || kind === 'scallop'

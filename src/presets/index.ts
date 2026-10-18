@@ -97,6 +97,11 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
       innerHighlight: 0.10,
       outerHighlight: 0.08,
     },
+    tripleRing: {
+      attached: false,
+      colors: ['#8F84E8', '#A89CF1', '#C5BEF7'],
+      widths: [12, 12, 12],
+    },
     effects: baseEffects(),
     pattern: basePattern(),
   }
@@ -312,6 +317,33 @@ export const PRESETS: FramePreset[] = [
   p('double-bold', 'Basic', 'Bold Double', 'double', { thickness: 30 }),
   p('triple-line', 'Basic', 'Triple Ring', 'triple', { thickness: 12 }),
   p('triple-soft', 'Basic', 'Soft Triple', 'triple', { thickness: 18, opacity: .82 }),
+  p('triple-attached-lavender', 'Triple', '붙어있는 트리플 · Lavender', 'triple', {
+    thickness: 12,
+    color: '#8F84E8',
+    tripleRing: {
+      attached: true,
+      colors: ['#8F84E8', '#A89CF1', '#C5BEF7'],
+      widths: [12, 10, 8],
+    },
+  }),
+  p('triple-attached-pastel', 'Triple', '붙어있는 트리플 · Pastel', 'triple', {
+    thickness: 12,
+    color: '#E995B9',
+    tripleRing: {
+      attached: true,
+      colors: ['#E995B9', '#A9C9F5', '#C1A9ED'],
+      widths: [11, 9, 11],
+    },
+  }),
+  p('triple-attached-mono', 'Triple', '붙어있는 트리플 · Mono', 'triple', {
+    thickness: 12,
+    color: '#27242D',
+    tripleRing: {
+      attached: true,
+      colors: ['#27242D', '#8F8999', '#F7F5FA'],
+      widths: [10, 8, 10],
+    },
+  }),
   p('minimal-fine', 'Minimal', 'Fine Minimal', 'basic', { thickness: 7, radius: 760 }),
   p('minimal-inner', 'Minimal', 'Inner Minimal', 'double', { thickness: 8, radius: 690 }),
   p('minimal-wide', 'Minimal', 'Wide Space Double', 'double', { thickness: 9 }, { gap: 90 }),

@@ -82,6 +82,7 @@ function makeTwoToneFlowGradient(ctx: CanvasRenderingContext2D, design: FrameDes
 function drawTwoToneFlowHighlights(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: number, cy: number, r: number, scale: number) {
   const flow = design.twoToneFlow
   if (!flow.enabled || !['basic', 'double', 'triple', 'glossy'].includes(design.kind)) return
+  if (design.kind === 'triple' && design.tripleRing.attached) return
 
   const repeatCount = Math.max(1, Math.min(4, flow.repeatCount || 1))
   const baseAngle = ((flow.rotation + design.gradientAngle) * Math.PI) / 180 - Math.PI / 2
@@ -587,6 +588,20 @@ function makeOutlineDesign(design: FrameDesign): FrameDesign {
     case 'basic':
     case 'double':
     case 'triple':
+      if (next.tripleRing.attached) {
+        const extraPerLine = (width * 2) / 3
+        next.tripleRing = {
+          ...next.tripleRing,
+          colors: [outlineColor, outlineColor, outlineColor],
+          widths: [
+            Math.max(1, next.tripleRing.widths[0] + extraPerLine),
+            Math.max(1, next.tripleRing.widths[1] + extraPerLine),
+            Math.max(1, next.tripleRing.widths[2] + extraPerLine),
+          ],
+        }
+      }
+      next.thickness += width * 2
+      break
     case 'segmented':
     case 'arc':
     case 'wavy':
@@ -748,6 +763,54 @@ function drawGlossy(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: nu
   ctx.restore()
 }
 
+
+function drawAttachedTriple(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  design: FrameDesign,
+  scale: number,
+) {
+  const widths = design.tripleRing.widths.map(value => Math.max(1, value * scale)) as [number, number, number]
+  const colors = design.tripleRing.colors.map((value, index) =>
+    validColor(value, index === 0 ? design.color : index === 1 ? design.secondaryColor : design.color)
+  ) as [string, string, string]
+
+  const totalWidth = widths[0] + widths[1] + widths[2]
+  const allSameColor = colors[0] === colors[1] && colors[1] === colors[2]
+
+  // Outline passes often turn all three bands into one color. Draw them as one solid band
+  // so the outline surrounds the whole triple ring instead of creating separators.
+  if (allSameColor) {
+    ctx.save()
+    ctx.strokeStyle = colors[0]
+    ctx.lineWidth = Math.max(1, totalWidth)
+    ctx.lineCap = 'round'
+    strokeCircle(ctx, cx, cy, r, 0)
+    ctx.restore()
+    return
+  }
+
+  // Keep the combined triple band centered on design.radius.
+  // Each stroke is slightly overlapped to remove anti-aliasing hairline gaps.
+  const overlap = Math.max(.65, scale * .75)
+  let outerEdge = r + totalWidth / 2
+
+  ctx.save()
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  for (let i = 0; i < 3; i++) {
+    const width = widths[i]
+    const lineRadius = outerEdge - width / 2
+    ctx.strokeStyle = colors[i]
+    ctx.lineWidth = width + overlap
+    strokeCircle(ctx, cx, cy, Math.max(1, lineRadius), 0)
+    outerEdge -= width
+  }
+  ctx.restore()
+}
+
 function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number) {
   const cx = canvasWidth / 2 + design.offsetX * scale
   const cy = canvasHeight / 2 + design.offsetY * scale
@@ -769,10 +832,14 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
       break
     }
     case 'triple': {
-      const ringGap = Math.max(18, design.thickness * 1.65) * scale
-      strokeCircle(ctx, cx, cy, r - ringGap, rot)
-      strokeCircle(ctx, cx, cy, r, rot)
-      strokeCircle(ctx, cx, cy, r + ringGap, rot)
+      if (design.tripleRing.attached) {
+        drawAttachedTriple(ctx, cx, cy, r, design, scale)
+      } else {
+        const ringGap = Math.max(18, design.thickness * 1.65) * scale
+        strokeCircle(ctx, cx, cy, r - ringGap, rot)
+        strokeCircle(ctx, cx, cy, r, rot)
+        strokeCircle(ctx, cx, cy, r + ringGap, rot)
+      }
       break
     }
     case 'segmented': {
@@ -903,8 +970,13 @@ export function estimateDesignExtent(design: FrameDesign) {
       break
     }
     case 'triple': {
-      const ringGap = Math.max(18, thickness * 1.65)
-      geometry = r + ringGap + halfLine
+      if (design.tripleRing.attached) {
+        const total = design.tripleRing.widths.reduce((sum, value) => sum + Math.max(1, value), 0)
+        geometry = r + total / 2 + 1
+      } else {
+        const ringGap = Math.max(18, thickness * 1.65)
+        geometry = r + ringGap + halfLine
+      }
       break
     }
     case 'wavy':

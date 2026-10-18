@@ -74,6 +74,17 @@ export default function PropertyPanel({
   const nestedEffects = (partial: Partial<FrameDesign['effects']>) => patch({ effects: { ...design.effects, ...partial } })
   const nestedPattern = (partial: Partial<FrameDesign['pattern']>) => patch({ pattern: { ...design.pattern, ...partial } })
   const nestedTwoTone = (partial: Partial<FrameDesign['twoToneFlow']>) => patch({ twoToneFlow: { ...design.twoToneFlow, ...partial } })
+  const nestedTriple = (partial: Partial<FrameDesign['tripleRing']>) => patch({ tripleRing: { ...design.tripleRing, ...partial } })
+  const setTripleColor = (index: 0 | 1 | 2, value: string) => {
+    const colors = [...design.tripleRing.colors] as [string, string, string]
+    colors[index] = value
+    nestedTriple({ colors })
+  }
+  const setTripleWidth = (index: 0 | 1 | 2, value: number) => {
+    const widths = [...design.tripleRing.widths] as [number, number, number]
+    widths[index] = value
+    nestedTriple({ widths })
+  }
   const setStop = (id: string, partial: Partial<FrameDesign['gradientStops'][number]>) => patch({ gradientStops: design.gradientStops.map(s => s.id === id ? { ...s, ...partial } : s) })
 
   const setPatternColor = (index: number, value: string) => {
@@ -162,12 +173,44 @@ export default function PropertyPanel({
           </select>
         </label>
         <Slider label="원 크기" value={design.radius} min={120} max={930} suffix="px" onChange={n => patch({ radius: n })} />
-        <Slider label="선 두께" value={design.thickness} min={1} max={180} suffix="px" onChange={n => patch({ thickness: n })} />
+        {!(design.kind === 'triple' && design.tripleRing.attached) && <Slider label="선 두께" value={design.thickness} min={1} max={180} suffix="px" onChange={n => patch({ thickness: n })} />}
         <Slider label="전체 회전" value={design.rotation} min={-180} max={180} suffix="°" onChange={n => patch({ rotation: n })} />
         <Slider label="X 위치" value={design.offsetX} min={-300} max={300} suffix="px" onChange={n => patch({ offsetX: n })} />
         <Slider label="Y 위치" value={design.offsetY} min={-300} max={300} suffix="px" onChange={n => patch({ offsetY: n })} />
         <Slider label="불투명도" value={design.opacity} min={0} max={1} step={.01} onChange={n => patch({ opacity: n })} />
       </section>
+
+      {design.kind === 'triple' && (
+        <section className="property-section triple-ring-section">
+          <h3>트리플 테두리 · 개별 선 설정</h3>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={design.tripleRing.attached}
+              onChange={e => nestedTriple({ attached: e.target.checked })}
+            />
+            <span>세 줄을 여백 없이 붙이기</span>
+          </label>
+
+          {design.tripleRing.attached ? <>
+            <ColorField label="바깥쪽 1줄 색상" value={design.tripleRing.colors[0]} onChange={v => setTripleColor(0, v)} eyedrop />
+            <Slider label="바깥쪽 1줄 두께" value={design.tripleRing.widths[0]} min={1} max={120} suffix="px" onChange={n => setTripleWidth(0, n)} />
+
+            <ColorField label="가운데 2줄 색상" value={design.tripleRing.colors[1]} onChange={v => setTripleColor(1, v)} eyedrop />
+            <Slider label="가운데 2줄 두께" value={design.tripleRing.widths[1]} min={1} max={120} suffix="px" onChange={n => setTripleWidth(1, n)} />
+
+            <ColorField label="안쪽 3줄 색상" value={design.tripleRing.colors[2]} onChange={v => setTripleColor(2, v)} eyedrop />
+            <Slider label="안쪽 3줄 두께" value={design.tripleRing.widths[2]} min={1} max={120} suffix="px" onChange={n => setTripleWidth(2, n)} />
+
+            <div className="pattern-sequence-preview" title="바깥쪽 → 가운데 → 안쪽">
+              {design.tripleRing.colors.map((color, index) => <i key={index} style={{ background: color, flex: Math.max(1, design.tripleRing.widths[index]) }} />)}
+            </div>
+            <p className="hint">세 선은 바깥쪽 → 가운데 → 안쪽 순서입니다. 선 중심 간격을 각 두께의 합으로 자동 계산하고 약 1px 미만으로 살짝 겹쳐 그려서 투명한 틈이 생기지 않습니다. 각 선의 색상과 두께는 완전히 독립적으로 조절됩니다.</p>
+          </> : (
+            <p className="hint">OFF 상태에서는 기존 Triple Ring처럼 세 선 사이에 여백이 있는 디자인을 유지합니다.</p>
+          )}
+        </section>
+      )}
 
       {isDecoration ? (
         <section className="property-section pattern-color-section">

@@ -18,7 +18,7 @@ export async function exportPng(project: FrameProject) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `circle-frame-v025-${new Date().toISOString().slice(0, 10)}.png`
+  a.download = `circle-frame-v026-${new Date().toISOString().slice(0, 10)}.png`
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
@@ -28,7 +28,7 @@ export function downloadProject(project: FrameProject) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'circle-frame-project-v025.json'
+  a.download = 'circle-frame-project-v026.json'
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

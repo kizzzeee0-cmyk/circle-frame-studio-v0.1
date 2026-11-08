@@ -75,6 +75,12 @@ export default function PropertyPanel({
   const nestedPattern = (partial: Partial<FrameDesign['pattern']>) => patch({ pattern: { ...design.pattern, ...partial } })
   const nestedTwoTone = (partial: Partial<FrameDesign['twoToneFlow']>) => patch({ twoToneFlow: { ...design.twoToneFlow, ...partial } })
   const nestedTriple = (partial: Partial<FrameDesign['tripleRing']>) => patch({ tripleRing: { ...design.tripleRing, ...partial } })
+  const nestedGlitter = (partial: Partial<FrameDesign['glitter']>) => patch({ glitter: { ...design.glitter, ...partial } })
+  const setGlitterColor = (index: number, value: string) => {
+    const colors = [...design.glitter.colors] as [string, string, string, string]
+    colors[index] = value
+    nestedGlitter({ colors })
+  }
   const setTripleColor = (index: 0 | 1 | 2, value: string) => {
     const colors = [...design.tripleRing.colors] as [string, string, string]
     colors[index] = value
@@ -169,7 +175,7 @@ export default function PropertyPanel({
             <option value="wavy">Wavy</option><option value="scallop">Scallop</option><option value="scribble">Scribble</option>
             <option value="rough">Rough</option><option value="brush">Brush</option><option value="sparkle">Sparkle</option>
             <option value="star">Star</option><option value="heart">Heart</option><option value="ribbon">Ribbon</option>
-            <option value="flower">Flower</option><option value="asset">내 PNG 반복 프레임</option><option value="glossy">Glossy</option>
+            <option value="flower">Flower</option><option value="asset">내 PNG 반복 프레임</option><option value="glossy">Glossy</option><option value="glitter">Glitter Ring</option>
           </select>
         </label>
         <Slider label="원 크기" value={design.radius} min={120} max={930} suffix="px" onChange={n => patch({ radius: n })} />
@@ -209,6 +215,34 @@ export default function PropertyPanel({
           </> : (
             <p className="hint">OFF 상태에서는 기존 Triple Ring처럼 세 선 사이에 여백이 있는 디자인을 유지합니다.</p>
           )}
+        </section>
+      )}
+
+      {design.kind === 'glitter' && (
+        <section className="property-section glitter-ring-section">
+          <h3>글리터 · 반짝이 세부 설정</h3>
+          <div className="color-count-buttons four-up">
+            {[1,2,3,4].map(n => <button key={n} type="button" className={design.glitter.colorCount === n ? 'active' : ''} onClick={() => nestedGlitter({ colorCount: n as 1|2|3|4 })}>{n}색</button>)}
+          </div>
+          <ColorField label="글리터 색상 1" value={design.glitter.colors[0]} onChange={v => setGlitterColor(0, v)} eyedrop />
+          {design.glitter.colorCount >= 2 && <ColorField label="글리터 색상 2" value={design.glitter.colors[1]} onChange={v => setGlitterColor(1, v)} />}
+          {design.glitter.colorCount >= 3 && <ColorField label="글리터 색상 3" value={design.glitter.colors[2]} onChange={v => setGlitterColor(2, v)} />}
+          {design.glitter.colorCount >= 4 && <ColorField label="글리터 색상 4" value={design.glitter.colors[3]} onChange={v => setGlitterColor(3, v)} />}
+
+          <div className="pattern-sequence-preview" title="글리터 팔레트">
+            {Array.from({length: 16}, (_, i) => <i key={i} style={{background: design.glitter.colors[i % design.glitter.colorCount]}} />)}
+          </div>
+
+          <Slider label="글리터 밀도" value={design.glitter.density} min={20} max={500} onChange={n => nestedGlitter({ density: Math.round(n) })} />
+          <Slider label="작은 입자 크기" value={design.glitter.particleSize} min={1} max={18} step={.5} suffix="px" onChange={n => nestedGlitter({ particleSize: n })} />
+          <Slider label="큰 반짝이 크기" value={design.glitter.sparkleSize} min={3} max={36} step={.5} suffix="px" onChange={n => nestedGlitter({ sparkleSize: n })} />
+          <Slider label="별 반짝이 비율" value={Math.round(design.glitter.sparkleRatio * 100)} min={0} max={60} suffix="%" onChange={n => nestedGlitter({ sparkleRatio: n / 100 })} />
+          <Slider label="링 주변 퍼짐" value={design.glitter.spread} min={2} max={100} suffix="px" onChange={n => nestedGlitter({ spread: n })} />
+          <Slider label="입자 빛 번짐" value={design.glitter.glow} min={0} max={30} suffix="px" onChange={n => nestedGlitter({ glow: n })} />
+          <Slider label="기본 링 불투명도" value={Math.round(design.glitter.baseOpacity * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ baseOpacity: n / 100 })} />
+          <Slider label="안쪽·바깥쪽 빛선" value={Math.round(design.glitter.edgeHighlight * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ edgeHighlight: n / 100 })} />
+
+          <p className="hint">작은 점 입자와 4갈래 반짝이를 같은 원 둘레에 겹쳐 그립니다. 랜덤 위치는 Seed로 고정되므로 화면 미리보기와 저장 PNG가 동일하게 유지됩니다.</p>
         </section>
       )}
 

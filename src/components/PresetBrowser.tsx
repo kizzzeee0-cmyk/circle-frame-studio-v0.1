@@ -14,7 +14,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.26', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: '0.27', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
       if (!cancelled && ref.current) renderProject(ref.current, project, 1)
     }
@@ -45,6 +45,7 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'wavy', label: '물결' },
   { key: 'scribble', label: '낙서' },
   { key: 'brush', label: '브러시' },
+  { key: 'glitter', label: '글리터' },
   { key: 'decorative', label: '장식' },
   { key: 'heart', label: '하트' },
   { key: 'ribbon', label: '리본' },
@@ -79,6 +80,7 @@ function matchesCategory(preset: FramePreset, key: string) {
     case 'wavy': return preset.category === 'Wavy' || kind === 'wavy' || kind === 'scallop'
     case 'scribble': return preset.category === 'Scribble' || kind === 'scribble' || kind === 'rough'
     case 'brush': return preset.category === 'Brush' || kind === 'brush'
+    case 'glitter': return preset.category === 'Glitter' || kind === 'glitter'
     case 'decorative': return preset.category === 'Decorative'
     case 'heart': return kind === 'heart' || name.includes('heart')
     case 'ribbon': return kind === 'ribbon' || name.includes('ribbon')

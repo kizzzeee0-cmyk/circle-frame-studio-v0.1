@@ -10,10 +10,10 @@ import { addRecentSave, clearRecentSaves, deleteRecentSave, listRecentSaves, typ
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v026'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v026'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v027'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v027'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -49,6 +49,22 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
             Math.max(1, Number(source.tripleRing.widths[2]) || base.tripleRing.widths[2]),
           ]
         : base.tripleRing.widths,
+    },
+    glitter: {
+      ...base.glitter,
+      ...(source.glitter ?? {}),
+      colorCount: Number(source.glitter?.colorCount) >= 4 ? 4 : Number(source.glitter?.colorCount) >= 3 ? 3 : Number(source.glitter?.colorCount) >= 2 ? 2 : 1,
+      colors: Array.isArray(source.glitter?.colors) && source.glitter.colors.length >= 4
+        ? [source.glitter.colors[0], source.glitter.colors[1], source.glitter.colors[2], source.glitter.colors[3]]
+        : base.glitter.colors,
+      density: Math.max(12, Math.min(720, Number(source.glitter?.density ?? base.glitter.density))),
+      particleSize: Math.max(.5, Number(source.glitter?.particleSize ?? base.glitter.particleSize)),
+      sparkleSize: Math.max(1, Number(source.glitter?.sparkleSize ?? base.glitter.sparkleSize)),
+      sparkleRatio: Math.max(0, Math.min(1, Number(source.glitter?.sparkleRatio ?? base.glitter.sparkleRatio))),
+      spread: Math.max(1, Number(source.glitter?.spread ?? base.glitter.spread)),
+      glow: Math.max(0, Number(source.glitter?.glow ?? base.glitter.glow)),
+      baseOpacity: Math.max(0, Math.min(1, Number(source.glitter?.baseOpacity ?? base.glitter.baseOpacity))),
+      edgeHighlight: Math.max(0, Math.min(1, Number(source.glitter?.edgeHighlight ?? base.glitter.edgeHighlight))),
     },
     pattern: {
       ...base.pattern,
@@ -132,7 +148,7 @@ function normalizeProject(source: any): FrameProject {
       return normalized
     })
     return syncSelectedLayer({
-      version: '0.26',
+      version: '0.27',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -144,7 +160,7 @@ function normalizeProject(source: any): FrameProject {
   if (source?.design) {
     const layer = makeLayerFromDesign(source.design, source.design?.name || '레이어 1')
     return syncSelectedLayer({
-      version: '0.26',
+      version: '0.27',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -168,7 +184,7 @@ function makeInitialProject(): FrameProject {
   design.pattern.paletteColors = ['#F8AFCF', '#FBD4E5', '#F8AFCF', '#FBD4E5']
   const layer = makeLayerFromDesign(design, design.name)
   return {
-    version: '0.26',
+    version: '0.27',
     width: 2000,
     height: 2000,
     autoFit: true,
@@ -529,7 +545,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.26 · Attached Triple Ring</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.27 · Glitter Ring Studio</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>

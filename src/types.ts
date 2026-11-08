@@ -17,6 +17,7 @@ export type RingKind =
   | 'flower'
   | 'asset'
   | 'glossy'
+  | 'glitter'
 
 export type GradientMode = 'solid' | 'linear' | 'radial' | 'conic'
 export type DecorationLayout = 'count' | 'spacing'
@@ -99,6 +100,19 @@ export interface TripleRingSettings {
   widths: [number, number, number]
 }
 
+export interface GlitterSettings {
+  density: number
+  particleSize: number
+  sparkleSize: number
+  sparkleRatio: number
+  spread: number
+  glow: number
+  baseOpacity: number
+  edgeHighlight: number
+  colorCount: 1 | 2 | 3 | 4
+  colors: [string, string, string, string]
+}
+
 export interface TwoToneFlowSettings {
   enabled: boolean
   repeatCount: 1 | 2 | 3 | 4
@@ -130,6 +144,7 @@ export interface FrameDesign {
   gradientStops: GradientStop[]
   twoToneFlow: TwoToneFlowSettings
   tripleRing: TripleRingSettings
+  glitter: GlitterSettings
   effects: FrameEffects
   pattern: FramePattern
 }
@@ -142,7 +157,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.26'
+  version: '0.27'
   width: 2000
   height: 2000
   autoFit: boolean

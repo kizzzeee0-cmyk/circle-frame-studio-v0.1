@@ -179,6 +179,14 @@ function makeEmbossMaskDesign(design: FrameDesign): FrameDesign {
     paletteColors: [white, white, white, white],
     assetTintMode: 'palette',
   }
+  next.glitter = {
+    ...next.glitter,
+    colors: [white, white, white, white],
+    colorCount: 1,
+    baseOpacity: 1,
+    edgeHighlight: 0,
+    glow: 0,
+  }
   if (next.kind === 'glossy') next.kind = 'basic'
   return next
 }
@@ -577,6 +585,15 @@ function makeOutlineDesign(design: FrameDesign): FrameDesign {
   const outlineColor = validColor(design.effects.outlineColor, '#FFFFFF')
   const width = Math.max(1, design.effects.outlineWidth)
   const next: FrameDesign = structuredClone(design)
+  if (next.kind === 'glitter') {
+    next.kind = 'basic'
+    next.color = outlineColor
+    next.secondaryColor = outlineColor
+    next.gradientMode = 'solid'
+    next.twoToneFlow = { ...next.twoToneFlow, enabled: false, colorA: outlineColor, colorB: outlineColor }
+    next.thickness += width * 2
+    return next
+  }
   next.color = outlineColor
   next.secondaryColor = outlineColor
   next.gradientMode = 'solid'
@@ -764,6 +781,103 @@ function drawGlossy(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: nu
 }
 
 
+
+function drawGlitter(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  design: FrameDesign,
+  rotation: number,
+  scale: number,
+) {
+  const glitter = design.glitter
+  const thickness = Math.max(1, design.thickness * scale)
+  const basePaint = makeGradient(ctx, design, cx, cy, r)
+  const baseOpacity = clamp01(glitter.baseOpacity)
+  const edgeHighlight = clamp01(glitter.edgeHighlight)
+  const rand = seeded(design.pattern.seed)
+  const colors = glitter.colors
+    .slice(0, Math.max(1, Math.min(4, glitter.colorCount)))
+    .map((color, index) => validColor(color, index === 0 ? '#FFFFFF' : validColor(design.color)))
+  const density = Math.max(12, Math.min(720, Math.round(glitter.density)))
+  const spread = Math.max(1, glitter.spread * scale)
+  const particleSize = Math.max(.7, glitter.particleSize * scale)
+  const sparkleSize = Math.max(2, glitter.sparkleSize * scale)
+  const sparkleRatio = clamp01(glitter.sparkleRatio)
+  const particleGlow = Math.max(0, glitter.glow * scale)
+
+  // Semi-transparent pearly base keeps the ring shape readable underneath the glitter.
+  ctx.save()
+  ctx.globalAlpha *= baseOpacity
+  ctx.lineWidth = Math.max(1, thickness * .72)
+  ctx.strokeStyle = basePaint
+  ctx.lineCap = 'round'
+  strokeCircle(ctx, cx, cy, r, rotation)
+  ctx.restore()
+
+  // A fine inner/outer highlight gives the soft coated edge visible in the reference.
+  if (edgeHighlight > 0) {
+    const edgeColor = mixHex(validColor(design.secondaryColor, '#FFFFFF'), '#FFFFFF', .72)
+    for (const side of [-1, 1]) {
+      ctx.save()
+      ctx.globalAlpha *= edgeHighlight * (side < 0 ? .52 : .72)
+      ctx.strokeStyle = edgeColor
+      ctx.lineWidth = Math.max(.8, thickness * .045)
+      ctx.shadowColor = edgeColor
+      ctx.shadowBlur = Math.max(0, particleGlow * .45)
+      ctx.beginPath()
+      ctx.arc(cx, cy, Math.max(1, r + side * thickness * .39), 0, TAU)
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+
+  // Deterministic glitter positions: preview and exported PNG stay pixel-consistent.
+  for (let i = 0; i < density; i++) {
+    const angle = rotation - Math.PI / 2 + ((i + rand() * .92) / density) * TAU
+    const radial = (rand() * 2 - 1) * spread
+    const rr = r + radial
+    const x = cx + Math.cos(angle) * rr
+    const y = cy + Math.sin(angle) * rr
+    const color = colors[Math.floor(rand() * colors.length)] ?? '#FFFFFF'
+    const alpha = .30 + rand() * .70
+
+    ctx.save()
+    ctx.globalAlpha *= alpha
+    ctx.fillStyle = color
+    ctx.strokeStyle = color
+    ctx.shadowColor = color
+    ctx.shadowBlur = particleGlow * (.42 + rand() * .78)
+
+    if (rand() < sparkleRatio) {
+      const size = sparkleSize * (.48 + rand() * .88)
+      drawStar(ctx, x, y, size, angle + rand() * Math.PI, 4)
+
+      // tiny white center makes larger sparkles look crisp rather than blurry.
+      ctx.globalAlpha *= .76
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.arc(x, y, Math.max(.55, size * .075), 0, TAU)
+      ctx.fill()
+    } else {
+      const size = particleSize * (.35 + rand() * 1.35)
+      ctx.beginPath()
+      ctx.arc(x, y, Math.max(.45, size / 2), 0, TAU)
+      ctx.fill()
+
+      if (rand() < .18) {
+        ctx.globalAlpha *= .68
+        ctx.fillStyle = '#FFFFFF'
+        ctx.beginPath()
+        ctx.arc(x - size * .12, y - size * .14, Math.max(.35, size * .15), 0, TAU)
+        ctx.fill()
+      }
+    }
+    ctx.restore()
+  }
+}
+
 function drawAttachedTriple(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -886,6 +1000,7 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
     case 'flower': drawDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'asset': drawAssetDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'glossy': drawGlossy(ctx, cx, cy, r, design, rot, scale); break
+    case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale); break
     default: strokeCircle(ctx, cx, cy, r, rot)
   }
 }
@@ -1006,6 +1121,14 @@ export function estimateDesignExtent(design: FrameDesign) {
     case 'asset':
       geometry = Math.abs(r + design.pattern.decorationOffset) + Math.max(1, design.pattern.decorationSize) * 1.1
       break
+    case 'glitter': {
+      const particleExtent = Math.max(
+        Math.max(1, design.thickness) / 2,
+        Math.max(1, design.glitter.spread) + Math.max(design.glitter.particleSize, design.glitter.sparkleSize) * .65,
+      )
+      geometry = r + particleExtent
+      break
+    }
     default:
       break
   }

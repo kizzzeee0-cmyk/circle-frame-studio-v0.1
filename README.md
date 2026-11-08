@@ -1,4 +1,4 @@
-# Circle Frame Studio v0.26
+# Circle Frame Studio v0.27
 
 원형 프레임을 만들고 **테두리 외부는 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
@@ -239,3 +239,30 @@ localStorage보다 큰 프로젝트도 안정적으로 보관할 수 있게 했�
 - 붙어있는 트리플 · Lavender
 - 붙어있는 트리플 · Pastel
 - 붙어있는 트리플 · Mono
+
+
+## v0.27 — Glitter Ring Studio
+
+첨부 레퍼런스처럼 **부드러운 기본 링 위에 미세 글리터와 큰 4갈래 반짝이가 섞이는 글리터 전용 프레임**을 추가했습니다.
+
+조절 항목:
+- 글리터 1/2/3/4색 팔레트
+- 글리터 밀도
+- 작은 입자 크기
+- 큰 반짝이 크기
+- 별 반짝이 비율
+- 링 주변 퍼짐
+- 입자 빛 번짐
+- 기본 링 불투명도
+- 안쪽/바깥쪽 얇은 빛선
+- 랜덤 Seed
+
+입자 위치는 Seed 기반으로 고정되어 **미리보기와 2000×2000 투명 PNG 저장 결과가 동일**합니다.
+
+추가 프리셋:
+- Champagne Glitter
+- Pink Sugar Glitter
+- Lavender Fairy Glitter
+- Mint Pearl Glitter
+- Ice Diamond Glitter
+- Rose Gold Glitter

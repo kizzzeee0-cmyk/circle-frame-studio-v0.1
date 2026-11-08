@@ -64,10 +64,10 @@ export default function CanvasPanel({ project, onSampleColor }: Props) {
       <div className="canvas-meta">
         <span>2000 × 2000 PNG</span>
         <span>Alt + 클릭: 캔버스 스포이드</span>
-        <span>글리터는 실시간 반짝임 미리보기 · PNG는 한 프레임 저장</span>
+        <span>글리터는 부드러운 실시간 미리보기 · PNG는 2000×2000 한 프레임 저장</span>
       </div>
       <div className="checkerboard">
-        <canvas ref={ref} width={2000} height={2000} onClick={sample} />
+        <canvas ref={ref} width={1200} height={1200} onClick={sample} />
       </div>
     </div>
   )

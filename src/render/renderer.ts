@@ -806,6 +806,11 @@ function drawFourPointGlint(ctx: CanvasRenderingContext2D, x: number, y: number,
   ctx.restore()
 }
 
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const x = clamp01((value - edge0) / Math.max(.0001, edge1 - edge0))
+  return x * x * (3 - 2 * x)
+}
+
 function glitterMotion(
   style: FrameDesign['glitter']['animationStyle'],
   angle: number,
@@ -813,21 +818,41 @@ function glitterMotion(
   time: number,
   strength: number,
   sweepWidth: number,
+  smoothness: number,
 ) {
-  const independent = .5 + .5 * Math.sin(time * (1.15 + phase * .07) + phase * 3.17)
-  const sharp = Math.pow(Math.max(0, independent), 7)
-  const sweepAngle = ((time * .72) + phase * .025) % TAU
-  const width = Math.max(.035, sweepWidth) * TAU
-  const sweep = Math.exp(-Math.pow(angularDistance(angle, sweepAngle) / width, 2) * 2.5)
-  const oppositeSweep = Math.exp(-Math.pow(angularDistance(angle, sweepAngle + Math.PI) / (width * .72), 2) * 2.8)
+  const smooth = clamp01(smoothness)
+  const slowWave = .5 + .5 * Math.sin(time * (.74 + phase * .028) + phase * 2.13)
+  const secondaryWave = .5 + .5 * Math.sin(time * (.37 + phase * .012) + phase * 4.91)
+  const breathing = smoothstep(0, 1, slowWave)
+  const twinkle = clamp01(breathing * .72 + secondaryWave * .28)
 
-  let value = independent
-  if (style === 'flash') value = sharp
-  if (style === 'shimmer') value = .18 + sweep * .82
-  if (style === 'orbit') value = .12 + Math.max(sweep, oppositeSweep * .72) * .88
-  if (style === 'mixed') value = Math.min(1, independent * .46 + sharp * .34 + sweep * .55)
+  // Flash still has a peak, but it eases in/out instead of crossing a hard on/off threshold.
+  const flashStart = .48 + smooth * .08
+  const flash = smoothstep(flashStart, .98, twinkle)
+  const softenedFlash = flash * (.68 + .32 * breathing)
 
-  return (1 - strength) * .72 + strength * clamp01(value)
+  // Moving light bands have a wider head plus a soft trailing lobe so they glide rather than jump.
+  const width = Math.max(.05, sweepWidth * (1 + smooth * .45)) * TAU
+  const sweepAngle = ((time * (.34 + (1 - smooth) * .12)) + phase * .018) % TAU
+  const distance = angularDistance(angle, sweepAngle)
+  const sweepHead = Math.exp(-Math.pow(distance / width, 2) * 1.75)
+  const trailAngle = sweepAngle - width * .42
+  const sweepTrail = Math.exp(-Math.pow(angularDistance(angle, trailAngle) / (width * 1.35), 2) * 1.55)
+  const sweep = clamp01(sweepHead * .74 + sweepTrail * .34)
+
+  const oppositeAngle = sweepAngle + Math.PI
+  const opposite = Math.exp(-Math.pow(angularDistance(angle, oppositeAngle) / (width * 1.1), 2) * 1.7)
+
+  let value = twinkle
+  if (style === 'flash') value = .24 + softenedFlash * .76
+  if (style === 'shimmer') value = .26 + sweep * .74
+  if (style === 'orbit') value = .22 + Math.max(sweep, opposite * .82) * .78
+  if (style === 'mixed') value = clamp01(.20 + twinkle * .34 + softenedFlash * .20 + sweep * .42)
+
+  // Never fully disappear: a faint afterglow prevents the frame from looking like discrete animation frames.
+  const floor = .22 + smooth * .12
+  const eased = floor + (1 - floor) * smoothstep(0, 1, clamp01(value))
+  return (1 - strength) * .78 + strength * eased
 }
 
 function drawGlitter(
@@ -857,6 +882,7 @@ function drawGlitter(
   const particleGlow = Math.max(0, glitter.glow * scale)
   const animationStrength = glitter.animated ? clamp01(glitter.animationStrength) : 0
   const animationSpeed = Math.max(.05, glitter.animationSpeed || 1)
+  const animationSmoothness = clamp01(glitter.animationSmoothness ?? .86)
   const time = (animationTimeMs / 1000) * animationSpeed * TAU
 
   // Semi-transparent pearly base keeps the ring shape readable underneath the glitter.
@@ -897,38 +923,38 @@ function drawGlitter(
     const phase = rand() * TAU
     const baseAlpha = .18 + rand() * .72
     const isSparkle = rand() < sparkleRatio
-    const motion = glitterMotion(glitter.animationStyle, angle, phase, time, animationStrength, glitter.sweepWidth)
-    const alpha = baseAlpha * (.24 + motion * .92)
-    const pulseSize = .58 + motion * .64
+    const motion = glitterMotion(glitter.animationStyle, angle, phase, time, animationStrength, glitter.sweepWidth, animationSmoothness)
+    const alpha = baseAlpha * (.34 + motion * .70)
+    // Size barely changes; brightness does most of the animation so the ring does not look like popping dots.
+    const pulseSize = .88 + motion * .16
 
     ctx.save()
     ctx.globalAlpha *= alpha
     ctx.fillStyle = color
     ctx.strokeStyle = color
     ctx.shadowColor = color
-    ctx.shadowBlur = particleGlow * (.22 + motion * 1.05)
+    ctx.shadowBlur = particleGlow * (isSparkle ? (.16 + motion * .72) : (.06 + motion * .20))
 
     if (isSparkle) {
       const size = sparkleSize * (.42 + rand() * .62) * pulseSize
       drawFourPointGlint(ctx, x, y, size, angle * .15 + phase)
 
-      // Short cross rays produce the clean camera-flare twinkle visible in animated frame references.
-      if (motion > .56) {
-        ctx.save()
-        ctx.globalAlpha *= Math.pow(motion, 2.2) * .78
-        ctx.strokeStyle = '#FFFFFF'
-        ctx.lineWidth = Math.max(.55, size * .045)
-        ctx.lineCap = 'round'
-        ctx.beginPath()
-        ctx.moveTo(x - size * .92, y)
-        ctx.lineTo(x + size * .92, y)
-        ctx.moveTo(x, y - size * .92)
-        ctx.lineTo(x, y + size * .92)
-        ctx.stroke()
-        ctx.restore()
-      }
+      // Cross rays now fade continuously instead of suddenly switching on/off at a brightness threshold.
+      const rayAlpha = smoothstep(.34, .92, motion)
+      ctx.save()
+      ctx.globalAlpha *= rayAlpha * .68
+      ctx.strokeStyle = '#FFFFFF'
+      ctx.lineWidth = Math.max(.48, size * .04)
+      ctx.lineCap = 'round'
+      ctx.beginPath()
+      ctx.moveTo(x - size * (.58 + rayAlpha * .36), y)
+      ctx.lineTo(x + size * (.58 + rayAlpha * .36), y)
+      ctx.moveTo(x, y - size * (.58 + rayAlpha * .36))
+      ctx.lineTo(x, y + size * (.58 + rayAlpha * .36))
+      ctx.stroke()
+      ctx.restore()
 
-      ctx.globalAlpha *= .82
+      ctx.globalAlpha *= .76 + rayAlpha * .12
       ctx.fillStyle = '#FFFFFF'
       ctx.beginPath()
       ctx.arc(x, y, Math.max(.4, size * .065), 0, TAU)
@@ -939,11 +965,13 @@ function drawGlitter(
       ctx.arc(x, y, Math.max(.34, size / 2), 0, TAU)
       ctx.fill()
 
-      if (motion > .74 && rand() < .28) {
-        ctx.globalAlpha *= .76
+      const hasPinHighlight = rand() < .28
+      if (hasPinHighlight) {
+        const pinAlpha = smoothstep(.46, .96, motion)
+        ctx.globalAlpha *= pinAlpha * .58
         ctx.fillStyle = '#FFFFFF'
         ctx.beginPath()
-        ctx.arc(x - size * .08, y - size * .10, Math.max(.25, size * .12), 0, TAU)
+        ctx.arc(x - size * .08, y - size * .10, Math.max(.22, size * .10), 0, TAU)
         ctx.fill()
       }
     }

@@ -115,6 +115,7 @@ export interface GlitterSettings {
   animationStyle: 'twinkle' | 'flash' | 'shimmer' | 'orbit' | 'mixed'
   animationSpeed: number
   animationStrength: number
+  animationSmoothness: number
   sweepWidth: number
 }
 
@@ -162,7 +163,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.28'
+  version: '0.29'
   width: 2000
   height: 2000
   autoFit: boolean

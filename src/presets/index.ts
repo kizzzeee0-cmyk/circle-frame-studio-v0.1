@@ -115,9 +115,10 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
       colors: ['#FFFFFF', '#FFE6B5', '#FFD08A', '#FFF7DD'],
       animated: true,
       animationStyle: 'mixed',
-      animationSpeed: 1,
-      animationStrength: .88,
-      sweepWidth: .16,
+      animationSpeed: .78,
+      animationStrength: .84,
+      animationSmoothness: .86,
+      sweepWidth: .18,
     },
     effects: baseEffects(),
     pattern: basePattern(),
@@ -126,7 +127,9 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
 
 function p(id: string, category: string, name: string, kind: RingKind, patch: Partial<FrameDesign> = {}, pattern = {}, effects = {}): FramePreset {
   const design = createDesign(kind, name)
+  const baseGlitter = { ...design.glitter }
   Object.assign(design, patch)
+  if (patch.glitter) design.glitter = { ...baseGlitter, ...patch.glitter }
   Object.assign(design.pattern, pattern)
   if (!(pattern as { paletteColors?: unknown }).paletteColors) {
     design.pattern.paletteColors = [design.color, design.secondaryColor, '#F7A8CF', '#B9D1FF']
@@ -440,7 +443,7 @@ export const PRESETS: FramePreset[] = [
       density: 350, particleSize: 2.2, sparkleSize: 10.5, sparkleRatio: .19,
       spread: 22, glow: 3.2, baseOpacity: .40, edgeHighlight: .66,
       colorCount: 4, colors: ['#FFFFFF','#FFD8E8','#FFB7D2','#FFF0F7'],
-      animated: true, animationStyle: 'twinkle', animationSpeed: 1.12, animationStrength: .96, sweepWidth: .13,
+      animated: true, animationStyle: 'twinkle', animationSpeed: .86, animationStrength: .90, animationSmoothness: .90, sweepWidth: .16,
     },
   }, { seed: 3817 }, { glowEnabled: true, glowColor: '#F6A9C8', glowBlur: 11, glowIntensity: .10 }),
 
@@ -460,7 +463,7 @@ export const PRESETS: FramePreset[] = [
       density: 310, particleSize: 2.1, sparkleSize: 12, sparkleRatio: .25,
       spread: 25, glow: 4, baseOpacity: .38, edgeHighlight: .72,
       colorCount: 4, colors: ['#FFFFFF','#D9CAFF','#B79CF1','#F5EEFF'],
-      animated: true, animationStyle: 'flash', animationSpeed: .95, animationStrength: 1, sweepWidth: .14,
+      animated: true, animationStyle: 'flash', animationSpeed: .74, animationStrength: .90, animationSmoothness: .88, sweepWidth: .17,
     },
   }, { seed: 5911 }, { glowEnabled: true, glowColor: '#B39AE8', glowBlur: 12, glowIntensity: .11 }),
 
@@ -480,7 +483,7 @@ export const PRESETS: FramePreset[] = [
       density: 300, particleSize: 2.3, sparkleSize: 10, sparkleRatio: .13,
       spread: 20, glow: 3.2, baseOpacity: .44, edgeHighlight: .64,
       colorCount: 4, colors: ['#FFFFFF','#DFFFF5','#B2E7D8','#FFF8DA'],
-      animated: true, animationStyle: 'shimmer', animationSpeed: .72, animationStrength: .90, sweepWidth: .22,
+      animated: true, animationStyle: 'shimmer', animationSpeed: .62, animationStrength: .86, animationSmoothness: .92, sweepWidth: .26,
     },
   }, { seed: 8153 }, { glowEnabled: true, glowColor: '#A7E1D2', glowBlur: 10, glowIntensity: .09 }),
 
@@ -500,7 +503,7 @@ export const PRESETS: FramePreset[] = [
       density: 275, particleSize: 1.9, sparkleSize: 13.5, sparkleRatio: .34,
       spread: 21, glow: 4.5, baseOpacity: .34, edgeHighlight: .86,
       colorCount: 4, colors: ['#FFFFFF','#D8EEFF','#EDE5FF','#FFF8D9'],
-      animated: true, animationStyle: 'flash', animationSpeed: 1.28, animationStrength: 1, sweepWidth: .12,
+      animated: true, animationStyle: 'flash', animationSpeed: .92, animationStrength: .92, animationSmoothness: .86, sweepWidth: .16,
     },
   }, { seed: 2147 }, { glowEnabled: true, glowColor: '#C4E7FF', glowBlur: 13, glowIntensity: .12 }),
 
@@ -520,7 +523,7 @@ export const PRESETS: FramePreset[] = [
       density: 325, particleSize: 2.5, sparkleSize: 11.5, sparkleRatio: .17,
       spread: 26, glow: 3.8, baseOpacity: .44, edgeHighlight: .68,
       colorCount: 4, colors: ['#FFF8EC','#F6D1B9','#EAA48E','#FFFFFF'],
-      animated: true, animationStyle: 'orbit', animationSpeed: .78, animationStrength: .94, sweepWidth: .18,
+      animated: true, animationStyle: 'orbit', animationSpeed: .66, animationStrength: .88, animationSmoothness: .92, sweepWidth: .22,
     },
   }, { seed: 6329 }, { glowEnabled: true, glowColor: '#E9AD9D', glowBlur: 10, glowIntensity: .10 }),
 
@@ -537,7 +540,7 @@ export const PRESETS: FramePreset[] = [
       density: 235, particleSize: 1.7, sparkleSize: 14, sparkleRatio: .42,
       spread: 18, glow: 5, baseOpacity: .28, edgeHighlight: .92,
       colorCount: 2, colors: ['#FFFFFF','#DDE6FF','#FFFFFF','#DDE6FF'],
-      animated: true, animationStyle: 'flash', animationSpeed: 1.6, animationStrength: 1, sweepWidth: .10,
+      animated: true, animationStyle: 'flash', animationSpeed: 1.05, animationStrength: .94, animationSmoothness: .84, sweepWidth: .15,
     },
   }, { seed: 4391 }, { glowEnabled: true, glowColor: '#FFFFFF', glowBlur: 9, glowIntensity: .10 }),
 
@@ -554,7 +557,7 @@ export const PRESETS: FramePreset[] = [
       density: 280, particleSize: 2.1, sparkleSize: 12, sparkleRatio: .25,
       spread: 24, glow: 5, baseOpacity: .34, edgeHighlight: .72,
       colorCount: 4, colors: ['#FFFFFF','#FF9BAD','#FF506F','#FFE1E7'],
-      animated: true, animationStyle: 'orbit', animationSpeed: 1.10, animationStrength: 1, sweepWidth: .14,
+      animated: true, animationStyle: 'orbit', animationSpeed: .78, animationStrength: .92, animationSmoothness: .90, sweepWidth: .19,
     },
   }, { seed: 9443 }, { glowEnabled: true, glowColor: '#FF4768', glowBlur: 15, glowIntensity: .18 }),
 
@@ -571,7 +574,7 @@ export const PRESETS: FramePreset[] = [
       density: 295, particleSize: 2, sparkleSize: 11, sparkleRatio: .18,
       spread: 21, glow: 3.5, baseOpacity: .36, edgeHighlight: .78,
       colorCount: 4, colors: ['#FFFFFF','#B9D9FF','#8BB9F1','#EDE7FF'],
-      animated: true, animationStyle: 'shimmer', animationSpeed: .84, animationStrength: .94, sweepWidth: .24,
+      animated: true, animationStyle: 'shimmer', animationSpeed: .66, animationStrength: .88, animationSmoothness: .94, sweepWidth: .29,
     },
   }, { seed: 2741 }, { glowEnabled: true, glowColor: '#8ABAF4', glowBlur: 10, glowIntensity: .10 }),
 
@@ -588,7 +591,7 @@ export const PRESETS: FramePreset[] = [
       density: 360, particleSize: 1.8, sparkleSize: 10.5, sparkleRatio: .21,
       spread: 25, glow: 4, baseOpacity: .30, edgeHighlight: .76,
       colorCount: 4, colors: ['#FFFFFF','#F7D0FF','#DCC7FF','#FFE6F4'],
-      animated: true, animationStyle: 'mixed', animationSpeed: 1.06, animationStrength: 1, sweepWidth: .18,
+      animated: true, animationStyle: 'mixed', animationSpeed: .76, animationStrength: .90, animationSmoothness: .90, sweepWidth: .22,
     },
   }, { seed: 6673 }, { glowEnabled: true, glowColor: '#D9A7E7', glowBlur: 10, glowIntensity: .09 }),
 

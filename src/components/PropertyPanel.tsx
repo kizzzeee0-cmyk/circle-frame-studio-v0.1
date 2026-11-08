@@ -255,10 +255,11 @@ export default function PropertyPanel({
             </label>
             <Slider label="반짝임 속도" value={design.glitter.animationSpeed} min={.1} max={3} step={.05} suffix="x" onChange={n => nestedGlitter({ animationSpeed: n })} />
             <Slider label="반짝임 강도" value={Math.round(design.glitter.animationStrength * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ animationStrength: n / 100 })} />
+            <Slider label="움직임 부드러움" value={Math.round(design.glitter.animationSmoothness * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ animationSmoothness: n / 100 })} />
             <Slider label="이동 빛 폭" value={Math.round(design.glitter.sweepWidth * 100)} min={3} max={45} suffix="%" onChange={n => nestedGlitter({ sweepWidth: n / 100 })} />
           </>}
 
-          <p className="hint">미세한 점 입자와 4갈래 별빛이 서로 다른 타이밍으로 켜지고 꺼집니다. Twinkle·Flash·Shimmer·Orbit·Mixed를 프리셋별로 다르게 사용해 같은 링처럼 보이지 않게 구성했습니다. PNG는 클릭한 시점의 한 프레임으로 저장됩니다.</p>
+          <p className="hint">미세한 점과 4갈래 별빛은 완전히 꺼졌다 갑자기 켜지는 대신 잔광을 남기며 부드럽게 밝아지고 어두워집니다. 움직임 부드러움을 높이면 속도·크기 변화가 완만해지고 Shimmer/Orbit에는 부드러운 빛 꼬리가 생깁니다.</p>
         </section>
       )}
 

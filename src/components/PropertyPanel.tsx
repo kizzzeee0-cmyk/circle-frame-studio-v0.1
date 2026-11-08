@@ -242,7 +242,23 @@ export default function PropertyPanel({
           <Slider label="기본 링 불투명도" value={Math.round(design.glitter.baseOpacity * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ baseOpacity: n / 100 })} />
           <Slider label="안쪽·바깥쪽 빛선" value={Math.round(design.glitter.edgeHighlight * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ edgeHighlight: n / 100 })} />
 
-          <p className="hint">작은 점 입자와 4갈래 반짝이를 같은 원 둘레에 겹쳐 그립니다. 랜덤 위치는 Seed로 고정되므로 화면 미리보기와 저장 PNG가 동일하게 유지됩니다.</p>
+          <label className="toggle"><input type="checkbox" checked={design.glitter.animated} onChange={e => nestedGlitter({ animated: e.target.checked })} /><span>실시간 반짝임 애니메이션</span></label>
+          {design.glitter.animated && <>
+            <label className="control"><span><b>반짝임 움직임</b></span>
+              <select value={design.glitter.animationStyle} onChange={e => nestedGlitter({ animationStyle: e.target.value as FrameDesign['glitter']['animationStyle'] })}>
+                <option value="twinkle">개별 반짝임 · Twinkle</option>
+                <option value="flash">별빛 점멸 · Flash</option>
+                <option value="shimmer">빛띠 이동 · Shimmer</option>
+                <option value="orbit">두 빛점 회전 · Orbit</option>
+                <option value="mixed">혼합형 · Mixed</option>
+              </select>
+            </label>
+            <Slider label="반짝임 속도" value={design.glitter.animationSpeed} min={.1} max={3} step={.05} suffix="x" onChange={n => nestedGlitter({ animationSpeed: n })} />
+            <Slider label="반짝임 강도" value={Math.round(design.glitter.animationStrength * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ animationStrength: n / 100 })} />
+            <Slider label="이동 빛 폭" value={Math.round(design.glitter.sweepWidth * 100)} min={3} max={45} suffix="%" onChange={n => nestedGlitter({ sweepWidth: n / 100 })} />
+          </>}
+
+          <p className="hint">미세한 점 입자와 4갈래 별빛이 서로 다른 타이밍으로 켜지고 꺼집니다. Twinkle·Flash·Shimmer·Orbit·Mixed를 프리셋별로 다르게 사용해 같은 링처럼 보이지 않게 구성했습니다. PNG는 클릭한 시점의 한 프레임으로 저장됩니다.</p>
         </section>
       )}
 

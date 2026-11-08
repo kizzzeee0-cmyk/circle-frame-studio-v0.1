@@ -13,12 +13,12 @@ export async function exportPng(project: FrameProject) {
   canvas.width = 2000
   canvas.height = 2000
   await preloadProjectAssets(project)
-  renderProject(canvas, project)
+  renderProject(canvas, project, undefined, performance.now())
   const blob = await canvasToBlob(canvas, 'image/png')
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `circle-frame-v027-${new Date().toISOString().slice(0, 10)}.png`
+  a.download = `circle-frame-v028-${new Date().toISOString().slice(0, 10)}.png`
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
@@ -28,7 +28,7 @@ export function downloadProject(project: FrameProject) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'circle-frame-project-v027.json'
+  a.download = 'circle-frame-project-v028.json'
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

@@ -16,14 +16,38 @@ export default function CanvasPanel({ project, onSampleColor }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     let cancelled = false
+    let frame = 0
+
+    const hasAnimatedGlitter = () => {
+      const layers = Array.isArray(project.layers) && project.layers.length
+        ? project.layers.filter(layer => layer.visible !== false).map(layer => layer.design)
+        : [project.design]
+      return layers.some(design => design.kind === 'glitter' && design.glitter.animated)
+    }
+
     const run = async () => {
       if (!ref.current) return
       await preloadProjectAssets(project)
       if (cancelled || !ref.current) return
-      renderProject(ref.current, project)
+
+      if (!hasAnimatedGlitter()) {
+        renderProject(ref.current, project)
+        return
+      }
+
+      const tick = (time: number) => {
+        if (cancelled || !ref.current) return
+        renderProject(ref.current, project, undefined, time)
+        frame = requestAnimationFrame(tick)
+      }
+      frame = requestAnimationFrame(tick)
     }
-    run()
-    return () => { cancelled = true }
+
+    void run()
+    return () => {
+      cancelled = true
+      if (frame) cancelAnimationFrame(frame)
+    }
   }, [project])
 
   const sample = (e: MouseEvent<HTMLCanvasElement>) => {
@@ -40,7 +64,7 @@ export default function CanvasPanel({ project, onSampleColor }: Props) {
       <div className="canvas-meta">
         <span>2000 × 2000 PNG</span>
         <span>Alt + 클릭: 캔버스 스포이드</span>
-        <span>미리보기 = PNG 출력 1:1 렌더 기준</span>
+        <span>글리터는 실시간 반짝임 미리보기 · PNG는 한 프레임 저장</span>
       </div>
       <div className="checkerboard">
         <canvas ref={ref} width={2000} height={2000} onClick={sample} />

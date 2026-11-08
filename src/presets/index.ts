@@ -113,6 +113,11 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
       edgeHighlight: .62,
       colorCount: 4,
       colors: ['#FFFFFF', '#FFE6B5', '#FFD08A', '#FFF7DD'],
+      animated: true,
+      animationStyle: 'mixed',
+      animationSpeed: 1,
+      animationStrength: .88,
+      sweepWidth: .16,
     },
     effects: baseEffects(),
     pattern: basePattern(),
@@ -412,9 +417,10 @@ export const PRESETS: FramePreset[] = [
       { id: 'gc4', position: 1, color: '#E9B27E' },
     ],
     glitter: {
-      density: 220, particleSize: 5.2, sparkleSize: 15, sparkleRatio: .20,
-      spread: 38, glow: 7, baseOpacity: .46, edgeHighlight: .72,
+      density: 330, particleSize: 2.4, sparkleSize: 11, sparkleRatio: .16,
+      spread: 24, glow: 3.5, baseOpacity: .42, edgeHighlight: .72,
       colorCount: 4, colors: ['#FFFFFF','#FFE7B0','#FFC978','#FFF6DB'],
+      animated: true, animationStyle: 'mixed', animationSpeed: .86, animationStrength: .92, sweepWidth: .15,
     },
   }, { seed: 7421 }, { glowEnabled: true, glowColor: '#FFD8A8', glowBlur: 10, glowIntensity: .10 }),
 
@@ -431,9 +437,10 @@ export const PRESETS: FramePreset[] = [
       { id: 'gp4', position: 1, color: '#E991B2' },
     ],
     glitter: {
-      density: 235, particleSize: 4.8, sparkleSize: 14, sparkleRatio: .22,
-      spread: 36, glow: 7, baseOpacity: .44, edgeHighlight: .68,
+      density: 350, particleSize: 2.2, sparkleSize: 10.5, sparkleRatio: .19,
+      spread: 22, glow: 3.2, baseOpacity: .40, edgeHighlight: .66,
       colorCount: 4, colors: ['#FFFFFF','#FFD8E8','#FFB7D2','#FFF0F7'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: 1.12, animationStrength: .96, sweepWidth: .13,
     },
   }, { seed: 3817 }, { glowEnabled: true, glowColor: '#F6A9C8', glowBlur: 11, glowIntensity: .10 }),
 
@@ -450,9 +457,10 @@ export const PRESETS: FramePreset[] = [
       { id: 'gl4', position: 1, color: '#9077D0' },
     ],
     glitter: {
-      density: 210, particleSize: 5, sparkleSize: 16, sparkleRatio: .24,
-      spread: 38, glow: 8, baseOpacity: .43, edgeHighlight: .70,
+      density: 310, particleSize: 2.1, sparkleSize: 12, sparkleRatio: .25,
+      spread: 25, glow: 4, baseOpacity: .38, edgeHighlight: .72,
       colorCount: 4, colors: ['#FFFFFF','#D9CAFF','#B79CF1','#F5EEFF'],
+      animated: true, animationStyle: 'flash', animationSpeed: .95, animationStrength: 1, sweepWidth: .14,
     },
   }, { seed: 5911 }, { glowEnabled: true, glowColor: '#B39AE8', glowBlur: 12, glowIntensity: .11 }),
 
@@ -469,9 +477,10 @@ export const PRESETS: FramePreset[] = [
       { id: 'gm4', position: 1, color: '#77C5B0' },
     ],
     glitter: {
-      density: 205, particleSize: 4.8, sparkleSize: 14, sparkleRatio: .18,
-      spread: 35, glow: 7, baseOpacity: .45, edgeHighlight: .66,
+      density: 300, particleSize: 2.3, sparkleSize: 10, sparkleRatio: .13,
+      spread: 20, glow: 3.2, baseOpacity: .44, edgeHighlight: .64,
       colorCount: 4, colors: ['#FFFFFF','#DFFFF5','#B2E7D8','#FFF8DA'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .72, animationStrength: .90, sweepWidth: .22,
     },
   }, { seed: 8153 }, { glowEnabled: true, glowColor: '#A7E1D2', glowBlur: 10, glowIntensity: .09 }),
 
@@ -488,9 +497,10 @@ export const PRESETS: FramePreset[] = [
       { id: 'gi4', position: 1, color: '#91BDDE' },
     ],
     glitter: {
-      density: 190, particleSize: 4.2, sparkleSize: 17, sparkleRatio: .30,
-      spread: 31, glow: 8, baseOpacity: .38, edgeHighlight: .82,
+      density: 275, particleSize: 1.9, sparkleSize: 13.5, sparkleRatio: .34,
+      spread: 21, glow: 4.5, baseOpacity: .34, edgeHighlight: .86,
       colorCount: 4, colors: ['#FFFFFF','#D8EEFF','#EDE5FF','#FFF8D9'],
+      animated: true, animationStyle: 'flash', animationSpeed: 1.28, animationStrength: 1, sweepWidth: .12,
     },
   }, { seed: 2147 }, { glowEnabled: true, glowColor: '#C4E7FF', glowBlur: 13, glowIntensity: .12 }),
 
@@ -507,11 +517,80 @@ export const PRESETS: FramePreset[] = [
       { id: 'gr4', position: 1, color: '#BF776C' },
     ],
     glitter: {
-      density: 230, particleSize: 5.4, sparkleSize: 15, sparkleRatio: .19,
-      spread: 40, glow: 7, baseOpacity: .48, edgeHighlight: .68,
+      density: 325, particleSize: 2.5, sparkleSize: 11.5, sparkleRatio: .17,
+      spread: 26, glow: 3.8, baseOpacity: .44, edgeHighlight: .68,
       colorCount: 4, colors: ['#FFF8EC','#F6D1B9','#EAA48E','#FFFFFF'],
+      animated: true, animationStyle: 'orbit', animationSpeed: .78, animationStrength: .94, sweepWidth: .18,
     },
   }, { seed: 6329 }, { glowEnabled: true, glowColor: '#E9AD9D', glowBlur: 10, glowIntensity: .10 }),
+
+  p('glitter-white-strobe', 'Glitter', 'White Strobe Ring', 'glitter', {
+    thickness: 48, color: '#ECECF4', secondaryColor: '#FFFFFF',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gws1', position: 0, color: '#BFC2D2' },
+      { id: 'gws2', position: .45, color: '#F5F5FA' },
+      { id: 'gws3', position: .72, color: '#FFFFFF' },
+      { id: 'gws4', position: 1, color: '#ADB1C4' },
+    ],
+    glitter: {
+      density: 235, particleSize: 1.7, sparkleSize: 14, sparkleRatio: .42,
+      spread: 18, glow: 5, baseOpacity: .28, edgeHighlight: .92,
+      colorCount: 2, colors: ['#FFFFFF','#DDE6FF','#FFFFFF','#DDE6FF'],
+      animated: true, animationStyle: 'flash', animationSpeed: 1.6, animationStrength: 1, sweepWidth: .10,
+    },
+  }, { seed: 4391 }, { glowEnabled: true, glowColor: '#FFFFFF', glowBlur: 9, glowIntensity: .10 }),
+
+  p('glitter-red-orbit', 'Glitter', 'Red Orbit Spark', 'glitter', {
+    thickness: 56, color: '#E64965', secondaryColor: '#FFD3DC',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gro1', position: 0, color: '#B82744' },
+      { id: 'gro2', position: .38, color: '#F05A75' },
+      { id: 'gro3', position: .68, color: '#FFC3CF' },
+      { id: 'gro4', position: 1, color: '#A91F39' },
+    ],
+    glitter: {
+      density: 280, particleSize: 2.1, sparkleSize: 12, sparkleRatio: .25,
+      spread: 24, glow: 5, baseOpacity: .34, edgeHighlight: .72,
+      colorCount: 4, colors: ['#FFFFFF','#FF9BAD','#FF506F','#FFE1E7'],
+      animated: true, animationStyle: 'orbit', animationSpeed: 1.10, animationStrength: 1, sweepWidth: .14,
+    },
+  }, { seed: 9443 }, { glowEnabled: true, glowColor: '#FF4768', glowBlur: 15, glowIntensity: .18 }),
+
+  p('glitter-blue-shimmer', 'Glitter', 'Blue Moon Shimmer', 'glitter', {
+    thickness: 54, color: '#7FAAE9', secondaryColor: '#E6F2FF',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gbs1', position: 0, color: '#648ED0' },
+      { id: 'gbs2', position: .42, color: '#A9C9F4' },
+      { id: 'gbs3', position: .74, color: '#F4FAFF' },
+      { id: 'gbs4', position: 1, color: '#597FC1' },
+    ],
+    glitter: {
+      density: 295, particleSize: 2, sparkleSize: 11, sparkleRatio: .18,
+      spread: 21, glow: 3.5, baseOpacity: .36, edgeHighlight: .78,
+      colorCount: 4, colors: ['#FFFFFF','#B9D9FF','#8BB9F1','#EDE7FF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .84, animationStrength: .94, sweepWidth: .24,
+    },
+  }, { seed: 2741 }, { glowEnabled: true, glowColor: '#8ABAF4', glowBlur: 10, glowIntensity: .10 }),
+
+  p('glitter-fairy-mixed', 'Glitter', 'Fairy Mixed Twinkle', 'glitter', {
+    thickness: 58, color: '#E3B6EC', secondaryColor: '#FFF2FD',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gfm1', position: 0, color: '#C994D7' },
+      { id: 'gfm2', position: .40, color: '#E6B8EE' },
+      { id: 'gfm3', position: .72, color: '#FFF4FE' },
+      { id: 'gfm4', position: 1, color: '#BD86CC' },
+    ],
+    glitter: {
+      density: 360, particleSize: 1.8, sparkleSize: 10.5, sparkleRatio: .21,
+      spread: 25, glow: 4, baseOpacity: .30, edgeHighlight: .76,
+      colorCount: 4, colors: ['#FFFFFF','#F7D0FF','#DCC7FF','#FFE6F4'],
+      animated: true, animationStyle: 'mixed', animationSpeed: 1.06, animationStrength: 1, sweepWidth: .18,
+    },
+  }, { seed: 6673 }, { glowEnabled: true, glowColor: '#D9A7E7', glowBlur: 10, glowIntensity: .09 }),
 
   p('sparkle-light', 'Decorative', 'Sparkle Ring', 'sparkle', { thickness: 8 }, { decorationCount: 16, decorationSize: 32, decorationOffset: 15 }),
   p('sparkle-dense', 'Decorative', 'Dense Sparkle', 'sparkle', { thickness: 6 }, { decorationCount: 28, decorationSize: 24, decorationOffset: 18 }),

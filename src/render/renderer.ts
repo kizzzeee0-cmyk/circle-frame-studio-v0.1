@@ -782,6 +782,54 @@ function drawGlossy(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: nu
 
 
 
+function angularDistance(a: number, b: number) {
+  const d = Math.abs(((a - b + Math.PI) % TAU + TAU) % TAU - Math.PI)
+  return Math.min(Math.PI, d)
+}
+
+function drawFourPointGlint(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, rotation: number) {
+  const short = size * .15
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(rotation)
+  ctx.beginPath()
+  ctx.moveTo(0, -size)
+  ctx.lineTo(short, -short)
+  ctx.lineTo(size, 0)
+  ctx.lineTo(short, short)
+  ctx.lineTo(0, size)
+  ctx.lineTo(-short, short)
+  ctx.lineTo(-size, 0)
+  ctx.lineTo(-short, -short)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+function glitterMotion(
+  style: FrameDesign['glitter']['animationStyle'],
+  angle: number,
+  phase: number,
+  time: number,
+  strength: number,
+  sweepWidth: number,
+) {
+  const independent = .5 + .5 * Math.sin(time * (1.15 + phase * .07) + phase * 3.17)
+  const sharp = Math.pow(Math.max(0, independent), 7)
+  const sweepAngle = ((time * .72) + phase * .025) % TAU
+  const width = Math.max(.035, sweepWidth) * TAU
+  const sweep = Math.exp(-Math.pow(angularDistance(angle, sweepAngle) / width, 2) * 2.5)
+  const oppositeSweep = Math.exp(-Math.pow(angularDistance(angle, sweepAngle + Math.PI) / (width * .72), 2) * 2.8)
+
+  let value = independent
+  if (style === 'flash') value = sharp
+  if (style === 'shimmer') value = .18 + sweep * .82
+  if (style === 'orbit') value = .12 + Math.max(sweep, oppositeSweep * .72) * .88
+  if (style === 'mixed') value = Math.min(1, independent * .46 + sharp * .34 + sweep * .55)
+
+  return (1 - strength) * .72 + strength * clamp01(value)
+}
+
 function drawGlitter(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -790,6 +838,7 @@ function drawGlitter(
   design: FrameDesign,
   rotation: number,
   scale: number,
+  animationTimeMs = 0,
 ) {
   const glitter = design.glitter
   const thickness = Math.max(1, design.thickness * scale)
@@ -806,6 +855,9 @@ function drawGlitter(
   const sparkleSize = Math.max(2, glitter.sparkleSize * scale)
   const sparkleRatio = clamp01(glitter.sparkleRatio)
   const particleGlow = Math.max(0, glitter.glow * scale)
+  const animationStrength = glitter.animated ? clamp01(glitter.animationStrength) : 0
+  const animationSpeed = Math.max(.05, glitter.animationSpeed || 1)
+  const time = (animationTimeMs / 1000) * animationSpeed * TAU
 
   // Semi-transparent pearly base keeps the ring shape readable underneath the glitter.
   ctx.save()
@@ -835,42 +887,63 @@ function drawGlitter(
 
   // Deterministic glitter positions: preview and exported PNG stay pixel-consistent.
   for (let i = 0; i < density; i++) {
-    const angle = rotation - Math.PI / 2 + ((i + rand() * .92) / density) * TAU
+    const jitter = rand()
+    const angle = rotation - Math.PI / 2 + ((i + jitter * .92) / density) * TAU
     const radial = (rand() * 2 - 1) * spread
     const rr = r + radial
     const x = cx + Math.cos(angle) * rr
     const y = cy + Math.sin(angle) * rr
     const color = colors[Math.floor(rand() * colors.length)] ?? '#FFFFFF'
-    const alpha = .30 + rand() * .70
+    const phase = rand() * TAU
+    const baseAlpha = .18 + rand() * .72
+    const isSparkle = rand() < sparkleRatio
+    const motion = glitterMotion(glitter.animationStyle, angle, phase, time, animationStrength, glitter.sweepWidth)
+    const alpha = baseAlpha * (.24 + motion * .92)
+    const pulseSize = .58 + motion * .64
 
     ctx.save()
     ctx.globalAlpha *= alpha
     ctx.fillStyle = color
     ctx.strokeStyle = color
     ctx.shadowColor = color
-    ctx.shadowBlur = particleGlow * (.42 + rand() * .78)
+    ctx.shadowBlur = particleGlow * (.22 + motion * 1.05)
 
-    if (rand() < sparkleRatio) {
-      const size = sparkleSize * (.48 + rand() * .88)
-      drawStar(ctx, x, y, size, angle + rand() * Math.PI, 4)
+    if (isSparkle) {
+      const size = sparkleSize * (.42 + rand() * .62) * pulseSize
+      drawFourPointGlint(ctx, x, y, size, angle * .15 + phase)
 
-      // tiny white center makes larger sparkles look crisp rather than blurry.
-      ctx.globalAlpha *= .76
+      // Short cross rays produce the clean camera-flare twinkle visible in animated frame references.
+      if (motion > .56) {
+        ctx.save()
+        ctx.globalAlpha *= Math.pow(motion, 2.2) * .78
+        ctx.strokeStyle = '#FFFFFF'
+        ctx.lineWidth = Math.max(.55, size * .045)
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(x - size * .92, y)
+        ctx.lineTo(x + size * .92, y)
+        ctx.moveTo(x, y - size * .92)
+        ctx.lineTo(x, y + size * .92)
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      ctx.globalAlpha *= .82
       ctx.fillStyle = '#FFFFFF'
       ctx.beginPath()
-      ctx.arc(x, y, Math.max(.55, size * .075), 0, TAU)
+      ctx.arc(x, y, Math.max(.4, size * .065), 0, TAU)
       ctx.fill()
     } else {
-      const size = particleSize * (.35 + rand() * 1.35)
+      const size = particleSize * (.28 + rand() * .92) * (.64 + motion * .48)
       ctx.beginPath()
-      ctx.arc(x, y, Math.max(.45, size / 2), 0, TAU)
+      ctx.arc(x, y, Math.max(.34, size / 2), 0, TAU)
       ctx.fill()
 
-      if (rand() < .18) {
-        ctx.globalAlpha *= .68
+      if (motion > .74 && rand() < .28) {
+        ctx.globalAlpha *= .76
         ctx.fillStyle = '#FFFFFF'
         ctx.beginPath()
-        ctx.arc(x - size * .12, y - size * .14, Math.max(.35, size * .15), 0, TAU)
+        ctx.arc(x - size * .08, y - size * .10, Math.max(.25, size * .12), 0, TAU)
         ctx.fill()
       }
     }
@@ -925,7 +998,7 @@ function drawAttachedTriple(
   ctx.restore()
 }
 
-function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number) {
+function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0) {
   const cx = canvasWidth / 2 + design.offsetX * scale
   const cy = canvasHeight / 2 + design.offsetY * scale
   const r = design.radius * scale
@@ -1000,12 +1073,12 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
     case 'flower': drawDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'asset': drawAssetDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'glossy': drawGlossy(ctx, cx, cy, r, design, rot, scale); break
-    case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale); break
+    case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale, animationTimeMs); break
     default: strokeCircle(ctx, cx, cy, r, rot)
   }
 }
 
-function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number) {
+function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0) {
   if (design.opacity <= 0) return
   ctx.save()
   ctx.globalAlpha = design.opacity
@@ -1013,7 +1086,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
   if (design.effects.outlineEnabled && design.effects.outlineWidth > 0) {
     ctx.save()
     const outlined = makeOutlineDesign(design)
-    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight)
+    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight, animationTimeMs)
     ctx.restore()
   }
 
@@ -1024,7 +1097,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.shadowOffsetX = design.effects.shadowOffsetX * scale
     ctx.shadowOffsetY = design.effects.shadowOffsetY * scale
     ctx.globalAlpha *= .7
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
     ctx.restore()
   }
 
@@ -1036,7 +1109,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
       ctx.shadowBlur = Math.max(1, blur * multi)
       ctx.shadowColor = validColor(design.effects.glowColor, validColor(design.color))
       ctx.globalAlpha *= intensity * (.48 + multi * .42)
-      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight)
+      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
       ctx.restore()
     }
   }
@@ -1045,17 +1118,17 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.save()
     ctx.filter = `blur(${(design.effects.bloom * .12) * scale}px)`
     ctx.globalAlpha *= .28
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
     ctx.restore()
   }
 
   if (design.effects.softBlur > 0) {
     ctx.save()
     ctx.filter = `blur(${design.effects.softBlur * scale}px)`
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
     ctx.restore()
   } else {
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
   }
 
   if (design.twoToneFlow.enabled) {
@@ -1157,7 +1230,7 @@ export function getProjectFitScale(project: FrameProject) {
   return Math.min(1.18, 950 / Math.max(1, extent))
 }
 
-export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, forcedFitScale?: number) {
+export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, forcedFitScale?: number, animationTimeMs = 0) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -1165,6 +1238,6 @@ export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, 
   const fitScale = forcedFitScale ?? getProjectFitScale(project)
   const scale = baseScale * fitScale
   for (const design of projectLayers(project)) {
-    drawDesign(ctx, design, scale, canvas.width, canvas.height)
+    drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs)
   }
 }

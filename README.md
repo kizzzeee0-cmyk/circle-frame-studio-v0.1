@@ -1,4 +1,4 @@
-# Circle Frame Studio v0.27
+# Circle Frame Studio v0.28
 
 원형 프레임을 만들고 **테두리 외부는 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
@@ -266,3 +266,32 @@ localStorage보다 큰 프로젝트도 안정적으로 보관할 수 있게 했�
 - Mint Pearl Glitter
 - Ice Diamond Glitter
 - Rose Gold Glitter
+
+
+## v0.28 — Animated Glitter Frames
+
+v0.27의 정적인 글리터 점 배치를 **실시간으로 반짝이는 글리터 프레임**으로 확장했습니다.
+
+핵심 변경:
+- 큰 원형 입자 위주 표현을 줄이고 미세 입자 중심으로 재조정
+- 4갈래 카메라 플레어형 반짝이 추가
+- 각 입자가 서로 다른 타이밍으로 밝아졌다 어두워지는 애니메이션
+- 프리셋 카드에서도 글리터 프레임은 실시간 미리보기
+- 메인 캔버스 requestAnimationFrame 미리보기
+- PNG는 저장 시점의 한 프레임을 렌더링
+
+움직임:
+- Twinkle
+- Flash
+- Shimmer
+- Orbit
+- Mixed
+
+새 프리셋:
+- White Strobe Ring
+- Red Orbit Spark
+- Blue Moon Shimmer
+- Fairy Mixed Twinkle
+
+기존 Champagne / Pink / Lavender / Mint / Ice / Rose Gold 프리셋도
+입자 크기와 밀도를 다시 조정하고 서로 다른 애니메이션 스타일을 배정했습니다.

@@ -14,11 +14,28 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.27', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: '0.28', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
-      if (!cancelled && ref.current) renderProject(ref.current, project, 1)
+      if (cancelled || !ref.current) return
+
+      if (design.kind !== 'glitter' || !design.glitter.animated) {
+        renderProject(ref.current, project, 1)
+        return
+      }
+
+      let last = 0
+      const tick = (time: number) => {
+        if (cancelled || !ref.current) return
+        // Glitter thumbnails animate at ~12fps to keep a large preset list lightweight.
+        if (time - last > 82) {
+          renderProject(ref.current, project, 1, time)
+          last = time
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
     }
-    run()
+    void run()
     return () => { cancelled = true }
   }, [preset])
   return <canvas ref={ref} width={96} height={96} />

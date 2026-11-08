@@ -111,6 +111,11 @@ export interface GlitterSettings {
   edgeHighlight: number
   colorCount: 1 | 2 | 3 | 4
   colors: [string, string, string, string]
+  animated: boolean
+  animationStyle: 'twinkle' | 'flash' | 'shimmer' | 'orbit' | 'mixed'
+  animationSpeed: number
+  animationStrength: number
+  sweepWidth: number
 }
 
 export interface TwoToneFlowSettings {
@@ -157,7 +162,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.27'
+  version: '0.28'
   width: 2000
   height: 2000
   autoFit: boolean

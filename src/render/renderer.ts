@@ -821,8 +821,8 @@ function glitterMotion(
   smoothness: number,
 ) {
   const smooth = clamp01(smoothness)
-  const slowWave = .5 + .5 * Math.sin(time * (.74 + phase * .028) + phase * 2.13)
-  const secondaryWave = .5 + .5 * Math.sin(time * (.37 + phase * .012) + phase * 4.91)
+  const slowWave = .5 + .5 * Math.sin(time + phase * 2.13)
+  const secondaryWave = .5 + .5 * Math.sin(time * 2 + phase * 4.91)
   const breathing = smoothstep(0, 1, slowWave)
   const twinkle = clamp01(breathing * .72 + secondaryWave * .28)
 
@@ -833,7 +833,7 @@ function glitterMotion(
 
   // Moving light bands have a wider head plus a soft trailing lobe so they glide rather than jump.
   const width = Math.max(.05, sweepWidth * (1 + smooth * .45)) * TAU
-  const sweepAngle = ((time * (.34 + (1 - smooth) * .12)) + phase * .018) % TAU
+  const sweepAngle = (time + phase * .018) % TAU
   const distance = angularDistance(angle, sweepAngle)
   const sweepHead = Math.exp(-Math.pow(distance / width, 2) * 1.75)
   const trailAngle = sweepAngle - width * .42
@@ -864,6 +864,7 @@ function drawGlitter(
   rotation: number,
   scale: number,
   animationTimeMs = 0,
+  animationProgress?: number,
 ) {
   const glitter = design.glitter
   const thickness = Math.max(1, design.thickness * scale)
@@ -883,7 +884,9 @@ function drawGlitter(
   const animationStrength = glitter.animated ? clamp01(glitter.animationStrength) : 0
   const animationSpeed = Math.max(.05, glitter.animationSpeed || 1)
   const animationSmoothness = clamp01(glitter.animationSmoothness ?? .86)
-  const time = (animationTimeMs / 1000) * animationSpeed * TAU
+  const time = animationProgress == null
+    ? (animationTimeMs / 1000) * animationSpeed * TAU
+    : (((animationProgress % 1) + 1) % 1) * TAU
 
   // Semi-transparent pearly base keeps the ring shape readable underneath the glitter.
   ctx.save()
@@ -1026,7 +1029,7 @@ function drawAttachedTriple(
   ctx.restore()
 }
 
-function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0) {
+function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number) {
   const cx = canvasWidth / 2 + design.offsetX * scale
   const cy = canvasHeight / 2 + design.offsetY * scale
   const r = design.radius * scale
@@ -1101,12 +1104,12 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
     case 'flower': drawDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'asset': drawAssetDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'glossy': drawGlossy(ctx, cx, cy, r, design, rot, scale); break
-    case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale, animationTimeMs); break
+    case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale, animationTimeMs, animationProgress); break
     default: strokeCircle(ctx, cx, cy, r, rot)
   }
 }
 
-function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0) {
+function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number) {
   if (design.opacity <= 0) return
   ctx.save()
   ctx.globalAlpha = design.opacity
@@ -1114,7 +1117,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
   if (design.effects.outlineEnabled && design.effects.outlineWidth > 0) {
     ctx.save()
     const outlined = makeOutlineDesign(design)
-    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight, animationTimeMs)
+    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
     ctx.restore()
   }
 
@@ -1125,7 +1128,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.shadowOffsetX = design.effects.shadowOffsetX * scale
     ctx.shadowOffsetY = design.effects.shadowOffsetY * scale
     ctx.globalAlpha *= .7
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
     ctx.restore()
   }
 
@@ -1137,7 +1140,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
       ctx.shadowBlur = Math.max(1, blur * multi)
       ctx.shadowColor = validColor(design.effects.glowColor, validColor(design.color))
       ctx.globalAlpha *= intensity * (.48 + multi * .42)
-      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
+      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
       ctx.restore()
     }
   }
@@ -1146,17 +1149,17 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.save()
     ctx.filter = `blur(${(design.effects.bloom * .12) * scale}px)`
     ctx.globalAlpha *= .28
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
     ctx.restore()
   }
 
   if (design.effects.softBlur > 0) {
     ctx.save()
     ctx.filter = `blur(${design.effects.softBlur * scale}px)`
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
     ctx.restore()
   } else {
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
   }
 
   if (design.twoToneFlow.enabled) {
@@ -1258,7 +1261,7 @@ export function getProjectFitScale(project: FrameProject) {
   return Math.min(1.18, 950 / Math.max(1, extent))
 }
 
-export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, forcedFitScale?: number, animationTimeMs = 0) {
+export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, forcedFitScale?: number, animationTimeMs = 0, animationProgress?: number) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -1266,6 +1269,6 @@ export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, 
   const fitScale = forcedFitScale ?? getProjectFitScale(project)
   const scale = baseScale * fitScale
   for (const design of projectLayers(project)) {
-    drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs)
+    drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress)
   }
 }

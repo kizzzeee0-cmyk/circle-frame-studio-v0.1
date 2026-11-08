@@ -1,8 +1,7 @@
 name: Package Circle Frame Studio v0.29
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   package:
@@ -16,7 +15,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install
-        run: npm ci
+        run: npm install
       - name: Build
         run: npm run build
       - name: Upload source ZIP artifact
@@ -30,7 +29,6 @@ jobs:
             V*_PLAN.md
             index.html
             package.json
-            package-lock.json
             tsconfig.app.json
             tsconfig.json
             tsconfig.node.json

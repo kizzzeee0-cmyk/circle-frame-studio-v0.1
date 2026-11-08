@@ -7,7 +7,7 @@ const DB_VERSION = 1
 const STORE_NAME = 'recent-saves'
 export const MAX_RECENT_SAVES = 10
 
-export type RecentSaveSource = 'png' | 'json'
+export type RecentSaveSource = 'png' | 'json' | 'animation'
 
 export interface RecentSaveRecord {
   id: string

@@ -3,6 +3,7 @@ import CanvasPanel from './components/CanvasPanel'
 import PresetBrowser from './components/PresetBrowser'
 import PropertyPanel from './components/PropertyPanel'
 import RecentSavesModal from './components/RecentSavesModal'
+import AnimatedExportModal from './components/AnimatedExportModal'
 import { createDesign } from './presets'
 import type { FrameDesign, FrameLayer, FramePreset, FrameProject } from './types'
 import { downloadProject, exportPng } from './utils/export'
@@ -10,10 +11,10 @@ import { addRecentSave, clearRecentSaves, deleteRecentSave, listRecentSaves, typ
 import { uid } from './utils/id'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v029'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v029'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v030'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v029', 'circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v030'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v029', 'circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -156,7 +157,7 @@ function normalizeProject(source: any): FrameProject {
       return normalized
     })
     return syncSelectedLayer({
-      version: '0.29',
+      version: '0.30',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -168,7 +169,7 @@ function normalizeProject(source: any): FrameProject {
   if (source?.design) {
     const layer = makeLayerFromDesign(source.design, source.design?.name || '레이어 1')
     return syncSelectedLayer({
-      version: '0.29',
+      version: '0.30',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -192,7 +193,7 @@ function makeInitialProject(): FrameProject {
   design.pattern.paletteColors = ['#F8AFCF', '#FBD4E5', '#F8AFCF', '#FBD4E5']
   const layer = makeLayerFromDesign(design, design.name)
   return {
-    version: '0.29',
+    version: '0.30',
     width: 2000,
     height: 2000,
     autoFit: true,
@@ -251,6 +252,7 @@ export default function App() {
   const [recentSaves, setRecentSaves] = useState<RecentSaveRecord[]>([])
   const [recentOpen, setRecentOpen] = useState(false)
   const [recentLoading, setRecentLoading] = useState(false)
+  const [animatedExportOpen, setAnimatedExportOpen] = useState(false)
   const undoRef = useRef<FrameProject[]>([])
   const redoRef = useRef<FrameProject[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
@@ -553,7 +555,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.29 · Smooth Glitter Motion</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.30 · Animated Export</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>
@@ -566,6 +568,7 @@ export default function App() {
           <button onClick={() => setRecentOpen(true)}>최근 저장 내역</button>
           <input ref={fileInput} hidden type="file" accept="application/json,.json" onChange={e => importProject(e.target.files?.[0])} />
           <label className="autofit"><input type="checkbox" checked={project.autoFit} onChange={e => commit(d => ({ ...d, autoFit: e.target.checked }))} /> Auto Fit</label>
+          <button onClick={() => setAnimatedExportOpen(true)}>움직이는 파일</button>
           <button className="primary-button" onClick={() => void handlePngExport()}>PNG 내보내기</button>
         </div>
       </header>
@@ -596,6 +599,13 @@ export default function App() {
           onDeleteLayer={deleteLayer}
         />
       </main>
+
+      <AnimatedExportModal
+        open={animatedExportOpen}
+        project={project}
+        onClose={() => setAnimatedExportOpen(false)}
+        onExported={() => void recordRecentSave('animation')}
+      />
 
       <RecentSavesModal
         open={recentOpen}

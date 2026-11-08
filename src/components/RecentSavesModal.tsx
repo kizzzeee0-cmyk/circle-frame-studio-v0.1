@@ -26,6 +26,12 @@ function formatSavedAt(value: number) {
   }
 }
 
+function sourceLabel(record: RecentSaveRecord) {
+  if (record.source === 'png') return 'PNG 저장'
+  if (record.source === 'animation') return '움직이는 파일 저장'
+  return 'JSON 저장'
+}
+
 function getLayerCount(record: RecentSaveRecord) {
   const project = record.project as { layers?: unknown[] }
   return Array.isArray(project?.layers) ? project.layers.length : 1
@@ -87,7 +93,7 @@ export default function RecentSavesModal({ open, records, loading, onClose, onLo
         ) : !records.length ? (
           <div className="recent-empty">
             <b>아직 저장 내역이 없습니다.</b>
-            <span>PNG 또는 JSON으로 저장하면 현재 레이어와 모든 설정이 자동 기록됩니다.</span>
+            <span>PNG·움직이는 파일·JSON으로 저장하면 현재 레이어와 모든 설정이 자동 기록됩니다.</span>
           </div>
         ) : (
           <div className="recent-saves-body">
@@ -103,7 +109,7 @@ export default function RecentSavesModal({ open, records, loading, onClose, onLo
                   <div className="recent-card-info">
                     <strong>{record.title}</strong>
                     <span>{formatSavedAt(record.savedAt)}</span>
-                    <small>{record.source === 'png' ? 'PNG 저장' : 'JSON 저장'} · 레이어 {getLayerCount(record)}개</small>
+                    <small>{sourceLabel(record)} · 레이어 {getLayerCount(record)}개</small>
                   </div>
                   <div className="recent-card-buttons">
                     <button type="button" className="soft-button" onClick={() => setSelectedId(record.id)}>미리보기</button>
@@ -122,7 +128,7 @@ export default function RecentSavesModal({ open, records, loading, onClose, onLo
                 <div className="recent-preview-meta">
                   <strong>{selected.title}</strong>
                   <span>{formatSavedAt(selected.savedAt)}</span>
-                  <span>{selected.source === 'png' ? 'PNG 저장' : 'JSON 저장'} · 레이어 {getLayerCount(selected)}개 · v{selected.appVersion}</span>
+                  <span>{sourceLabel(selected)} · 레이어 {getLayerCount(selected)}개 · v{selected.appVersion}</span>
                 </div>
                 <button className="primary-button recent-load-primary" type="button" onClick={() => onLoad(selected)}>
                   이 작업 상태 불러오기

@@ -47,6 +47,8 @@ try{
   };
   await page.locator('#importFile').setInputFiles({name:'soft-sticker.png',mimeType:'image/png',buffer:png});
   await page.waitForFunction(()=>document.querySelector('#docInfo').textContent.includes('IMAGE'));
+  assert.equal(await page.locator('#modePalette').getAttribute('aria-pressed'),'true');
+  await page.locator('#modeSingle').click();
   assert.equal(await page.locator('#selectionMode').inputValue(),'color',
     'PNG starts with precise color-only selection');
   assert.equal(await page.locator('#selectedLayerOnly').isChecked(),false,
@@ -85,8 +87,9 @@ try{
   const expected=[parseInt(pastel.slice(1,3),16),parseInt(pastel.slice(3,5),16),parseInt(pastel.slice(5,7),16),255];
   assert.deepEqual(await pix(6,25),expected,'Pastel preview matches displayed HEX precisely');
   await page.locator('#previewColor').click();
-  if(!(await page.locator('#variantDetails').evaluate(el=>el.open)))
-    await page.locator('.variant-details summary').click();
+  await page.locator('#modePalette').click();
+  assert.equal(await page.locator('#singleEditor').isVisible(),false,'Palette editing does not show one-color picker');
+  assert.equal(await page.locator('#paletteApply').isVisible(),true,'Actual apply action is immediately accessible');
   assert.ok((await page.locator('#variantPreset option').count())>=31);
   await page.locator('#variantPreset').selectOption({label:'버터옐로우 · 연두 · 크림'});
   assert.equal(await page.locator('#variantSwatches .variant-swatch').count(),3);

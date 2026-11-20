@@ -47,6 +47,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
   const [progress, setProgress] = useState<AnimatedExportProgress | null>(null)
   const [error, setError] = useState('')
   const previewRef = useRef<HTMLCanvasElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const frames = getAnimatedFrameCount(options)
   const rawMb = mb(estimateAnimatedRawMemory(options))
@@ -118,12 +119,20 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
     setBusy(true)
     setError('')
     setProgress({ stage: 'render', current: 0, total: frames, message: '내보내기 준비 중' })
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
-      await exportAnimatedFrame(project, options, setProgress)
+      await exportAnimatedFrame(project, options, setProgress, controller.signal)
       onExported?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '움직이는 파일을 저장하지 못했습니다.')
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setProgress(null)
+        setError('내보내기를 취소했습니다.')
+      } else {
+        setError(err instanceof Error ? err.message : '움직이는 파일을 저장하지 못했습니다.')
+      }
     } finally {
+      abortRef.current = null
       setBusy(false)
     }
   }
@@ -248,9 +257,13 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
             </div>}
             {error && <div className="animated-error">{error}</div>}
 
-            <button className="primary-button animated-export-submit" type="button" disabled={busy || memoryHeavy || !videoSupported} onClick={() => void startExport()}>
-              {busy ? '파일 생성 중…' : formatName + '로 저장'}
-            </button>
+            {busy ? (
+              <button className="animated-export-cancel" type="button" onClick={() => abortRef.current?.abort()}>내보내기 취소</button>
+            ) : (
+              <button className="primary-button animated-export-submit" type="button" disabled={memoryHeavy || !videoSupported} onClick={() => void startExport()}>
+                {formatName + '로 저장'}
+              </button>
+            )}
 
             <p className="animated-loop-note">내보내기는 0→1의 정확한 순환 좌표를 사용해 마지막 프레임 다음에 첫 프레임이 자연스럽게 이어집니다.</p>
           </div>

@@ -51,7 +51,7 @@ function pixelAlpha(layer,docX,docY){
   return 0;
 }
 export function layerConstraintAlpha(layer,docX,docY,byId){
-  if(layer.maskDecodeFailed||layer.unsupportedVectorMask)
+  if(layer.maskDecodeFailed||layer.unsupportedVectorMask||layer.unsupportedGroupMask)
     throw Error('PSD의 마스크가 지원되지 않아 정확한 영역을 선택할 수 없습니다. 원본 외관을 보호하기 위해 편집을 차단했습니다.');
   let m=255;
   for(const spec of layer.maskSpecs||[]){

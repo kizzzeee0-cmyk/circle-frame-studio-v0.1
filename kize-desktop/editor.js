@@ -4,6 +4,8 @@ import {colorSelection,paintSelection} from './color-tools.mjs';
 import {selectAssetRegion,growShrinkMask,maskBounds} from './selection-tools.mjs';
 import {initUpdates} from './updater.js';
 import {createArchive,readArchive} from './project-archive.mjs';
+import {summarizePsdCompatibility} from './psd-compatibility.mjs';
+import {compareRgba,publicFidelityReport} from './fidelity-audit.mjs';
 import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
 
 const $=id=>document.getElementById(id);
@@ -18,6 +20,8 @@ let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 // Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
 // still use the explicitly marked reconstructed view.
 let appearancePatches=[],appearanceSafe=true;
+let psdCompatibilityReport=null,lastFidelityAudit=null;
+const collapsedPsdGroups=new Set();
 let nextId=1;
 let selectionPreview=null,selectionParts=[];
 let panX=0,panY=0;
@@ -43,6 +47,8 @@ function newLayer(obj){return {id:nextId++,name:'레이어',x:0,y:0,w:100,h:100,
 function sel(){return layers.find(l=>l.id===selectedId)||null;}
 function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
 function markEdited(preserveAppearance=false){
+  lastFidelityAudit=null;
+  const metrics=$('fidelityMetrics');if(metrics)metrics.textContent='레이어 편집 내용이 변경되었습니다. 재구성 결과를 다시 검사해 주세요.';
   unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;
   if(!preserveAppearance&&previewMode==='composite')setPreviewMode('layers');
 }
@@ -77,7 +83,9 @@ function updateSelectionPreview(){
   updateSelectionUi();
 }
 
-function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];appearanceSafe=true;previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
+function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];appearanceSafe=true;
+  psdCompatibilityReport=null;lastFidelityAudit=null;collapsedPsdGroups.clear();
+  $('psdFidelityPanel').hidden=true;previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -121,11 +129,12 @@ async function importPsd(file){
   showImportReport('', 'normal');
   // Worker parses the PSD and transfers the layer buffers back without copying.
   const result=await readPsdInBackground(file);
-  const {header,layers:rawLayers,composite,warnings,decodedCount,layerTotal,skippedCount}=result;
+  const {header,layers:rawLayers,composite,warnings,decodedCount,layerTotal,skippedCount,compatibilityReport}=result;
   const built=rawLayers.map(pl=>newLayer({
     name:pl.name,type:pl.type,x:pl.x,y:pl.y,w:pl.w,h:pl.h,
     visible:!pl.hidden,opacity:normOpacity(pl.opacity),
     blend:mappedBlend(pl.blendMode),canvas:pixelCanvas(pl.bitmap),
+    compatibility:pl.compatibility||null,
     psdText:pl.psdText||null,textValue:pl.psdText?.text||'',
     fontFamily:pl.psdText?.style?.font?.name||'Arial',
     fontSize:Math.max(1,Math.round(pl.psdText?.style?.fontSize||32)),
@@ -146,6 +155,8 @@ async function importPsd(file){
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
   originalComposite=composite?pixelCanvas(composite):null;
+  psdCompatibilityReport=compatibilityReport||summarizePsdCompatibility(layers,{compositeAvailable:Boolean(originalComposite),skippedCount});
+  initializePsdFidelityPanel();
   appearancePatches=[];appearanceSafe=true;
   previewMode=originalComposite?'composite':'layers';
   selectedId=layers.length?layers[layers.length-1].id:null;
@@ -220,6 +231,8 @@ async function importCompactProject(file){
   layers=loaded;
   nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;
   originalComposite=reference;
+  psdCompatibilityReport=manifest.psdCompatibilityReport||summarizePsdCompatibility(layers,{compositeAvailable:Boolean(reference)});
+  initializePsdFidelityPanel();
   appearancePatches=loadedPatches;
   appearanceSafe=manifest.appearanceSafe===undefined?!manifest.edited:Boolean(manifest.appearanceSafe);
   selectedId=layers.at(-1)?.id||null;
@@ -884,6 +897,7 @@ $('saveProject').onclick=async()=>{
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,
+      ...(psdCompatibilityReport?{psdCompatibilityReport}:{}),
       layers:meta,...(composite?{composite}:{}),
       ...(appearanceManifest.length?{appearancePatches:appearanceManifest}:{}),
     };

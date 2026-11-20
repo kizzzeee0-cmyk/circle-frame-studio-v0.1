@@ -1,6 +1,6 @@
 import type { FrameDesign, FrameProject, MediaLayer } from '../types'
 import { getCachedImage, getTintedImage } from '../utils/assets'
-import { getBackgroundElement, getMediaElement } from '../utils/media'
+import { getBackgroundElement, getCustomMaskElement, getMediaElement } from '../utils/media'
 
 const TAU = Math.PI * 2
 
@@ -1424,8 +1424,8 @@ function mediaAnimationTransform(layer: MediaLayer, sceneTimeSec: number) {
 }
 
 const mediaScratchCache = new Map<string, HTMLCanvasElement>()
-function mediaScratch(width: number, height: number) {
-  const key = width + 'x' + height
+function mediaScratch(width: number, height: number, tag = 'main') {
+  const key = tag + ':' + width + 'x' + height
   const cached = mediaScratchCache.get(key)
   if (cached) return cached
   const canvas = document.createElement('canvas')
@@ -1482,6 +1482,62 @@ function frameMaskCanvas(
   return mask
 }
 
+function mediaBlendMode(mode: MediaLayer['blendMode']): GlobalCompositeOperation {
+  if (mode === 'multiply') return 'multiply'
+  if (mode === 'screen') return 'screen'
+  if (mode === 'overlay') return 'overlay'
+  if (mode === 'soft-light') return 'soft-light'
+  return 'source-over'
+}
+
+function drawCustomMask(
+  target: CanvasRenderingContext2D,
+  layer: MediaLayer,
+  scale: number,
+) {
+  const maskImage = getCustomMaskElement(layer)
+  if (!maskImage) return false
+
+  const maskCanvas = mediaScratch(target.canvas.width, target.canvas.height, 'mask')
+  const mctx = maskCanvas.getContext('2d')
+  if (!mctx) return false
+  mctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height)
+
+  if (layer.customMaskInvert) {
+    mctx.fillStyle = '#FFFFFF'
+    mctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height)
+    mctx.globalCompositeOperation = 'destination-out'
+  }
+
+  const box = Math.min(target.canvas.width, target.canvas.height) * Math.max(.02, layer.customMaskScale)
+  const size = mediaElementSize(maskImage)
+  const sourceRatio = size.width / Math.max(1, size.height)
+  let dw = box
+  let dh = box
+  if ((layer.customMaskFit === 'cover' && sourceRatio > 1) || (layer.customMaskFit === 'contain' && sourceRatio < 1)) {
+    dh = box
+    dw = dh * sourceRatio
+  } else {
+    dw = box
+    dh = dw / sourceRatio
+  }
+
+  mctx.save()
+  mctx.translate(
+    maskCanvas.width / 2 + layer.customMaskX * scale,
+    maskCanvas.height / 2 + layer.customMaskY * scale,
+  )
+  mctx.rotate((layer.customMaskRotation * Math.PI) / 180)
+  mctx.drawImage(maskImage, -dw / 2, -dh / 2, dw, dh)
+  mctx.restore()
+  mctx.globalCompositeOperation = 'source-over'
+
+  target.globalCompositeOperation = 'destination-in'
+  target.drawImage(maskCanvas, 0, 0)
+  target.globalCompositeOperation = 'source-over'
+  return true
+}
+
 function drawMediaLayer(
   ctx: CanvasRenderingContext2D,
   project: FrameProject,
@@ -1515,6 +1571,7 @@ function drawMediaLayer(
     target.translate(x, y)
     target.rotate(rotation)
     target.globalAlpha *= layer.opacity * motion.opacity
+    target.globalCompositeOperation = mediaBlendMode(layer.blendMode)
     target.filter = motion.brightness !== 1 ? 'brightness(' + motion.brightness + ')' : 'none'
     drawSourceIntoBox(target, source, w, h, layer.fit)
     target.restore()
@@ -1545,6 +1602,15 @@ function drawMediaLayer(
   sctx.clearRect(0, 0, scratch.width, scratch.height)
   paint(sctx)
 
+  if (layer.maskMode === 'custom') {
+    drawCustomMask(sctx, layer, scale)
+    ctx.save()
+    ctx.globalCompositeOperation = mediaBlendMode(layer.blendMode)
+    ctx.drawImage(scratch, 0, 0)
+    ctx.restore()
+    return
+  }
+
   const targetLayer = project.layers.find(item => item.id === layer.maskFrameLayerId)
   if (targetLayer) {
     const mask = frameMaskCanvas(targetLayer.design, scale, ctx.canvas.width, ctx.canvas.height, animationTimeMs, animationProgress, sceneTimeSec, layer.maskSyncRotation)
@@ -1565,7 +1631,10 @@ function drawMediaLayer(
     sctx.globalCompositeOperation = 'source-over'
   }
 
+  ctx.save()
+  ctx.globalCompositeOperation = mediaBlendMode(layer.blendMode)
   ctx.drawImage(scratch, 0, 0)
+  ctx.restore()
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, project: FrameProject) {

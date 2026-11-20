@@ -11,14 +11,20 @@ export function normalizeMaskData(input,mask,layer){
   const n=input.width*input.height;
   if(input.data.length!==n*4)throw Error('PSD 마스크 이미지의 픽셀 길이가 잘못되었습니다.');
   const pixels=new Uint8Array(n);
-  for(let i=0;i<n;i++)pixels[i]=input.data[i*4];
+  const source=input.data;
+  for(let i=0;i<n;i++){
+    const v=source[i*4];
+    pixels[i]=source instanceof Uint16Array?Math.round(v*255/65535):
+      source instanceof Float32Array?Math.round(clamp(v,0,1)*255):
+      clamp(Math.round(v),0,255);
+  }
   const left=(Number(mask.left)||0)+(mask.positionRelativeToLayer?(Number(layer.left)||0):0);
   const top=(Number(mask.top)||0)+(mask.positionRelativeToLayer?(Number(layer.top)||0):0);
   const d=mask.userMaskDensity??mask.vectorMaskDensity??1;
   const density=clamp(d>1?d/100:d,0,1);
   return {
     schema:MASK_SCHEMA,x:left,y:top,w:input.width,h:input.height,
-    defaultColor:mask.defaultColor===0?0:255,
+    defaultColor:mask.defaultColor===255?255:0,
     density,feather:Number(mask.userMaskFeather??mask.vectorMaskFeather??0)||0,
     pixels
   };

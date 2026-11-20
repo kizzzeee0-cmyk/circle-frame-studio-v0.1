@@ -48,3 +48,8 @@ test('unsupported vector/user masks and missing clipping bases fail closed',()=>
   invalid.unsupportedVectorMask=false;invalid.clipBaseId=200;
   assert.throws(()=>layerConstraintAlpha(invalid,.5,.5,()=>null),/클리핑/);
 });
+
+test('children of masked Photoshop groups are not recolored without a decoded group mask',()=>{
+ const child={id:10,x:0,y:0,w:2,h:1,unsupportedGroupMask:true};
+ assert.throws(()=>constrainSelection(Uint8Array.from([255,255]),2,1,child,()=>null),/차단/);
+});

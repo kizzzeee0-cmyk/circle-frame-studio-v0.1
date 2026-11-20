@@ -365,26 +365,71 @@ window.addEventListener('pointercancel',endMiddlePan,true);
 stage.addEventListener('lostpointercapture',endMiddlePan);
 stage.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();},true);
 stage.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();},true);
-function localPoint(e){const r=overlay.getBoundingClientRect();return{x:Math.floor((e.clientX-r.left)*overlay.width/r.width),y:Math.floor((e.clientY-r.top)*overlay.height/r.height)};}
-function hit(l,x,y){if(!l.visible||x<l.x||y<l.y||x>=l.x+l.w||y>=l.y+l.h)return false;
-  const visual=layerImage(l);const px=Math.floor((x-l.x)*visual.width/l.w),py=Math.floor((y-l.y)*visual.height/l.h);if(px<0||py<0||px>=visual.width||py>=visual.height)return false;
-  return visual.getContext('2d',{willReadFrequently:true}).getImageData(px,py,1,1).data[3]>0;
+function localPoint(e){
+  const r=overlay.getBoundingClientRect();
+  return {x:(e.clientX-r.left)*overlay.width/r.width,y:(e.clientY-r.top)*overlay.height/r.height};
+}
+function pixelInLayer(l,x,y){
+  if(!l||!l.canvas||!l.visible)return null;
+  const cx=l.x+l.w/2,cy=l.y+l.h/2;
+  const theta=l.rotation*Math.PI/180;
+  const ax=x-cx,ay=y-cy;
+  let lx=ax*Math.cos(theta)+ay*Math.sin(theta);
+  let ly=-ax*Math.sin(theta)+ay*Math.cos(theta);
+  if(l.flipH)lx=-lx;if(l.flipV)ly=-ly;
+  const u=(lx+l.w/2)/l.w,v=(ly+l.h/2)/l.h;
+  if(u<0||u>=1||v<0||v>=1)return null;
+  return {x:Math.floor(u*l.canvas.width),y:Math.floor(v*l.canvas.height)};
+}
+function hit(l,x,y){
+  const pt=pixelInLayer(l,x,y);
+  if(!pt)return false;
+  return l.canvas.getContext('2d',{willReadFrequently:true}).getImageData(pt.x,pt.y,1,1).data[3]>7;
+}
+function pickLayerColor(l,px,py){
+  const visual=layerImage(l);
+  const image=toImageData(visual);
+  const result=colorSelection(image.data,visual.width,visual.height,px,py,{
+    tolerance:Number($('colorTolerance').value),connected:$('connectedOnly').checked
+  });
+  if(!result.count){
+    selection=null;selectionPreview=null;refreshProperties();render();
+    notify('선택한 레이어의 투명 영역입니다. 색상이 있는 부분을 클릭해 주세요.');
+    return;
+  }
+  selection={id:l.id,w:visual.width,h:visual.height,...result};
+  selectionPreview=createMaskPreview(selection);
+  const hex=rgbToHex(...result.sample);
+  $('pickedHex').value=hex;
+  $('pickedSwatch').style.backgroundColor=hex;
+  refreshProperties();render();
+  notify('「'+l.name+'」 · '+result.count.toLocaleString()+'개 색상 픽셀 선택 · 다른 레이어는 보호됩니다.');
 }
 overlay.addEventListener('pointerdown',e=>{
-  // Middle button belongs to panning; never trigger color selection with it.
-  if(!documentModel||e.button!==0)return;
-  const pt=localPoint(e),l=layers.slice().reverse().find(l=>hit(l,pt.x,pt.y));
-  if(!l)return;
-  if(selectedId!==l.id)select(l.id);
-  if(e.shiftKey){checkpoint(l);drag={id:l.id,originX:l.x,originY:l.y,start:pt};overlay.setPointerCapture(e.pointerId);return;}
-  const visual=layerImage(l),px=Math.floor((pt.x-l.x)*visual.width/l.w),py=Math.floor((pt.y-l.y)*visual.height/l.h);
-  const data=toImageData(visual).data,idx=(py*visual.width+px)*4;
-  const tol=Number($('colorTolerance').value);
-  const mask=regionMask(data,visual.width,visual.height,px,py,tol,$('connectedOnly').checked);
-  let count=0;for(let i=0;i<mask.length;i++)count+=mask[i];
-  selection={id:l.id,mask,w:visual.width,h:visual.height,count};
-  $('pickedHex').value=rgbToHex(data[idx],data[idx+1],data[idx+2]);refreshProperties();render();
-  notify('레이어 「'+l.name+'」 안에서 '+count.toLocaleString()+'개 픽셀 선택됨');
+  if(!documentModel||e.button!==0||middlePan||spacePan)return;
+  const p=localPoint(e),selected=sel();
+  let layer;
+  if($('selectedLayerOnly').checked&&selected){
+    layer=selected;
+    if(!hit(layer,p.x,p.y)){
+      notify('현재 레이어 「'+layer.name+'」에는 해당 위치의 픽셀이 없습니다. 왼쪽에서 올바른 레이어를 선택하거나 레이어 고정을 해제해 주세요.');
+      return;
+    }
+  } else {
+    layer=layers.slice().reverse().find(l=>hit(l,p.x,p.y));
+    if(!layer){notify('이 위치에 편집 가능한 레이어 픽셀이 없습니다.');return;}
+  }
+  if(layer.id!==selectedId)select(layer.id);
+  if(e.shiftKey){
+    checkpoint(layer);
+    drag={id:layer.id,originX:layer.x,originY:layer.y,start:p};
+    overlay.setPointerCapture(e.pointerId);
+    return;
+  }
+  const pixel=pixelInLayer(layer,p.x,p.y);
+  if(!pixel)return;
+  if(previewMode==='composite')setPreviewMode('layers');
+  pickLayerColor(layer,pixel.x,pixel.y);
 });
 overlay.addEventListener('pointermove',e=>{
   if(!drag)return;const l=sel();if(!l||drag.id!==l.id)return;
@@ -401,6 +446,12 @@ overlay.addEventListener('pointerup',stopDrag);overlay.addEventListener('pointer
 function syncGuides(){const l=sel(),on=$('guideOn').checked&&!!l&&!!documentModel;const x=on&&Math.abs(l.x+l.w/2-documentModel.width/2)<=1,y=on&&Math.abs(l.y+l.h/2-documentModel.height/2)<=1;$('guideV').hidden=!x;$('guideH').hidden=!y;}
 $('guideOn').onchange=syncGuides;
 $('colorTolerance').oninput=e=>$('toleranceOut').textContent=e.target.value;
+function repickCurrentColor(){
+  const l=sel();if(!selection||!l||selection.id!==l.id||!selection.seed)return;
+  pickLayerColor(l,selection.seed.x,selection.seed.y);
+}
+$('colorTolerance').onchange=repickCurrentColor;
+$('connectedOnly').onchange=repickCurrentColor;
 $('showHidden').onchange=refreshLayers;
 $('applyColor').onclick=()=>{
   const l=sel();if(!l||!selection||selection.id!==l.id){notify('먼저 수정할 레이어의 색상 영역을 클릭해 선택하세요.');return;}

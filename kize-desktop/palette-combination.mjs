@@ -63,6 +63,38 @@ function sameShadeFamily(a,b){
   if(neutralLike(A)||neutralLike(B))return false;
   return hueDistance(A.h,B.h)<=19&&Math.abs(A.s-B.s)<=.42;
 }
+function broadNeutralCore(rgba,w,h,candidate,{preserveWhiteBlack=true,mask=null}={}){
+  const pixels=w*h;
+  const step=Math.max(1,Math.floor(Math.sqrt(pixels/MAX_SAMPLE)));
+  const radius=2;
+  let seen=0,core=0;
+  const matches=(x,y)=>{
+    if(x<0||y<0||x>=w||y>=h)return false;
+    const i=y*w+x;
+    if(mask&&!mask[i])return false;
+    const p=i*4,r=rgba[p],g=rgba[p+1],b=rgba[p+2],a=rgba[p+3];
+    if(!paletteEligible(a,r,g,b,{preserveWhiteBlack}))return false;
+    const st=stats([r,g,b]);
+    return neutralLike(st)&&Math.abs(st.l-candidate.l)<=30&&
+      rgbDistance([r,g,b],candidate.rgb)<=36*36;
+  };
+  for(let y=radius;y<h-radius;y+=step){
+    for(let x=radius;x<w-radius;x+=step){
+      if(!matches(x,y))continue;
+      seen++;
+      if(matches(x-radius,y)&&matches(x+radius,y)&&
+          matches(x,y-radius)&&matches(x,y+radius))core++;
+    }
+  }
+  return seen>=6&&core>=4&&core/seen>=.08;
+}
+function hasMatchingNeutralCenter(entry,centers){
+  return centers.some(c=>{
+    const st=stats(c);
+    return neutralLike(st)&&Math.abs(st.l-entry.l)<=42;
+  });
+}
+
 function buildEntries(rgba,w,h,{preserveWhiteBlack=true,mask=null}={}){
   const pixels=w*h;
   const stride=mask?1:Math.max(1,Math.floor(pixels/MAX_SAMPLE));
@@ -104,23 +136,25 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
     if(centers.length>=desired)break;
   }
 
-  // Neutral midtones can be real design fills. Deep neutral tones are much
-  // more commonly outlines/drop-shadows, so they never consume a palette slot
-  // when chromatic families already exist; they inherit the nearby fill later.
+  // A neutral color becomes an independent palette family only when it has
+  // a real interior/core. Thin outlines and drop-shadows have no 2px core and
+  // therefore inherit their neighboring fill even when they occupy many pixels.
   for(const entry of entries){
     if(centers.length>=desired)break;
-    if(!neutralLike(entry)||entry.l<=105||entry.l>=239)continue;
-    const significant=centers.length===0||entry.weight>=total*.18;
+    if(!neutralLike(entry)||entry.l>=239)continue;
+    const broadCore=broadNeutralCore(rgba,w,h,entry,options);
+    if(centers.length>0&&!broadCore)continue;
+    const significant=centers.length===0||broadCore||entry.weight>=total*.18;
     if(!significant)continue;
     if(centers.some(c=>sameShadeFamily(entry.rgb,c)))continue;
     centers.push(entry.rgb.slice());
   }
 
-  // Fallback for unusual artwork. Deep neutrals are still skipped while a
-  // chromatic family exists so outline pixels cannot steal a target swatch.
+  // Fallback for unusual artwork. A neutral stroke still cannot steal a target
+  // swatch unless it has its own broad interior region.
   for(const entry of entries){
     if(centers.length>=desired)break;
-    if(neutralLike(entry)&&entry.l<=105&&centers.length>0)continue;
+    if(neutralLike(entry)&&centers.length>0&&!broadNeutralCore(rgba,w,h,entry,options))continue;
     if(centers.some(c=>sameShadeFamily(entry.rgb,c)))continue;
     const nearest=Math.min(...centers.map(c=>familyDistance(entry.rgb,c)),Infinity);
     if(nearest<38)continue;
@@ -133,7 +167,7 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
     for(const entry of entries){
       // Deep neutral outline/shadow samples should not pull a chromatic family
       // center away from the actual fill hue/value.
-      if(neutralLike(entry)&&entry.l<=105&&centers.some(c=>!neutralLike(stats(c))))continue;
+      if(neutralLike(entry)&&centers.some(c=>!neutralLike(stats(c)))&&!hasMatchingNeutralCenter(entry,centers))continue;
       let best=0,score=Infinity;
       for(let j=0;j<centers.length;j++){
         const d=familyDistance(entry.rgb,centers[j]);
@@ -151,7 +185,7 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
 
   const groups=centers.map(()=>[]);
   for(const entry of entries){
-    if(neutralLike(entry)&&entry.l<=105&&centers.some(c=>!neutralLike(stats(c))))continue;
+    if(neutralLike(entry)&&centers.some(c=>!neutralLike(stats(c)))&&!hasMatchingNeutralCenter(entry,centers))continue;
     let best=0,score=Infinity;
     for(let j=0;j<centers.length;j++){
       const d=familyDistance(entry.rgb,centers[j]);

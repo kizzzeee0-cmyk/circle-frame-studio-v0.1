@@ -102,3 +102,21 @@ test('role-aware mapping preserves alpha and derives antialiased edge tones',()=
  const lum=p=>.2126*p[0]+.7152*p[1]+.0722*p[2];
  assert.ok(lum(edge)<lum(main),'dark antialias/outline tone stays darker without changing alpha');
 });
+
+
+test('broad neutral fill remains an independent palette family while thin outlines do not',()=>{
+ const w=30,h=20;
+ const source=png(w,h,(x,y)=>{
+   if(x<17)return [88,84,94,255]; // broad charcoal design fill with real interior
+   if(x===17)return [74,72,79,255]; // its darker edge
+   return [225,158,184,255]; // separate pink design family
+ });
+ const targets=['#8CCAF0','#F4C6D6','#D9D0F4'];
+ const map=createPaletteMap(source,w,h,targets,{preserveRoles:true});
+ assert.equal(map.source.length,2,'a broad charcoal fill must keep its own palette slot');
+ const out=applyPaletteMap(source,w,h,map).data;
+ const left=pixel(out,w,8,10),right=pixel(out,w,24,10);
+ assert.deepEqual(left,[140,202,240,255]);
+ assert.deepEqual(right,[244,198,214,255]);
+ assert.notDeepEqual(left,right);
+});

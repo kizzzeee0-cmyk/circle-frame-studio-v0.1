@@ -1294,3 +1294,48 @@ body { background: #F3F0F2; }
   border-radius: 9px;
   background: #FAF9FC;
 }
+
+
+/* v0.32 — GPU preview + animation timing handles */
+.preview-canvas {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+.preview-canvas.hidden { display: none !important; }
+.preview-canvas.gpu { z-index: 2; }
+.gpu-status {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #F0EEF3;
+  color: #8A8391;
+  font-size: 7px;
+  font-weight: 800;
+}
+.gpu-status.active {
+  background: #E8F7EF;
+  color: #4F8A69;
+}
+.timeline-animation-handle {
+  position: absolute;
+  z-index: 5;
+  top: -4px;
+  width: 7px;
+  height: 19px;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255,255,255,.92);
+  border-radius: 4px;
+  cursor: ew-resize;
+  touch-action: none;
+  opacity: .82;
+}
+.timeline-animation-handle.intro { background: #E0B94E; }
+.timeline-animation-handle.outro { background: #C883A7; }
+.timeline-animation-handle:hover,
+.timeline-track.active .timeline-animation-handle { opacity: 1; }

@@ -5,13 +5,13 @@
 <div class="caption">WORKSPACE</div>
 <button class="side-btn selected" id="menuEditor">◈ <span>디자인 편집기</span></button>
 <div class="help"><strong>PSD 중심 작업 공간</strong><p>레이어별 색상 변경, 개별 영역 선택, 사진 교체, 정렬 및 고급 위치 조정.</p></div>
-<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.4.1</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
+<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.4.2</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
 <section class="workspace"><header class="topbar"><div><div class="eyebrow">KIZE / WORKSPACE</div><h1>디자인 편집기</h1></div><div class="top-actions"><span id="updateStatus" class="update-status">업데이트 설정 준비 중</span><button class="subtle" id="checkUpdate">업데이트 확인</button><button class="subtle" id="saveProject">프로젝트 저장</button><button id="exportPng" class="primary">PNG 내보내기</button></div></header>
 <div class="main-grid">
 <aside class="left-pane">
 <div class="pane-heading"><strong>레이어</strong><span id="layerCount">0</span></div>
-<div class="import-actions"><label class="primary fill">PSD / PNG 불러오기<input id="importFile" type="file" accept=".psd,.png,.jpg,.jpeg,.webp,.bmp,.kize.json" hidden></label><label class="subtle fill">사진 교체 / 추가<input id="replaceFile" type="file" accept="image/*" hidden></label></div>
-<div id="sourceName" class="muted small">파일을 선택해 주세요.</div>
+<div class="import-actions"><label class="primary fill">PSD / PSB / PNG 불러오기<input id="importFile" type="file" accept=".psd,.psb,.png,.jpg,.jpeg,.webp,.bmp,.kize.json" hidden></label><label class="subtle fill">사진 교체 / 추가<input id="replaceFile" type="file" accept="image/*" hidden></label></div>
+<div id="sourceName" class="muted small">파일을 선택해 주세요.</div><div id="importReport" class="import-report" role="status" hidden></div>
 <div class="layers" id="layerList" role="listbox" aria-label="레이어 목록"><div class="placeholder">PSD 파일을 불러오면<br>레이어가 여기에 표시됩니다.</div></div>
 <div class="pane-footer"><p>선택한 레이어 안에서 스포이드로 요소를 선택하면 다른 레이어는 변경되지 않습니다.</p><label class="check"><input type="checkbox" id="showHidden" checked> 숨겨진 레이어도 목록에 표시</label></div>
 </aside>
@@ -19,7 +19,7 @@
 <div class="toolbar"><div class="toolgroup"><button class="tool selected" id="pickTool" title="선택한 레이어 안의 색상 영역 선택">색상 영역 선택</button><label class="check"><input type="checkbox" id="connectedOnly" checked> 인접 영역만</label><label class="check"><input type="checkbox" id="guideOn" checked> 스마트 가이드</label></div>
 <div class="toolgroup"><button class="tool" id="zoomOut" title="축소">−</button><span id="zoomLabel">100%</span><button class="tool" id="zoomIn" title="확대">+</button><button class="tool" id="zoomFit">화면 맞춤</button></div></div>
 <div class="stage" id="stage"><div class="canvas-holder" id="canvasHolder"><canvas id="renderCanvas" width="1200" height="700"></canvas><canvas id="overlayCanvas" width="1200" height="700"></canvas><div id="guideH" class="guide line-h" hidden></div><div id="guideV" class="guide line-v" hidden></div></div><div class="emptyCanvas" id="canvasEmpty"><span>◈</span><strong>PSD를 불러와 시작하세요</strong><p>레이어별 요소 수정 · 이미지 교체 · 위치/크기 정렬</p></div></div>
-<div class="statusbar"><span id="status">PSD·PNG·JPG·WebP 파일을 지원합니다. 원본 파일을 덮어쓰지 않습니다.</span><span id="docInfo">준비됨</span></div>
+<div class="statusbar"><span id="status">PSD·PSB·PNG·JPG·WebP 파일을 지원합니다. 원본 파일을 덮어쓰지 않습니다.</span><span id="docInfo">준비됨</span></div>
 </section>
 <aside class="right-pane">
 <div class="pane-heading"><strong>레이어 속성</strong><span id="selectedType">선택 없음</span></div>

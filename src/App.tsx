@@ -825,6 +825,24 @@ export default function App() {
     })
   }
 
+  const beginMediaTransform = () => {
+    undoRef.current.push(structuredClone(project))
+    if (undoRef.current.length > 80) undoRef.current.shift()
+    redoRef.current = []
+  }
+
+  const transformMediaTransient = (updates: Array<Partial<MediaLayer> & { id: string }>) => {
+    const byId = new Map(updates.map(update => [update.id, update]))
+    setProject(prev => {
+      const next = structuredClone(prev)
+      next.mediaLayers = (next.mediaLayers ?? []).map(layer => {
+        const update = byId.get(layer.id)
+        return update ? { ...layer, ...update } : layer
+      })
+      return syncSelectedLayer(next)
+    })
+  }
+
   const alignSelectedMedia = (mode: 'center-x' | 'center-y' | 'center' | 'distribute-x' | 'distribute-y') => {
     const selected = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id))
     if (!selected.length) return
@@ -987,7 +1005,8 @@ export default function App() {
             primaryMediaId={selectedMediaId}
             settings={project.settings ?? defaultComposerSettings()}
             onSelectMedia={selectMedia}
-            onTransformMedia={batchUpdateMedia}
+            onBeginTransform={beginMediaTransform}
+            onTransformMedia={transformMediaTransient}
             onSettingsChange={settings => commit(draft => ({ ...draft, settings }))}
             onMoveMedia={(id, x, y) => {
               const layer = (project.mediaLayers ?? []).find(item => item.id === id)

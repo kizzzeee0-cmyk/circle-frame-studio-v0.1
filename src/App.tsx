@@ -316,6 +316,7 @@ export default function App() {
   const [pngResolution, setPngResolution] = useState(2000)
   const undoRef = useRef<FrameProject[]>([])
   const redoRef = useRef<FrameProject[]>([])
+  const coalesceRef = useRef<{ key: string; time: number }>({ key: '', time: 0 })
   const fileInput = useRef<HTMLInputElement>(null)
 
   const commit = useCallback((updater: (draft: FrameProject) => FrameProject) => {
@@ -323,6 +324,21 @@ export default function App() {
       undoRef.current.push(structuredClone(prev))
       if (undoRef.current.length > 80) undoRef.current.shift()
       redoRef.current = []
+      const next = updater(structuredClone(prev))
+      return syncSelectedLayer(next)
+    })
+  }, [])
+
+  const commitCoalesced = useCallback((key: string, updater: (draft: FrameProject) => FrameProject) => {
+    setProject(prev => {
+      const now = performance.now()
+      const sameBurst = coalesceRef.current.key === key && now - coalesceRef.current.time < 450
+      if (!sameBurst) {
+        undoRef.current.push(structuredClone(prev))
+        if (undoRef.current.length > 80) undoRef.current.shift()
+        redoRef.current = []
+      }
+      coalesceRef.current = { key, time: now }
       const next = updater(structuredClone(prev))
       return syncSelectedLayer(next)
     })
@@ -435,7 +451,7 @@ export default function App() {
   }
 
   const updateDesign = (next: FrameDesign) => {
-    commit(draft => {
+    commitCoalesced('design:' + project.selectedLayerId, draft => {
       const index = draft.layers.findIndex(layer => layer.id === draft.selectedLayerId)
       if (index >= 0) {
         draft.layers[index].design = structuredClone(next)
@@ -707,7 +723,7 @@ export default function App() {
   }
 
   const updateMedia = (next: MediaLayer) => {
-    commit(draft => {
+    commitCoalesced('media:' + next.id, draft => {
       draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => layer.id === next.id ? structuredClone(next) : layer)
       return draft
     })

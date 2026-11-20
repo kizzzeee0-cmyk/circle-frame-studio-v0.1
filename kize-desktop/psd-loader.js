@@ -1,4 +1,5 @@
 import { readPsd, getLayerImageData, getCompositeImageData } from 'ag-psd';
+import {inspectPhotoshopLayer,summarizePsdCompatibility} from './psd-compatibility.mjs';
 
 // PSD parsing is isolated from the interface, so real PSD fixtures can be tested
 // without a desktop window. No uploads or network access are required.
@@ -34,12 +35,19 @@ export function inspectPsdHeader(buffer) {
     throw Error('현재 색상 모드는 지원하지 않습니다 (모드 ' + colorMode + '). Photoshop에서 RGB로 변환해 저장해 주세요.');
   return { version, width, height, bits, colorMode };
 }
-function enumerate(children, prefix='', ancestorHidden=false, output=[]) {
-  for (const layer of children || []) {
-    const name = layer.name || '이름 없는 레이어';
-    const fullName = prefix ? prefix + ' / ' + name : name;
-    if (layer.children) enumerate(layer.children, fullName, ancestorHidden || !!layer.hidden, output);
-    else output.push({ layer, name:fullName, hidden:ancestorHidden || !!layer.hidden });
+function enumerate(children, prefix='', ancestorHidden=false, output=[],groups=[]) {
+  for(const layer of children||[]){
+    const name=layer.name||'이름 없는 레이어';
+    const fullName=prefix?prefix+' / '+name:name;
+    if(Array.isArray(layer.children)){
+      const group={name,blendMode:layer.blendMode||'pass through',
+        masked:Boolean(layer.mask||layer.vectorMask),
+        effects:Boolean(layer.effects)};
+      enumerate(layer.children,fullName,ancestorHidden||!!layer.hidden,output,[...groups,group]);
+    } else {
+      output.push({layer,name:fullName,hidden:ancestorHidden||!!layer.hidden,
+        compatibility:inspectPhotoshopLayer(layer,groups)});
+    }
   }
   return output;
 }
@@ -76,7 +84,7 @@ export function importPsdPixels(buffer, options={}) {
   let decodedBytes=0,decodedPixels=0, skippedCount=0;
   const cap=Math.min(sourceLayers.length, PSD_LIMITS.layerCount);
   for(let i=0;i<cap;i++){
-    const {layer,name,hidden}=sourceLayers[i];
+    const {layer,name,hidden,compatibility}=sourceLayers[i];
     const x=Number(layer.left??0),y=Number(layer.top??0);
     const w=Math.max(0,Math.round(Number(layer.right??0)-x)),h=Math.max(0,Math.round(Number(layer.bottom??0)-y));
     if(w===0||h===0){skippedCount++;continue;}
@@ -105,6 +113,7 @@ export function importPsdPixels(buffer, options={}) {
       blendMode:layer.blendMode||'normal',
       type:layer.text?'text':(layer.placedLayer?'smart-object':'image'),
       psdText:layer.text||null,
+      compatibility,
     });
     if(i%12===0)progress('PSD 레이어 해석 '+(i+1)+'/'+cap);
   }
@@ -134,5 +143,11 @@ export function importPsdPixels(buffer, options={}) {
   }
   if(!decoded.length && composite)
     warnings.push('레이어를 개별 해석하지 못해 통합 이미지로 열었습니다. 이 경우 레이어별 편집은 제한됩니다.');
-  return {header,layers:decoded,composite,layerTotal:sourceLayers.length,decodedCount:decoded.length,skippedCount,warnings};
+  const compatibilityReport=summarizePsdCompatibility(decoded,{
+    compositeAvailable:Boolean(composite),skippedCount,
+  });
+  // Report covers every decoded layer; missing/skipped ones are counted
+  // separately so incomplete documents are never misrepresented as exact.
+  return {header,layers:decoded,composite,layerTotal:sourceLayers.length,
+    decodedCount:decoded.length,skippedCount,warnings,compatibilityReport};
 }

@@ -1047,7 +1047,7 @@ function refreshColorFinish(){
   };
   $('colorFinishHint').textContent=hints[$('colorFinish').value];
   $('effectiveColorPreview').title='미리 표시한 기준 색상 '+shown;
-  if(temporaryPreview)void drawTemporaryPreview();
+  if(temporaryPreview)scheduleColorPreview();
 }
 $('colorFinish').onchange=refreshColorFinish;
 $('targetColor').oninput=refreshColorFinish;
@@ -1290,6 +1290,17 @@ function drawBatchLayers(out,color,optionFactory=variantPaintOptions){
   }
 }
 
+let colorPreviewTimer=null;
+function scheduleColorPreview(){
+  if(!temporaryPreview)return;
+  // Debounce expensive raster preview renders while the user drags a color or
+  // pastel slider. Never spawn a render after preview was dismissed.
+  clearTimeout(colorPreviewTimer);
+  colorPreviewTimer=setTimeout(()=>{
+    colorPreviewTimer=null;
+    if(temporaryPreview&&selectionParts.length)drawTemporaryPreview();
+  },140);
+}
 function drawTemporaryPreview(){
   if(!documentModel||!selectionParts.length){
     notify('① 바꾸고 싶은 색상을 먼저 클릭해 선택해 주세요.');return;

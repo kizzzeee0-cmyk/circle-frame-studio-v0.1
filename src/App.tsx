@@ -8,18 +8,18 @@ import MediaPanel from './components/MediaPanel'
 import MediaPropertyPanel from './components/MediaPropertyPanel'
 import TimelinePanel from './components/TimelinePanel'
 import { createDesign } from './presets'
-import type { BackgroundSettings, FrameDesign, FrameLayer, FramePreset, FrameProject, MediaLayer } from './types'
+import type { BackgroundSettings, FrameDesign, FrameLayer, FramePreset, FrameProject, MediaGroup, MediaLayer } from './types'
 import { downloadProject, exportPng } from './utils/export'
 import { addRecentSave, clearRecentSaves, deleteRecentSave, listRecentSaves, type RecentSaveRecord, type RecentSaveSource } from './utils/recentSaves'
 import { uid } from './utils/id'
 import { storeMediaFile } from './utils/media'
-import { createMediaLayer, defaultBackground, defaultTimeline, normalizeBackground, normalizeMediaLayer, normalizeTimeline } from './utils/projectDefaults'
+import { createMediaLayer, defaultBackground, defaultComposerSettings, defaultTimeline, normalizeBackground, normalizeComposerSettings, normalizeMediaLayer, normalizeTimeline } from './utils/projectDefaults'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v031'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v030', 'circle-frame-studio-project-v029', 'circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v031'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v030', 'circle-frame-studio-user-presets-v029', 'circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v032'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v031', 'circle-frame-studio-project-v030', 'circle-frame-studio-project-v029', 'circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v032'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v031', 'circle-frame-studio-user-presets-v030', 'circle-frame-studio-user-presets-v029', 'circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -169,6 +169,15 @@ function syncSelectedLayer(draft: FrameProject): FrameProject {
 function normalizeProject(source: any): FrameProject {
   const timeline = normalizeTimeline(source?.timeline)
   const background = normalizeBackground(source?.background)
+  const settings = normalizeComposerSettings(source?.settings)
+  const mediaGroups: MediaGroup[] = Array.isArray(source?.mediaGroups)
+    ? source.mediaGroups.map((group: Partial<MediaGroup>, index: number) => ({
+        id: group.id || uid('group'),
+        name: group.name || ('그룹 ' + (index + 1)),
+        layerIds: Array.isArray(group.layerIds) ? group.layerIds.filter(Boolean) : [],
+        locked: group.locked === true,
+      }))
+    : []
   const mediaLayers = Array.isArray(source?.mediaLayers)
     ? source.mediaLayers.map((layer: Partial<MediaLayer>, index: number) => normalizeMediaLayer(layer, index, timeline.duration))
     : []
@@ -187,7 +196,7 @@ function normalizeProject(source: any): FrameProject {
       return normalized
     })
     return syncSelectedLayer({
-      version: '0.31',
+      version: '0.32',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -197,13 +206,15 @@ function normalizeProject(source: any): FrameProject {
       mediaLayers,
       background,
       timeline,
+      mediaGroups,
+      settings,
     })
   }
 
   if (source?.design) {
     const layer = makeLayerFromDesign(source.design, source.design?.name || '레이어 1')
     return syncSelectedLayer({
-      version: '0.31',
+      version: '0.32',
       width: 2000,
       height: 2000,
       autoFit: typeof source.autoFit === 'boolean' ? source.autoFit : true,
@@ -213,6 +224,8 @@ function normalizeProject(source: any): FrameProject {
       mediaLayers,
       background,
       timeline,
+      mediaGroups,
+      settings,
     })
   }
 
@@ -231,7 +244,7 @@ function makeInitialProject(): FrameProject {
   design.pattern.paletteColors = ['#F8AFCF', '#FBD4E5', '#F8AFCF', '#FBD4E5']
   const layer = makeLayerFromDesign(design, design.name)
   return {
-    version: '0.31',
+    version: '0.32',
     width: 2000,
     height: 2000,
     autoFit: true,
@@ -241,6 +254,8 @@ function makeInitialProject(): FrameProject {
     mediaLayers: [],
     background: defaultBackground(),
     timeline: defaultTimeline(),
+    mediaGroups: [],
+    settings: defaultComposerSettings(),
   }
 }
 
@@ -295,6 +310,7 @@ export default function App() {
   const [recentLoading, setRecentLoading] = useState(false)
   const [animatedExportOpen, setAnimatedExportOpen] = useState(false)
   const [selectedMediaId, setSelectedMediaId] = useState('')
+  const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([])
   const [timelineTime, setTimelineTime] = useState(0)
   const [timelinePlaying, setTimelinePlaying] = useState(true)
   const [pngResolution, setPngResolution] = useState(2000)
@@ -398,6 +414,7 @@ export default function App() {
 
   const selectPreset = (preset: FramePreset) => {
     setSelectedMediaId('')
+    setSelectedMediaIds([])
     commit(draft => {
       let design = structuredClone(preset.design)
       design = mergeEmbossSettings(design, draft.design)
@@ -469,6 +486,7 @@ export default function App() {
     if (!confirm('최근 저장 내역을 불러오면 현재 작업 상태가 바뀝니다. 계속할까요?')) return
     commit(() => normalizeProject(record.project))
     setSelectedMediaId('')
+    setSelectedMediaIds([])
     setTimelineTime(0)
     setRecentOpen(false)
   }
@@ -515,6 +533,7 @@ export default function App() {
       const parsed = JSON.parse(await file.text())
       commit(() => normalizeProject(parsed))
       setSelectedMediaId('')
+    setSelectedMediaIds([])
       setTimelineTime(0)
     } catch {
       alert('Circle Frame Studio 프로젝트 JSON 파일이 아닙니다.')
@@ -563,6 +582,7 @@ export default function App() {
     if (!confirm('현재 프로젝트를 초기화할까요?')) return
     commit(() => makeInitialProject())
     setSelectedMediaId('')
+    setSelectedMediaIds([])
     setTimelineTime(0)
   }
 
@@ -582,6 +602,7 @@ export default function App() {
 
   const selectLayer = (layerId: string) => {
     setSelectedMediaId('')
+    setSelectedMediaIds([])
     commit(draft => {
       const layer = draft.layers.find(item => item.id === layerId)
       if (layer) {
@@ -679,6 +700,7 @@ export default function App() {
         return draft
       })
       setSelectedMediaId(layer.id)
+      setSelectedMediaIds([layer.id])
     } catch {
       alert('미디어 파일을 저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.')
     }
@@ -691,7 +713,23 @@ export default function App() {
     })
   }
 
-  const selectMedia = (id: string) => setSelectedMediaId(id)
+  const selectMedia = (id: string, additive = false) => {
+    const layer = (project.mediaLayers ?? []).find(item => item.id === id)
+    if (!layer) return
+
+    if (!additive && layer.groupId) {
+      const groupIds = (project.mediaLayers ?? []).filter(item => item.groupId === layer.groupId).map(item => item.id)
+      setSelectedMediaIds(groupIds)
+      setSelectedMediaId(id)
+      return
+    }
+
+    setSelectedMediaIds(prev => {
+      if (!additive) return [id]
+      return prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    })
+    setSelectedMediaId(id)
+  }
 
   const toggleMedia = (id: string) => commit(draft => {
     draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => layer.id === id ? { ...layer, visible: !layer.visible } : layer)
@@ -737,6 +775,7 @@ export default function App() {
     list.unshift(copy)
     draft.mediaLayers = list
     setSelectedMediaId(copy.id)
+    setSelectedMediaIds([copy.id])
     return draft
   })
 
@@ -746,6 +785,82 @@ export default function App() {
       return draft
     })
     if (selectedMediaId === id) setSelectedMediaId('')
+    setSelectedMediaIds([])
+  }
+
+  const groupSelectedMedia = () => {
+    const ids = selectedMediaIds.filter(id => (project.mediaLayers ?? []).some(layer => layer.id === id))
+    if (ids.length < 2) return
+    commit(draft => {
+      const group: MediaGroup = {
+        id: uid('group'),
+        name: '그룹 ' + ((draft.mediaGroups?.length ?? 0) + 1),
+        layerIds: ids,
+        locked: false,
+      }
+      draft.mediaGroups = [...(draft.mediaGroups ?? []).filter(item => !item.layerIds.some(id => ids.includes(id))), group]
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => ids.includes(layer.id) ? { ...layer, groupId: group.id } : layer)
+      return draft
+    })
+  }
+
+  const ungroupSelectedMedia = () => {
+    const ids = selectedMediaIds
+    commit(draft => {
+      const groupIds = new Set((draft.mediaLayers ?? []).filter(layer => ids.includes(layer.id) && layer.groupId).map(layer => layer.groupId))
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => groupIds.has(layer.groupId) ? { ...layer, groupId: '' } : layer)
+      draft.mediaGroups = (draft.mediaGroups ?? []).filter(group => !groupIds.has(group.id))
+      return draft
+    })
+  }
+
+  const batchUpdateMedia = (updates: Array<Partial<MediaLayer> & { id: string }>) => {
+    const byId = new Map(updates.map(update => [update.id, update]))
+    commit(draft => {
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => {
+        const update = byId.get(layer.id)
+        return update ? { ...layer, ...update } : layer
+      })
+      return draft
+    })
+  }
+
+  const alignSelectedMedia = (mode: 'center-x' | 'center-y' | 'center' | 'distribute-x' | 'distribute-y') => {
+    const selected = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id))
+    if (!selected.length) return
+    if (mode === 'center-x' || mode === 'center') batchUpdateMedia(selected.map(layer => ({ id: layer.id, x: 0, ...(mode === 'center' ? { y: 0 } : {}) })))
+    else if (mode === 'center-y') batchUpdateMedia(selected.map(layer => ({ id: layer.id, y: 0 })))
+    else {
+      const axis = mode === 'distribute-x' ? 'x' : 'y'
+      const sorted = [...selected].sort((a,b) => a[axis] - b[axis])
+      if (sorted.length < 3) return
+      const start = sorted[0][axis]
+      const end = sorted[sorted.length - 1][axis]
+      const step = (end - start) / (sorted.length - 1)
+      batchUpdateMedia(sorted.map((layer,index) => ({ id: layer.id, [axis]: start + step * index })))
+    }
+  }
+
+  const uploadCustomMask = async (id: string, file?: File) => {
+    if (!file) return
+    if (!/^image\/(png|jpeg|webp)$/i.test(file.type) && !/\.(png|jpe?g|webp)$/i.test(file.name)) {
+      alert('사용자 마스크는 PNG/JPG/WebP 이미지를 선택해 주세요.')
+      return
+    }
+    try {
+      const stored = await storeMediaFile(file)
+      const current = (project.mediaLayers ?? []).find(layer => layer.id === id)
+      if (!current) return
+      updateMedia({
+        ...current,
+        maskMode: 'custom',
+        customMaskAssetId: stored.id,
+        customMaskSourceUrl: stored.url,
+        customMaskFileName: stored.name,
+      })
+    } catch {
+      alert('사용자 마스크를 저장하지 못했습니다.')
+    }
   }
 
   const relinkMedia = async (id: string, file?: File) => {
@@ -791,6 +906,7 @@ export default function App() {
   }
 
   const selectedMedia = (project.mediaLayers ?? []).find(layer => layer.id === selectedMediaId)
+  const selectedMediaList = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id))
 
   const currentAssetLayer = project.layers.find(layer => layer.id === project.selectedLayerId)?.design ?? project.design
 
@@ -799,7 +915,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v0.31 · Profile Composer</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v0.32 · Direct Composer</span></div>
         </div>
         <div className="toolbar">
           <button onClick={reset}>새 프레임</button>
@@ -829,9 +945,11 @@ export default function App() {
         <div className="left-stack">
           <MediaPanel
             mediaLayers={project.mediaLayers ?? []}
-            selectedMediaId={selectedMediaId}
+            selectedMediaIds={selectedMediaIds}
+            primaryMediaId={selectedMediaId}
+            groups={project.mediaGroups ?? []}
             background={project.background ?? defaultBackground()}
-            onSelectMedia={selectMedia}
+            onSelectMedia={(id, additive = false) => selectMedia(id, additive)}
             onAddMedia={importMedia}
             onToggleMedia={toggleMedia}
             onToggleLock={toggleMediaLock}
@@ -839,6 +957,14 @@ export default function App() {
             onReorderMedia={reorderMedia}
             onDuplicateMedia={duplicateMedia}
             onDeleteMedia={deleteMedia}
+            onGroupSelected={groupSelectedMedia}
+            onUngroupSelected={ungroupSelectedMedia}
+            onSelectAllMedia={() => {
+              const ids = (project.mediaLayers ?? []).map(layer => layer.id)
+              setSelectedMediaIds(ids)
+              setSelectedMediaId(ids[0] ?? '')
+            }}
+            onClearSelection={() => { setSelectedMediaIds([]); setSelectedMediaId('') }}
             onBackgroundChange={changeBackground}
             onBackgroundFile={uploadBackground}
           />
@@ -857,7 +983,12 @@ export default function App() {
             onSampleColor={sampleColor}
             timeSec={timelineTime}
             playing={timelinePlaying}
-            selectedMediaId={selectedMediaId}
+            selectedMediaIds={selectedMediaIds}
+            primaryMediaId={selectedMediaId}
+            settings={project.settings ?? defaultComposerSettings()}
+            onSelectMedia={selectMedia}
+            onTransformMedia={batchUpdateMedia}
+            onSettingsChange={settings => commit(draft => ({ ...draft, settings }))}
             onMoveMedia={(id, x, y) => {
               const layer = (project.mediaLayers ?? []).find(item => item.id === id)
               if (layer) updateMedia({ ...layer, x, y })
@@ -869,7 +1000,12 @@ export default function App() {
             playing={timelinePlaying}
             loop={project.timeline?.loop !== false}
             mediaLayers={project.mediaLayers ?? []}
-            selectedMediaId={selectedMediaId}
+            selectedMediaIds={selectedMediaIds}
+            primaryMediaId={selectedMediaId}
+            onTimingChange={(id, patch) => {
+              const layer = (project.mediaLayers ?? []).find(item => item.id === id)
+              if (layer) updateMedia({ ...layer, ...patch })
+            }}
             onTimeChange={value => { setTimelinePlaying(false); setTimelineTime(value) }}
             onTogglePlay={() => setTimelinePlaying(value => !value)}
             onToStart={() => { setTimelinePlaying(false); setTimelineTime(0) }}
@@ -889,9 +1025,15 @@ export default function App() {
         {selectedMedia ? (
           <MediaPropertyPanel
             media={selectedMedia}
+            selectedMedia={selectedMediaList}
             frameLayers={project.layers}
             duration={project.timeline?.duration ?? 3}
             onChange={updateMedia}
+            onBatchChange={batchUpdateMedia}
+            onAlign={alignSelectedMedia}
+            onGroup={groupSelectedMedia}
+            onUngroup={ungroupSelectedMedia}
+            onCustomMask={file => void uploadCustomMask(selectedMedia.id, file)}
             onRelink={file => void relinkMedia(selectedMedia.id, file)}
             onDuplicate={() => duplicateMedia(selectedMedia.id)}
             onDelete={() => deleteMedia(selectedMedia.id)}

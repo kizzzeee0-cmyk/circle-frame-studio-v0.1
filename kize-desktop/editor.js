@@ -1027,7 +1027,7 @@ $('applyColor').onclick=()=>{
 };
 
 function variantPaintOptions(color,part){
-  return {mode:$('colorMode').value,color,
+  return {mode:'solid',color,
     stops:gradientStops.map(s=>({color:s.color,position:s.position})),
     angle:Number($('gradientAngle').value),preserveShading:$('preserveShading').checked,
     tintAsset:$('assetTint').checked&&part.mode==='asset',

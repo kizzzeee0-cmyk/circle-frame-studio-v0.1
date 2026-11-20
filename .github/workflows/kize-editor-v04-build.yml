@@ -51,7 +51,7 @@ jobs:
           if ($html -match 'id="patternFrame"|id="circleFrame"|data-page="pattern"|data-page="circle"') {
             throw 'Legacy tool entry points still present'
           }
-          if ($html -notmatch 'PSD / PNG' -or $html -notmatch 'guideOn' -or $html -notmatch 'replaceFile') {
+          if ($html -notmatch 'PSD / PSB / PNG' -or $html -notmatch 'guideOn' -or $html -notmatch 'replaceFile') {
             throw 'Required editor controls missing'
           }
       - name: Build editor frontend

@@ -78,6 +78,7 @@ export default function PropertyPanel({
   useCompactSectionOrganizer(panelRef, 'frame', {
     defaultFavorites: ['기본', '선 색상 · 그라데이션', '2색 흐름 그라데이션'],
     defaultCollapsed: ['레이어', '프레임 회전 애니메이션', '외곽선 · 입체감 · 글로우 · 블러 · 그림자', '패턴 세부 설정'],
+    structureKey: design.kind + ':' + String(design.twoToneFlow.enabled) + ':' + String(design.tripleRing.attached),
   })
   const patch = (partial: Partial<FrameDesign>) => onChange({ ...design, ...partial })
   const nestedEffects = (partial: Partial<FrameDesign['effects']>) => patch({ effects: { ...design.effects, ...partial } })

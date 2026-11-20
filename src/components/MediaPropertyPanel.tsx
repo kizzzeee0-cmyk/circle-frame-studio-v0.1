@@ -33,6 +33,7 @@ export default function MediaPropertyPanel({ media, selectedMedia, frameLayers, 
   useCompactSectionOrganizer(panelRef, 'media', {
     defaultFavorites: ['레이어 기본', '마스크 · 클리핑'],
     defaultCollapsed: ['타임라인', '등장 · 퇴장 애니메이션', '지속 애니메이션'],
+    structureKey: media.kind + ':' + media.maskMode + ':' + String(selectedMedia.length > 1),
   })
   const selectedCount = Math.max(1, selectedMedia.length)
   const patch = (partial: Partial<MediaLayer>) => onChange({ ...media, ...partial })

@@ -40,8 +40,9 @@ function sectionId(panelKey: string, title: string) {
 export function useCompactSectionOrganizer(
   rootRef: RefObject<HTMLElement | null>,
   panelKey: string,
-  options: { defaultFavorites?: string[]; defaultCollapsed?: string[] } = {},
+  options: { defaultFavorites?: string[]; defaultCollapsed?: string[]; structureKey?: string } = {},
 ) {
+  const structureKey = options.structureKey ?? ''
   useEffect(() => {
     const root = rootRef.current
     if (!root) return
@@ -154,5 +155,5 @@ export function useCompactSectionOrganizer(
     ui.panels[panelKey] = panel
     if (dirty) writeState(ui)
     return () => { for (const cleanup of cleanups) cleanup() }
-  })
+  }, [rootRef, panelKey, structureKey])
 }

@@ -151,6 +151,7 @@ export function importPsdPixels(buffer, options={}) {
       compatibility,sourceKey,clippingBaseKey,clippingUnresolved,
       maskSpecs,maskDecodeFailed,
       unsupportedVectorMask:Boolean(layer.vectorMask&&!layer.vectorMask.disabled&&!layer.mask?.fromVectorData),
+      unsupportedGroupMask:Boolean(compatibility.groupMasked),
     });
     if(i%12===0)progress('PSD 레이어 해석 '+(i+1)+'/'+cap);
   }

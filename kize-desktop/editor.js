@@ -102,32 +102,56 @@ function flatten(items,prefix='',hidden=false,out=[]){
   return out;
 }
 function psdMeta(arr){let total=0,count=0;for(const l of arr){count++;const w=Math.max(0,(l.right||0)-(l.left||0)),h=Math.max(0,(l.bottom||0)-(l.top||0));total+=w*h;if(w*h>maxDocPixels||total>maxLayerPixels||count>maxLayers)throw Error('레이어 크기 또는 개수가 안전 제한을 넘었습니다.');}return count;}
+let currentPsdOpen=null;
+$('cancelPsdImport').onclick=()=>{
+  const task=currentPsdOpen;
+  if(!task)return;
+  task.cancelled=true;
+  if(task.worker){task.worker.terminate();task.worker=null;}
+  task.reject?.(new Error('PSD 불러오기를 취소했습니다.'));
+  notify('PSD 불러오기를 취소했습니다. 기존 문서는 유지됩니다.');
+};
 async function readPsdInBackground(file){
-  if(file.size>maxPsdFileBytes)throw Error('현재 최대 파일 크기는 700MiB입니다. 600MB 파일은 크기만으로 차단하지 않습니다.');
-  if(typeof Worker==='undefined')throw Error('현재 Windows WebView2 환경이 대용량 PSD 작업 스레드를 지원하지 않습니다.');
+  if(file.size>maxPsdFileBytes)throw Error('현재 최대 파일 크기는 700MiB입니다.');
+  if(typeof Worker==='undefined')throw Error('현재 Windows WebView2 환경이 PSD 작업 스레드를 지원하지 않습니다.');
+  const task={cancelled:false,worker:null,reject:null};
+  currentPsdOpen=task;
+  $('cancelPsdImport').hidden=false;
   notify('PSD 읽기 준비 · '+Math.round(file.size/1024/1024)+'MiB…');
-  let raw;
-  try{raw=await file.arrayBuffer();}
-  catch(e){throw Error('파일 내용을 메모리에 읽지 못했습니다. 다른 프로그램을 종료해 RAM을 확보한 뒤 다시 시도해 주세요. '+(e?.message||''));}
-  return await new Promise((resolve,reject)=>{
-    let settled=false;
-    const worker=new Worker(new URL('./psd.worker.js',import.meta.url),{type:'module'});
-    const done=(error,result)=>{
-      if(settled)return;settled=true;
-      worker.terminate();
-      if(error)reject(error);else resolve(result);
-    };
-    worker.onmessage=e=>{
-      const msg=e.data;
-      if(msg?.type==='progress'){notify(msg.message);return;}
-      if(msg?.type==='complete')done(null,msg.result);
-      if(msg?.type==='failed')done(new Error(msg.message||'PSD 해석에 실패했습니다.'));
-    };
-    worker.onerror=e=>{e.preventDefault();done(new Error('PSD 작업 스레드 실행 오류: '+(e.message||'알 수 없는 오류')));};
-    worker.onmessageerror=()=>done(new Error('큰 PSD 레이어를 메모리에서 전송할 수 없습니다. 다른 프로그램을 종료하고 다시 시도해 주세요.'));
-    try{worker.postMessage({type:'open-psd',buffer:raw},[raw]);}
-    catch(e){done(new Error('PSD 데이터를 작업 스레드로 전달하지 못했습니다: '+(e?.message||e)));}
-  });
+  try{
+    let raw;
+    try{raw=await file.arrayBuffer();}
+    catch(e){throw Error('파일 내용을 메모리에 읽지 못했습니다. RAM을 확인해 주세요. '+(e?.message||''));}
+    if(task.cancelled)throw Error('PSD 불러오기를 취소했습니다.');
+    return await new Promise((resolve,reject)=>{
+      let settled=false;
+      task.reject=reject;
+      const worker=new Worker(new URL('./psd.worker.js',import.meta.url),{type:'module'});
+      task.worker=worker;
+      const done=(error,result)=>{
+        if(settled)return;settled=true;
+        worker.terminate();task.worker=null;task.reject=null;
+        if(task.cancelled)reject(new Error('PSD 불러오기를 취소했습니다.'));
+        else if(error)reject(error);else resolve(result);
+      };
+      worker.onmessage=e=>{
+        if(task.cancelled)return;
+        const msg=e.data;
+        if(msg?.type==='progress'){notify(msg.message);return;}
+        if(msg?.type==='complete')done(null,msg.result);
+        if(msg?.type==='failed')done(new Error(msg.message||'PSD 해석에 실패했습니다.'));
+      };
+      worker.onerror=e=>{e.preventDefault();done(new Error('PSD 작업 스레드 실행 오류: '+(e.message||'알 수 없는 오류')));};
+      worker.onmessageerror=()=>done(new Error('큰 PSD 레이어를 메모리에서 전송할 수 없습니다.'));
+      try{worker.postMessage({type:'open-psd',buffer:raw},[raw]);}
+      catch(e){done(new Error('PSD 데이터를 작업 스레드로 전달하지 못했습니다: '+(e?.message||e)));}
+    });
+  }finally{
+    if(currentPsdOpen===task){
+      currentPsdOpen=null;
+      $('cancelPsdImport').hidden=true;
+    }
+  }
 }
 async function importPsd(file){
   const start=performance.now();

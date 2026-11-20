@@ -1,0 +1,154 @@
+import { useRef } from 'react'
+import type { FrameLayer, MediaLayer } from '../types'
+
+interface Props {
+  media: MediaLayer
+  frameLayers: FrameLayer[]
+  duration: number
+  onChange: (next: MediaLayer) => void
+  onRelink: (file?: File) => void
+  onDuplicate: () => void
+  onDelete: () => void
+  onReturnFrame: () => void
+}
+
+function Slider({ label, value, min, max, step = 1, suffix = '', onChange }: { label: string, value: number, min: number, max: number, step?: number, suffix?: string, onChange: (value: number) => void }) {
+  return <label className="control slider-control">
+    <span><b>{label}</b><em>{Math.round(value * 100) / 100}{suffix}</em></span>
+    <input type="range" min={min} max={max} step={step} value={value} onChange={event => onChange(Number(event.target.value))} />
+  </label>
+}
+
+export default function MediaPropertyPanel({ media, frameLayers, duration, onChange, onRelink, onDuplicate, onDelete, onReturnFrame }: Props) {
+  const relinkInput = useRef<HTMLInputElement>(null)
+  const patch = (partial: Partial<MediaLayer>) => onChange({ ...media, ...partial })
+  const animation = (partial: Partial<MediaLayer['animation']>) => patch({ animation: { ...media.animation, ...partial } })
+
+  return <aside className="right-panel panel media-property-panel">
+    <div className="panel-title-row sticky-head">
+      <div><strong>미디어 설정</strong><small>{media.kind === 'video' ? '영상 레이어' : '이미지 · PNG 레이어'}</small></div>
+      <button type="button" className="soft-button" onClick={onReturnFrame}>프레임 설정</button>
+    </div>
+
+    <section className="property-section">
+      <h3>레이어 기본</h3>
+      <label className="control"><span><b>이름</b></span><input value={media.name} onChange={event => patch({ name: event.target.value })} /></label>
+      <label className="control"><span><b>배치 위치</b></span>
+        <select value={media.placement} onChange={event => patch({ placement: event.target.value as MediaLayer['placement'] })}>
+          <option value="below">프레임 아래</option>
+          <option value="above">프레임 위</option>
+        </select>
+      </label>
+      <div className="media-inline-buttons">
+        <button type="button" className="soft-button" onClick={() => patch({ x: 0, y: 0 })}>중앙 맞춤</button>
+        <button type="button" className="soft-button" onClick={() => patch({ fit: 'cover', width: 1500, height: 1500 })}>화면 채우기</button>
+        <button type="button" className="soft-button" onClick={() => patch({ fit: 'contain', width: 1500, height: 1500 })}>전체 맞춤</button>
+      </div>
+      <Slider label="X 위치" value={media.x} min={-1200} max={1200} suffix="px" onChange={value => patch({ x: value })} />
+      <Slider label="Y 위치" value={media.y} min={-1200} max={1200} suffix="px" onChange={value => patch({ y: value })} />
+      <Slider label="크기" value={media.scale} min={.05} max={3} step={.01} suffix="x" onChange={value => patch({ scale: value })} />
+      <Slider label="회전" value={media.rotation} min={-360} max={360} suffix="°" onChange={value => patch({ rotation: value })} />
+      <Slider label="불투명도" value={media.opacity} min={0} max={1} step={.01} onChange={value => patch({ opacity: value })} />
+      <label className="control"><span><b>원본 맞춤 방식</b></span>
+        <select value={media.fit} onChange={event => patch({ fit: event.target.value as MediaLayer['fit'] })}>
+          <option value="cover">영역 채우기 · 비율 유지</option>
+          <option value="contain">전체 보이기 · 비율 유지</option>
+        </select>
+      </label>
+      <div className="media-inline-buttons">
+        <button type="button" className="soft-button" onClick={() => relinkInput.current?.click()}>원본 재연결</button>
+        <button type="button" className="soft-button" onClick={onDuplicate}>복제</button>
+        <button type="button" className="soft-button danger-soft" onClick={onDelete}>삭제</button>
+      </div>
+      <input ref={relinkInput} hidden type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov" onChange={event => onRelink(event.target.files?.[0])} />
+    </section>
+
+    <section className="property-section">
+      <h3>마스크 · 클리핑</h3>
+      <label className="control"><span><b>클리핑 모드</b></span>
+        <select value={media.maskMode} onChange={event => patch({ maskMode: event.target.value as MediaLayer['maskMode'] })}>
+          <option value="none">없음 · 원본 그대로</option>
+          <option value="circle">원 내부 · 정원 마스크</option>
+          <option value="ring">링 영역 · 프레임 실루엣</option>
+        </select>
+      </label>
+
+      {media.maskMode === 'circle' && <>
+        <Slider label="마스크 원 크기" value={media.maskRadius} min={50} max={950} suffix="px" onChange={value => patch({ maskRadius: value })} />
+        <Slider label="마스크 X" value={media.maskX} min={-600} max={600} suffix="px" onChange={value => patch({ maskX: value })} />
+        <Slider label="마스크 Y" value={media.maskY} min={-600} max={600} suffix="px" onChange={value => patch({ maskY: value })} />
+      </>}
+
+      {media.maskMode === 'ring' && <>
+        <label className="control"><span><b>링 마스크 기준 프레임</b></span>
+          <select value={media.maskFrameLayerId} onChange={event => patch({ maskFrameLayerId: event.target.value })}>
+            <option value="">직접 지정한 원형 링</option>
+            {frameLayers.map(layer => <option value={layer.id} key={layer.id}>{layer.name}</option>)}
+          </select>
+        </label>
+        {!media.maskFrameLayerId && <>
+          <Slider label="링 바깥 반지름" value={media.maskRadius} min={50} max={950} suffix="px" onChange={value => patch({ maskRadius: value })} />
+          <Slider label="링 두께" value={media.ringThickness} min={2} max={400} suffix="px" onChange={value => patch({ ringThickness: value })} />
+        </>}
+        <label className="toggle"><input type="checkbox" checked={media.maskSyncRotation} onChange={event => patch({ maskSyncRotation: event.target.checked })} /><span>프레임 회전과 마스크 동기화</span></label>
+        <label className="toggle"><input type="checkbox" checked={media.keepFrameAbove} onChange={event => patch({ keepFrameAbove: event.target.checked })} /><span>클리핑 콘텐츠 위에 프레임 광택 유지</span></label>
+        <p className="hint">프레임을 선택하면 단순한 원 두께가 아니라 해당 프레임의 실제 알파 실루엣을 마스크로 사용합니다.</p>
+      </>}
+    </section>
+
+    <section className="property-section">
+      <h3>타임라인</h3>
+      <Slider label="레이어 시작" value={media.startTime} min={0} max={duration} step={.05} suffix="s" onChange={value => patch({ startTime: Math.min(value, media.endTime - .01) })} />
+      <Slider label="레이어 종료" value={media.endTime} min={0} max={duration} step={.05} suffix="s" onChange={value => patch({ endTime: Math.max(value, media.startTime + .01) })} />
+      {media.kind === 'video' && <Slider label="영상 시작점" value={media.trimStart} min={0} max={60} step={.05} suffix="s" onChange={value => patch({ trimStart: value })} />}
+    </section>
+
+    <section className="property-section">
+      <h3>등장 · 퇴장 애니메이션</h3>
+      <label className="control"><span><b>등장</b></span>
+        <select value={media.animation.intro} onChange={event => animation({ intro: event.target.value as MediaLayer['animation']['intro'] })}>
+          <option value="none">없음</option><option value="fade">페이드 인</option><option value="popup">팝업 등장</option>
+          <option value="bounce">바운스 등장</option><option value="zoom">확대 등장</option><option value="rotate">회전 등장</option>
+          <option value="rotate-zoom">회전 + 확대</option><option value="jump">점프 등장</option><option value="slide-left">왼쪽에서 슬라이드</option>
+          <option value="slide-right">오른쪽에서 슬라이드</option><option value="slide-up">위에서 슬라이드</option><option value="slide-down">아래에서 슬라이드</option>
+          <option value="shake">흔들리며 등장</option><option value="spring">스프링 등장</option>
+        </select>
+      </label>
+      <Slider label="등장 시작" value={media.animation.introStart} min={0} max={duration} step={.05} suffix="s" onChange={value => animation({ introStart: value })} />
+      <Slider label="등장 지속" value={media.animation.introDuration} min={.05} max={3} step={.05} suffix="s" onChange={value => animation({ introDuration: value })} />
+
+      <label className="control"><span><b>퇴장</b></span>
+        <select value={media.animation.outro} onChange={event => animation({ outro: event.target.value as MediaLayer['animation']['outro'] })}>
+          <option value="none">없음</option><option value="fade">페이드 아웃</option><option value="shrink">축소 퇴장</option><option value="zoom">확대 퇴장</option>
+          <option value="rotate">회전 퇴장</option><option value="rotate-shrink">회전 + 축소</option><option value="slide-left">왼쪽 퇴장</option>
+          <option value="slide-right">오른쪽 퇴장</option><option value="slide-up">위로 퇴장</option><option value="slide-down">아래로 퇴장</option>
+          <option value="bounce">바운스 퇴장</option><option value="shake">흔들리며 퇴장</option><option value="throw">튕겨 나가기</option>
+        </select>
+      </label>
+      <Slider label="퇴장 시작" value={media.animation.outroStart} min={0} max={duration} step={.05} suffix="s" onChange={value => animation({ outroStart: value })} />
+      <Slider label="퇴장 지속" value={media.animation.outroDuration} min={.05} max={3} step={.05} suffix="s" onChange={value => animation({ outroDuration: value })} />
+    </section>
+
+    <section className="property-section">
+      <h3>지속 애니메이션</h3>
+      <label className="control"><span><b>반복 움직임</b></span>
+        <select value={media.animation.continuous} onChange={event => animation({ continuous: event.target.value as MediaLayer['animation']['continuous'] })}>
+          <option value="none">없음</option><option value="sway">좌우 흔들림</option><option value="float">상하 둥실거림</option>
+          <option value="pulse">미세 펄스</option><option value="bounce">반복 바운스</option><option value="rotate">부드러운 회전</option>
+          <option value="heartbeat">심장박동</option><option value="brightness">밝기 변화</option>
+        </select>
+      </label>
+      <Slider label="속도" value={media.animation.speed} min={.05} max={4} step={.05} suffix="x" onChange={value => animation({ speed: value })} />
+      <Slider label="강도" value={media.animation.strength} min={0} max={2} step={.05} suffix="x" onChange={value => animation({ strength: value })} />
+      <label className="control"><span><b>이징</b></span>
+        <select value={media.animation.ease} onChange={event => animation({ ease: event.target.value as MediaLayer['animation']['ease'] })}>
+          <option value="linear">Linear</option><option value="ease-in">Ease In</option><option value="ease-out">Ease Out</option><option value="ease-in-out">Ease In Out</option>
+        </select>
+      </label>
+      <Slider label="이동 거리" value={media.animation.moveDistance} min={0} max={1000} suffix="px" onChange={value => animation({ moveDistance: value })} />
+      <Slider label="회전 각도" value={media.animation.rotateAngle} min={0} max={720} suffix="°" onChange={value => animation({ rotateAngle: value })} />
+      <Slider label="확대·축소 비율" value={media.animation.scaleAmount} min={0} max={1.5} step={.01} onChange={value => animation({ scaleAmount: value })} />
+      <Slider label="바운스 강도" value={media.animation.bounceStrength} min={0} max={2} step={.05} onChange={value => animation({ bounceStrength: value })} />
+    </section>
+  </aside>
+}

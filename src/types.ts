@@ -25,13 +25,15 @@ export type DecorationLayout = 'count' | 'spacing'
 export type AssetTintMode = 'original' | 'palette'
 export type GlitterParticleStyle = 'soft' | 'twinkle' | 'sugar' | 'luminous'
 export type MediaLayerKind = 'image' | 'video'
-export type MediaMaskMode = 'none' | 'circle' | 'ring'
+export type MediaMaskMode = 'none' | 'circle' | 'ring' | 'custom'
 export type MediaPlacement = 'below' | 'above'
 export type MediaFitMode = 'cover' | 'contain'
 export type MediaIntroAnimation = 'none' | 'fade' | 'popup' | 'bounce' | 'zoom' | 'rotate' | 'rotate-zoom' | 'jump' | 'slide-left' | 'slide-right' | 'slide-up' | 'slide-down' | 'shake' | 'spring'
 export type MediaOutroAnimation = 'none' | 'fade' | 'shrink' | 'zoom' | 'rotate' | 'rotate-shrink' | 'slide-left' | 'slide-right' | 'slide-up' | 'slide-down' | 'bounce' | 'shake' | 'throw'
 export type MediaContinuousAnimation = 'none' | 'sway' | 'float' | 'pulse' | 'bounce' | 'rotate' | 'heartbeat' | 'brightness'
 export type AnimationEase = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
+export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light'
+export type PerformanceMode = 'auto' | 'quality' | 'performance'
 
 export interface GradientStop {
   id: string
@@ -190,6 +192,7 @@ export interface MediaLayer {
   scale: number
   rotation: number
   opacity: number
+  blendMode: BlendMode
   fit: MediaFitMode
   maskMode: MediaMaskMode
   maskRadius: number
@@ -197,6 +200,15 @@ export interface MediaLayer {
   maskY: number
   ringThickness: number
   maskFrameLayerId: string
+  customMaskAssetId: string
+  customMaskSourceUrl: string
+  customMaskFileName: string
+  customMaskInvert: boolean
+  customMaskFit: MediaFitMode
+  customMaskScale: number
+  customMaskRotation: number
+  customMaskX: number
+  customMaskY: number
   maskSyncRotation: boolean
   keepFrameAbove: boolean
   startTime: number
@@ -205,7 +217,25 @@ export interface MediaLayer {
   trimEnd: number
   followFrameRotation: boolean
   followFrameLayerId: string
+  audioEnabled: boolean
+  audioVolume: number
+  groupId: string
   animation: MediaAnimationSettings
+}
+
+export interface MediaGroup {
+  id: string
+  name: string
+  layerIds: string[]
+  locked: boolean
+}
+
+export interface ComposerSettings {
+  snapEnabled: boolean
+  snapSize: number
+  showGuides: boolean
+  performanceMode: PerformanceMode
+  previewResolution: 720 | 960 | 1200
 }
 
 export interface BackgroundSettings {
@@ -270,7 +300,7 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.31'
+  version: '0.32'
   width: 2000
   height: 2000
   autoFit: boolean
@@ -280,6 +310,8 @@ export interface FrameProject {
   mediaLayers?: MediaLayer[]
   background?: BackgroundSettings
   timeline?: TimelineSettings
+  mediaGroups?: MediaGroup[]
+  settings?: ComposerSettings
 }
 
 export interface FramePreset {

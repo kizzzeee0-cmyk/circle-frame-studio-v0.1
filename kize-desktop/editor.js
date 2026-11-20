@@ -46,8 +46,11 @@ function markEdited(){unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true
 function updateDirtyStatus(){const el=$('dirtyStatus');if(el)el.textContent=unsavedChanges?'● 저장되지 않은 변경사항':'저장됨';}
 function checkpoint(l){if(!l)return;history.push({batch:[settingsSnapshot(l)],appearanceCount:appearancePatches.length,appearanceAdded:[],appearanceSafeBefore:appearanceSafe});if(history.length>12)history.shift();redoHistory=[];appearanceSafe=false;markEdited();}
 function checkpointBatch(list){
-  if(list.length===1){checkpoint(list[0]);return;}
-  history.push({batch:list.map(settingsSnapshot),appearanceCount:appearancePatches.length,appearanceAdded:[],appearanceSafeBefore:appearanceSafe});
+  // A color edit affecting one layer is STILL a color-only operation; running
+  // checkpoint() would incorrectly mark the entire PSD appearance as unsafe.
+  if(!list.length)return;
+  history.push({batch:list.map(settingsSnapshot),appearanceCount:appearancePatches.length,
+    appearanceAdded:[],appearanceSafeBefore:appearanceSafe});
   if(history.length>12)history.shift();
   redoHistory=[];markEdited();
 }

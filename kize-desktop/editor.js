@@ -17,7 +17,7 @@ let unsavedChanges=false;
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 // Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
 // still use the explicitly marked reconstructed view.
-let appearancePatches=[];
+let appearancePatches=[],appearanceSafe=true;
 let nextId=1;
 let selectionPreview=null,selectionParts=[];
 let panX=0,panY=0;
@@ -44,10 +44,10 @@ function sel(){return layers.find(l=>l.id===selectedId)||null;}
 function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
 function markEdited(){unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;if(previewMode==='composite')setPreviewMode('layers');}
 function updateDirtyStatus(){const el=$('dirtyStatus');if(el)el.textContent=unsavedChanges?'● 저장되지 않은 변경사항':'저장됨';}
-function checkpoint(l){if(!l)return;history.push({batch:[settingsSnapshot(l)],appearanceCount:appearancePatches.length,appearanceAdded:[]});if(history.length>12)history.shift();redoHistory=[];markEdited();}
+function checkpoint(l){if(!l)return;history.push({batch:[settingsSnapshot(l)],appearanceCount:appearancePatches.length,appearanceAdded:[],appearanceSafeBefore:appearanceSafe});if(history.length>12)history.shift();redoHistory=[];appearanceSafe=false;markEdited();}
 function checkpointBatch(list){
   if(list.length===1){checkpoint(list[0]);return;}
-  history.push({batch:list.map(settingsSnapshot),appearanceCount:appearancePatches.length,appearanceAdded:[]});
+  history.push({batch:list.map(settingsSnapshot),appearanceCount:appearancePatches.length,appearanceAdded:[],appearanceSafeBefore:appearanceSafe});
   if(history.length>12)history.shift();
   redoHistory=[];markEdited();
 }
@@ -71,7 +71,7 @@ function updateSelectionPreview(){
   updateSelectionUi();
 }
 
-function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
+function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];appearanceSafe=true;previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -140,7 +140,7 @@ async function importPsd(file){
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
   originalComposite=composite?pixelCanvas(composite):null;
-  appearancePatches=[];
+  appearancePatches=[];appearanceSafe=true;
   previewMode=originalComposite?'composite':'layers';
   selectedId=layers.length?layers[layers.length-1].id:null;
   refreshAll();fitZoom();
@@ -215,6 +215,7 @@ async function importCompactProject(file){
   nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;
   originalComposite=reference;
   appearancePatches=loadedPatches;
+  appearanceSafe=manifest.appearanceSafe===undefined?!manifest.edited:Boolean(manifest.appearanceSafe);
   selectedId=layers.at(-1)?.id||null;
   lastImportPsd=Boolean(reference);
   hasLayerEdits=Boolean(manifest.edited);
@@ -276,13 +277,17 @@ function render(){
   drawOverlay();
 }
 function setPreviewMode(mode){
+  if(mode==='appearance'&&!appearanceSafe){
+    notify('PSD에서 위치·투명도·사진 등을 변경한 상태입니다. Photoshop 합성 효과를 그대로 보존한 편집은 색상 변경에 한정되므로 레이어 재구성 보기로 전환합니다.');
+    mode='layers';
+  }
   if((mode==='composite'||mode==='appearance')&&!originalComposite){
     notify('이 파일에는 Photoshop 원본 합성 미리보기가 없습니다. 레이어 재구성으로 표시합니다.');
     return;
   }
   previewMode=mode;
   $('viewComposite').disabled=!originalComposite;
-  $('viewAppearance').disabled=!originalComposite;
+  $('viewAppearance').disabled=!originalComposite||!appearanceSafe;
   $('viewComposite').classList.toggle('selected',mode==='composite');
   $('viewAppearance').classList.toggle('selected',mode==='appearance');
   $('viewLayers').classList.toggle('selected',mode==='layers');

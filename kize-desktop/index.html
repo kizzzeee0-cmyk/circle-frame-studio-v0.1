@@ -120,6 +120,33 @@
 <div class="buttonrow palette-quick-select">
 <button type="button" id="paletteSelectAll" class="subtle" title="투명 픽셀 제외 전체 디자인 선택">그림 전체 선택</button>
 <button type="button" id="paletteClearSelection" class="subtle">부분 선택 해제</button></div>
+<details class="character-analyzer" id="characterAnalyzer">
+<summary>캐릭터 사진으로 팔레트 만들기 <span class="small">12가지 추천 · 내 컴퓨터에서 분석</span></summary>
+<div class="character-analyzer-body">
+  <p class="micro">현재 디자인은 변경하지 않고, 참고 사진의 색상만 추출해요. 분석용 사진은 서버로 보내지 않습니다. 머리·눈·의상 역할은 필요하면 직접 지정해 주세요.</p>
+  <label class="subtle fill char-dropzone" id="charDropzone">캐릭터 사진 선택 또는 여기에 놓기
+    <input id="charPhotoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+  </label>
+  <div id="charReference" hidden>
+    <div class="char-preview-viewport" id="charPreviewViewport"><img id="charPreviewImage" alt="색상 분석 참고 사진"></div>
+    <label class="range-label">사진 확대/축소 <input id="charZoom" type="range" min="50" max="180" value="100"></label>
+    <div class="buttonrow"><button id="charRemove" class="subtle" type="button">참고 사진 삭제</button><button id="charAnalyze" class="subtle" type="button">다시 분석하기</button></div>
+    <p id="charReport" class="micro"></p>
+    <div id="charExtractedColors" class="char-extracted-colors"></div>
+    <div class="buttonrow"><button id="charAddSwatch" class="subtle" type="button">+ 색상 추가</button><button id="charCopyHex" class="subtle" type="button">HEX 목록 복사</button></div>
+    <details class="char-adjustments"><summary>추천 팔레트 세부 조절</summary>
+      <label>파스텔 정도 <input id="charPastel" type="range" min="0" max="85" value="45"></label>
+      <label>전체 밝기 <input id="charBrightness" type="range" min="-40" max="45" value="0"></label>
+      <label>채도 <input id="charSaturation" type="range" min="-45" max="45" value="0"></label>
+      <label>화이트 비중 <input id="charWhite" type="range" min="25" max="85" value="55"></label>
+      <label>포인트 강도 <input id="charAccent" type="range" min="0" max="90" value="45"></label>
+    </details>
+    <div class="char-palette-grid" id="charPaletteSuggestions"></div>
+    <div class="buttonrow"><button id="charSavePalette" type="button" class="subtle">선택한 조합 저장</button><button id="charExportPalettes" type="button" class="subtle">추천 팔레트 JSON</button></div>
+    <p class="micro" id="charPaletteState">추천 팔레트를 선택하면 아래 팔레트 조합에 전달되고 결과가 미리 보여요.</p>
+  </div>
+</div>
+</details>
 <details class="variant-details" id="variantDetails" open><summary>전체 색상 조합 · 추천 팔레트 30종</summary>
 <p class="micro">PNG 전체에 여러 색상을 한 번에 적용할 수 있습니다. ZIP 저장은 파일 내보내기이며, 화면에서 색을 바꾸려면 아래의 <strong>‘팔레트 조합 적용’</strong> 버튼을 눌러 주세요.</p>
 <label>변경할 방식<select id="variantOutputMode">

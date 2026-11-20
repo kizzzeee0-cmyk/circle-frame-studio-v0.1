@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react'
 import type { ComposerSettings, FrameProject, MediaLayer } from '../types'
 import { getProjectFitScale, renderProject } from '../render/renderer'
 import { canUseGpuCompositor, presentCanvasWithGpu } from '../render/gpuCompositor'
@@ -95,7 +95,7 @@ export default function CanvasPanel({
     layers: MediaLayer[]
   } | null>(null)
 
-  const gpuAvailable = canUseGpuCompositor()
+  const gpuAvailable = useMemo(() => canUseGpuCompositor(), [])
   const useGpu = gpuAvailable && settings.performanceMode !== 'quality'
   const effectiveResolution = settings.performanceMode === 'performance'
     ? 720
@@ -127,7 +127,7 @@ export default function CanvasPanel({
     }
     void load()
     return () => { cancelled = true }
-  }, [project, effectiveResolution])
+  }, [project, effectiveResolution, useGpu])
 
   useEffect(() => {
     syncProjectMediaPreview(project, timeSec, playing)
@@ -143,7 +143,7 @@ export default function CanvasPanel({
     } else if (ref.current) {
       renderProject(ref.current, project, undefined, timeSec * 1000, progress)
     }
-  }, [project, timeSec, playing, effectiveResolution])
+  }, [project, timeSec, playing, effectiveResolution, useGpu])
 
   const sample = (event: MouseEvent<HTMLCanvasElement>) => {
     if (!event.altKey || !onSampleColor) return

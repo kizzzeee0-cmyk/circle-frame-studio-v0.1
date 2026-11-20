@@ -1,4 +1,4 @@
-# Circle Frame Studio v0.30
+# Circle Frame Studio v0.31
 
 원형 프레임을 만들고 **테두리 외부는 투명 배경**으로 PNG 저장하는 React/Vite 기반 웹앱입니다.
 
@@ -333,3 +333,66 @@ v0.28에서 글리터가 프레임 단위로 뚝뚝 끊겨 보일 수 있던 부
 - 고해상도 APNG/WebP 메모리 경고
 
 내보내기는 0→1 정규화 루프 좌표를 사용하고, 글리터 시간 함수도 정수 주기 기반으로 보정해 루프 경계가 자연스럽게 이어집니다.
+
+
+## v0.31 — Profile Composer
+
+기존 원형 프레임 편집기를 유지하면서 사진·영상·타임라인·마스크·레이어 애니메이션까지 다루는 프로필 합성 편집기로 확장했습니다.
+
+### 새 프레임
+- Soft Glitter / Twinkle Glitter / Sugar Glitter / Luminous Glitter
+- 글리터 입자 스타일, 하이라이트/글로우 색상, 흐르는 빛 방향 조절
+- Jelly Balloon Pink: 두꺼운 링 + 긴 곡선형 흰색 하이라이트 + 볼륨/그림자 조절
+- 프레임 제자리 회전: 시계/반시계, 1회전 시간, 시작각, 가속/감속, 시작/종료 시간
+
+### 이미지·영상
+- PNG/JPG/WebP + MP4/WebM/MOV(브라우저 디코더가 지원하는 코덱) 레이어
+- 브라우저 IndexedDB에 원본 Blob 저장 후 재접속 시 asset ID로 복원
+- 표시/숨김, 잠금, 복제, 삭제, 위/아래 이동, 드래그 순서 변경
+- 위치/크기/회전/불투명도/cover/contain
+- 중앙 맞춤 및 캔버스에서 선택 미디어 직접 드래그 이동
+- 정원 마스크
+- 실제 선택 프레임의 알파 실루엣을 이용한 링 영역 클리핑
+- 마스크와 프레임 회전 동기화, 콘텐츠도 프레임과 함께 회전 옵션
+- 영상 트림 시작/종료
+
+### 애니메이션 / 타임라인
+- 등장: Fade, Popup, Bounce, Zoom, Rotate, Rotate+Zoom, Jump, 4방향 Slide, Shake, Spring
+- 퇴장: Fade, Shrink, Zoom, Rotate, Rotate+Shrink, 4방향 Slide, Bounce, Shake, Throw
+- 지속: Sway, Float, Pulse, Bounce, Rotate, Heartbeat, Brightness
+- 속도/강도/Easing/이동거리/회전각/스케일/바운스 강도
+- 프로젝트 길이, 재생/일시정지, 처음으로, 스크럽, 반복
+- 레이어별 표시 구간 및 등장/퇴장 구간 시각화
+
+### 캔버스 / 배경
+- 마우스 휠 확대·축소
+- 휠 클릭 드래그로 뷰 이동
+- 확대율 표시와 전체 보기
+- 투명 / 단색 / 이미지 / 영상 배경
+- 배경 불투명도와 cover/contain
+
+### 출력
+- 전체 PNG / 프레임만 PNG
+- PNG 500 / 1000 / 2000 / 3000 / 4000px
+- GIF / Animated WebP / APNG
+- WebM / MP4: 브라우저 MediaRecorder 코덱 지원 시
+- 12 / 15 / 20 / 24 / 30 / 60fps
+- 영상 비트레이트
+- 프로젝트 타임라인 길이에 맞춘 출력
+- 진행률 및 취소
+- APNG/WebP 메모리 경고, 영상 포맷 예상 파일 크기
+
+### 브라우저 제약 및 현재 미구현
+다음 항목은 v0.31에서 완료된 것으로 처리하지 않습니다.
+
+- 여러 레이어 동시 선택 및 그룹화
+- 캔버스 위 직접 크기/회전 핸들
+- 타임라인 막대를 직접 드래그해 시작·종료·길이 변경하는 핸들
+- 사용자 지정 마스크 이미지 업로드
+- 알파 채널 MOV(ProRes 등) 출력
+- WebM 알파 채널의 브라우저 간 보장
+- 모든 브라우저에서 MP4(H.264) 출력 보장
+- MediaRecorder 기반 MP4/WebM의 무손실 또는 모든 PC에서 정확한 60fps 보장
+- 영상 오디오 믹싱/출력
+
+MP4는 MediaRecorder.isTypeSupported()로 H.264 MP4 지원 여부를 확인한 뒤에만 사용합니다. 투명 애니메이션이 중요하면 APNG 또는 Animated WebP가 권장됩니다. JSON 프로젝트를 다른 브라우저/PC로 옮길 경우 원본 미디어 Blob은 함께 이동하지 않으므로 원본 재연결 기능을 사용해야 합니다.

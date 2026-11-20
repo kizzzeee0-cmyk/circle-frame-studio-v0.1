@@ -232,10 +232,20 @@ async function importCompactProject(file){
   const {manifest,images}=readArchive(new Uint8Array(await file.arrayBuffer()));
   const loaded=[];
   for(const saved of manifest.layers){
-    const {bitmap,photoBitmap,...props}=saved;
+    const {bitmap,photoBitmap,maskFiles,...props}=saved;
     const base=await pngBytesToCanvas(images[bitmap]);
     const photo=photoBitmap?await pngBytesToCanvas(images[photoBitmap]):null;
-    loaded.push(newLayer({...props,canvas:base,photoSource:photo,
+    const maskSpecs=[];
+    for(const savedMask of maskFiles||[]){
+      const decoded=await pngBytesToCanvas(images[savedMask.bitmap]);
+      if(decoded.width!==savedMask.w||decoded.height!==savedMask.h)
+        throw Error('PSD 마스크 이미지 크기가 프로젝트 정보와 일치하지 않습니다.');
+      const rgba=toImageData(decoded).data,pixels=new Uint8Array(decoded.width*decoded.height);
+      for(let i=0;i<pixels.length;i++)pixels[i]=rgba[i*4];
+      const {bitmap:maskBitmap,...maskMeta}=savedMask;
+      maskSpecs.push({...maskMeta,pixels});
+    }
+    loaded.push(newLayer({...props,canvas:base,photoSource:photo,maskSpecs,
       adjust:{...defaultAdjust(),...(props.adjust||{})}}));
   }
   const reference=manifest.composite?await pngBytesToCanvas(images[manifest.composite]):null;
@@ -248,6 +258,16 @@ async function importCompactProject(file){
   }
   openDoc(manifest.width,manifest.height,manifest.name||file.name,'KIZE');
   layers=loaded;
+  for(const l of loaded){
+    if(l.clipBaseId!==undefined&&l.clipBaseId!==null){
+      const base=loaded.find(a=>a.id===l.clipBaseId);
+      if(base&&!base.alphaPixels){
+        const rgba=toImageData(base.canvas).data;
+        base.alphaPixels=new Uint8Array(base.canvas.width*base.canvas.height);
+        for(let i=0;i<base.alphaPixels.length;i++)base.alphaPixels[i]=rgba[i*4+3];
+      }else if(!base)l.clippingUnresolved=true;
+    }
+  }
   nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;
   originalComposite=reference;
   psdCompatibilityReport=manifest.psdCompatibilityReport||summarizePsdCompatibility(layers,{compositeAvailable:Boolean(reference)});
@@ -1040,8 +1060,21 @@ $('saveProject').onclick=async()=>{
         photoBitmap='photos/'+String(i).padStart(4,'0')+'.png';
         images[photoBitmap]=await canvasToPngBytes(l.photoSource);
       }
-      const {canvas,photoSource,psdText,...properties}=l;
+      const maskFiles=[];
+      for(let j=0;j<(l.maskSpecs||[]).length;j++){
+        const mask=l.maskSpecs[j],maskImage='masks/'+String(i).padStart(4,'0')+'-'+j+'.png';
+        const gray=new Uint8ClampedArray(mask.w*mask.h*4);
+        for(let p=0;p<mask.w*mask.h;p++){
+          const k=p*4,v=mask.pixels[p];
+          gray[k]=gray[k+1]=gray[k+2]=v;gray[k+3]=255;
+        }
+        images[maskImage]=await canvasToPngBytes(pixelCanvas({width:mask.w,height:mask.h,data:gray}));
+        const {pixels,...maskMeta}=mask;
+        maskFiles.push({...maskMeta,bitmap:maskImage});
+      }
+      const {canvas,photoSource,psdText,maskSpecs,alphaPixels,...properties}=l;
       meta.push({...properties,bitmap,...(photoBitmap?{photoBitmap}:{}),
+        ...(maskFiles.length?{maskFiles}:{}),
         // Preserve editable text metadata without including binary PSD structures.
         psdText:psdText?{text:psdText.text||''}:null});
     }
@@ -1060,7 +1093,7 @@ $('saveProject').onclick=async()=>{
     }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.6.1',
+      appVersion:'0.8.0',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,

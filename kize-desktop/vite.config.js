@@ -1,2 +1,14 @@
 import { defineConfig } from 'vite';
-export default defineConfig({base:'./',server:{port:1420,strictPort:true}});
+import { resolve } from 'node:path';
+export default defineConfig({
+  base:'./',
+  esbuild:{jsx:'automatic'},
+  server:{port:1420,strictPort:true},
+  build:{
+    rollupOptions:{input:{
+      editor:resolve(process.cwd(),'index.html'),
+      circle:resolve(process.cwd(),'circle.html')
+    }},
+    chunkSizeWarningLimit:2600
+  }
+});

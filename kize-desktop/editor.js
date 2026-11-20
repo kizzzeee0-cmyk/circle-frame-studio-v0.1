@@ -317,8 +317,10 @@ function zoomAtPointer(value,cx,cy){
   applyPan();
 }
 const stageCenter=()=>{const r=stage.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];};
-$('zoomIn').onclick=()=>zoomAtPointer(zoom*1.25,...stageCenter());
-$('zoomOut').onclick=()=>zoomAtPointer(zoom/1.25,...stageCenter());
+// Toolbar zoom starts at the visible artboard edge and retains scrollable
+// top/left boundaries. Mouse-wheel zoom remains cursor-anchored.
+$('zoomIn').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom*1.25);};
+$('zoomOut').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom/1.25);};
 $('zoomFit').onclick=fitZoom;
 stage.addEventListener('wheel',e=>{
   if(!documentModel)return;

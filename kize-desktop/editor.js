@@ -258,55 +258,80 @@ function refreshProperties(){
 }
 function refreshAll(){refreshLayers();refreshProperties();setPreviewMode(previewMode);}
 function select(id){selectedId=id;selection=null;selectionPreview=null;refreshAll();}
-function setZoom(v){zoom=clamp(v,.1,8);$('zoomLabel').textContent=Math.round(zoom*100)+'%';if(documentModel){holder.style.width=Math.round(documentModel.width*zoom)+'px';holder.style.height=Math.round(documentModel.height*zoom)+'px';}}
-function fitZoom(){if(!documentModel)return;const v=Math.min((stage.clientWidth-70)/documentModel.width,(stage.clientHeight-70)/documentModel.height,1);setZoom(clamp(v,.1,8));}
-$('zoomIn').onclick=()=>setZoom(zoom*1.25);$('zoomOut').onclick=()=>setZoom(zoom/1.25);$('zoomFit').onclick=fitZoom;
-// Wheel zoom behaves like an artboard editor: zoom around the mouse pointer.
-// Press and drag the physical mouse wheel (middle button) to pan horizontally
-// and vertically. No Ctrl key is required.
-function zoomAtPointer(nextZoom,cx,cy){
+function applyPan(){holder.style.transform='translate3d('+panX+'px,'+panY+'px,0)';}
+function setZoom(v){
+  zoom=clamp(v,.1,8);
+  $('zoomLabel').textContent=Math.round(zoom*100)+'%';
+  if(documentModel){
+    holder.style.width=Math.round(documentModel.width*zoom)+'px';
+    holder.style.height=Math.round(documentModel.height*zoom)+'px';
+  }
+}
+function fitZoom(){
+  if(!documentModel)return;
+  const v=Math.min((stage.clientWidth-72)/documentModel.width,(stage.clientHeight-72)/documentModel.height,1);
+  setZoom(clamp(v,.1,8));
+  panX=panY=0;applyPan();stage.scrollLeft=0;stage.scrollTop=0;
+}
+function zoomAtPointer(value,cx,cy){
   if(!documentModel)return;
   const before=holder.getBoundingClientRect();
-  const imageX=(cx-before.left)/zoom;
-  const imageY=(cy-before.top)/zoom;
-  setZoom(nextZoom);
+  const px=(cx-before.left)/zoom,py=(cy-before.top)/zoom;
+  setZoom(value);
   const after=holder.getBoundingClientRect();
-  stage.scrollLeft+=(after.left+imageX*zoom-cx);
-  stage.scrollTop+=(after.top+imageY*zoom-cy);
+  panX+=cx-(after.left+px*zoom);
+  panY+=cy-(after.top+py*zoom);
+  applyPan();
 }
+const stageCenter=()=>{const r=stage.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];};
+$('zoomIn').onclick=()=>zoomAtPointer(zoom*1.25,...stageCenter());
+$('zoomOut').onclick=()=>zoomAtPointer(zoom/1.25,...stageCenter());
+$('zoomFit').onclick=fitZoom;
 stage.addEventListener('wheel',e=>{
   if(!documentModel)return;
   e.preventDefault();
   const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?stage.clientHeight:1);
-  const factor=Math.exp(-Math.max(-350,Math.min(350,delta))*0.0019);
+  const factor=Math.exp(-Math.max(-350,Math.min(350,delta))*.0019);
   zoomAtPointer(zoom*factor,e.clientX,e.clientY);
 },{passive:false});
-let middlePan=null;
-stage.addEventListener('pointerdown',e=>{
-  if(!documentModel||e.button!==1)return;
-  e.preventDefault();
-  middlePan={pointerId:e.pointerId,lastX:e.clientX,lastY:e.clientY};
-  stage.setPointerCapture(e.pointerId);
+
+// Middle mouse pan changes the artboard transform directly instead of scrollLeft.
+// This is essential when a page is already fit inside the viewport (no scrollbars).
+// Listening on the capturing phase and on window also works across nested canvas
+// elements and if a middle-button pointer travels outside the viewport.
+let middlePan=null,spacePan=false;
+function isTextInput(el){return !!el?.closest?.('input,textarea,select,[contenteditable]');}
+window.addEventListener('keydown',e=>{if(e.code==='Space'&&!isTextInput(e.target)){spacePan=true;stage.classList.add('hand-ready');e.preventDefault();}});
+window.addEventListener('keyup',e=>{if(e.code==='Space'){spacePan=false;stage.classList.remove('hand-ready');}});
+window.addEventListener('blur',()=>{spacePan=false;stage.classList.remove('hand-ready');endMiddlePan();});
+function beginMiddlePan(e){
+  if(!documentModel)return;
+  const middle=e.button===1 || (e.pointerType==='mouse'&&(e.buttons&4)!==0);
+  const space=spacePan&&e.button===0;
+  if(!middle&&!space)return;
+  e.preventDefault();e.stopPropagation();
+  middlePan={pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,panX,panY};
   stage.classList.add('panning');
-});
-stage.addEventListener('pointermove',e=>{
-  if(!middlePan||middlePan.pointerId!==e.pointerId)return;
+  try{stage.setPointerCapture(e.pointerId);}catch{}
+}
+stage.addEventListener('pointerdown',beginMiddlePan,true);
+window.addEventListener('pointermove',e=>{
+  if(!middlePan||e.pointerId!==middlePan.pointerId)return;
   e.preventDefault();
-  stage.scrollLeft-=e.clientX-middlePan.lastX;
-  stage.scrollTop-=e.clientY-middlePan.lastY;
-  middlePan.lastX=e.clientX;middlePan.lastY=e.clientY;
-});
+  panX=middlePan.panX+e.clientX-middlePan.startX;
+  panY=middlePan.panY+e.clientY-middlePan.startY;
+  applyPan();
+},true);
 function endMiddlePan(e){
   if(!middlePan||(e&&e.pointerId!==middlePan.pointerId))return;
-  const id=middlePan.pointerId;middlePan=null;
-  stage.classList.remove('panning');
-  if(stage.hasPointerCapture(id))stage.releasePointerCapture(id);
+  const id=middlePan.pointerId;middlePan=null;stage.classList.remove('panning');
+  try{if(stage.hasPointerCapture(id))stage.releasePointerCapture(id);}catch{}
 }
-stage.addEventListener('pointerup',endMiddlePan);
-stage.addEventListener('pointercancel',endMiddlePan);
+window.addEventListener('pointerup',endMiddlePan,true);
+window.addEventListener('pointercancel',endMiddlePan,true);
 stage.addEventListener('lostpointercapture',endMiddlePan);
-stage.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
-stage.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
+stage.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();},true);
+stage.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();},true);
 function localPoint(e){const r=overlay.getBoundingClientRect();return{x:Math.floor((e.clientX-r.left)*overlay.width/r.width),y:Math.floor((e.clientY-r.top)*overlay.height/r.height)};}
 function hit(l,x,y){if(!l.visible||x<l.x||y<l.y||x>=l.x+l.w||y>=l.y+l.h)return false;
   const visual=layerImage(l);const px=Math.floor((x-l.x)*visual.width/l.w),py=Math.floor((y-l.y)*visual.height/l.h);if(px<0||py<0||px>=visual.width||py>=visual.height)return false;

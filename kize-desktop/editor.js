@@ -1508,6 +1508,21 @@ paletteController=installPaletteController({
 // Character reference is analysis-only: no bitmap is added to the design
 // canvas or to the current document. Proposed palettes use the same exact
 // multi-swatch engine and can be revised before committing.
+window.addEventListener('kize:shared-palette-apply',event=>{
+  const colors=event.detail?.colors;
+  if(!Array.isArray(colors)||colors.length<2)return;
+  if(!canEditWholePalette()){
+    notify('공통 팔레트는 한 장짜리 PNG에 적용할 수 있어요. PSD는 PNG로 내보내거나 부분 색상 편집을 이용해 주세요.');
+    return;
+  }
+  setColorEditMode('palette');
+  $('variantOutputMode').value='combo';
+  $('variantColors').value=colors.join(', ');
+  $('variantPreset').value='';
+  $('variantColors').dispatchEvent(new Event('input',{bubbles:true}));
+  paletteController?.refresh();paletteController?.preview();
+  notify('공통 팔레트를 미리 보여주고 있어요. 마음에 들면 팔레트 적용을 눌러 주세요.');
+});
 installCharacterPalette({
   applyPalette(colors){
     setColorEditMode('palette');

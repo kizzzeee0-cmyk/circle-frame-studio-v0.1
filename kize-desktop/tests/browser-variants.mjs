@@ -45,6 +45,10 @@ try{
    document.querySelector('#importReport')?.textContent||''),null,{timeout:60000});
  await page.locator('#zoomActual').click();
  assert.equal(await page.locator('#zoomLabel').textContent(),'100%');
+ await page.locator('#selectAllOpaque').click();
+ assert.match(await page.locator('#selectionInfo').textContent(),/2개 영역/,
+   'Ctrl+A/full selection must include visible pixels of both PSD layers');
+ await page.locator('#clearSelection').click();
  // PSD composite's original appearance stays unmodified by batch extraction.
  const pixel=async(x,y)=>page.evaluate(([x,y])=>
    Array.from(document.querySelector('#renderCanvas').getContext('2d').getImageData(x,y,1,1).data),[x,y]);

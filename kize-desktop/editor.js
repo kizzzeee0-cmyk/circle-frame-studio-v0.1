@@ -7,6 +7,7 @@ import {createArchive,readArchive} from './project-archive.mjs';
 import {summarizePsdCompatibility} from './psd-compatibility.mjs';
 import {compareRgba,publicFidelityReport} from './fidelity-audit.mjs';
 import {layerConstraintAlpha,constrainSelection} from './psd-mask-core.mjs';
+import {maskedLayerRgba} from './masked-preview.mjs';
 import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
 
 const $=id=>document.getElementById(id);
@@ -310,6 +311,38 @@ function layerImage(l){
   const c=cloneCanvas(image),pc=c.getContext('2d',{willReadFrequently:true}),p=pc.getImageData(0,0,c.width,c.height);
   p.data.set(photoAdjust(p.data,l.adjust));pc.putImageData(p,0,0);return c;
 }
+const maskedRenderCache=new WeakMap();
+function layerVisualForReconstruction(l){
+  const clipped=Boolean(l.clipBaseId||l.clipBaseKey);
+  const bitmapMask=Boolean(l.maskSpecs?.length);
+  if(!clipped&&!bitmapMask)return layerImage(l);
+  const base=clipped?layers.find(v=>v.id===l.clipBaseId):null;
+  const sourceKey=l.canvas,photoKey=l.photoSource;
+  const colorKey=JSON.stringify(l.adjust||{})+'/'+l.offsetX+'/'+l.offsetY+'/'+l.scale;
+  const geometryKey=[l.x,l.y,l.w,l.h,l.rotation,l.flipH,l.flipV,
+    base?.visible,base?.x,base?.y,base?.w,base?.h].join(',');
+  const cached=maskedRenderCache.get(l);
+  if(cached&&cached.canvas===sourceKey&&cached.photo===photoKey&&cached.colorKey===colorKey&&
+    cached.geometryKey===geometryKey)return cached.preview;
+  const original=layerImage(l);
+  if(original.width*original.height>12_000_000){
+    // Avoid freezing WebView by allocating multiple >48MB bitmaps for every
+    // preview frame. The original merged appearance is still accessible.
+    return original;
+  }
+  try{
+    const source=toImageData(original);
+    const filtered=maskedLayerRgba(source.data,source.width,source.height,l,
+      id=>layers.find(v=>v.id===id));
+    const preview=pixelCanvas({width:source.width,height:source.height,data:filtered});
+    maskedRenderCache.set(l,{canvas:sourceKey,photo:photoKey,colorKey,geometryKey,preview});
+    return preview;
+  }catch(e){
+    // Unsupported mask cases are shown only in this *approximate* preview;
+    // selection and color editing remain fail-closed for these layers.
+    return original;
+  }
+}
 function drawOriginalAndPatches(){
   ctx.drawImage(originalComposite,0,0);
   for(const patch of appearancePatches){
@@ -329,7 +362,7 @@ function render(){
       ctx.save();ctx.globalAlpha=normOpacity(l.opacity);ctx.globalCompositeOperation=l.blend;
       ctx.translate(l.x+l.w/2,l.y+l.h/2);
       ctx.rotate(l.rotation*Math.PI/180);ctx.scale(l.flipH?-1:1,l.flipV?-1:1);
-      ctx.drawImage(layerImage(l),-l.w/2,-l.h/2,l.w,l.h);ctx.restore();
+      ctx.drawImage(layerVisualForReconstruction(l),-l.w/2,-l.h/2,l.w,l.h);ctx.restore();
     }
   }
   drawOverlay();
@@ -389,7 +422,7 @@ function renderReconstructedQualityPreview(sampleWidth,sampleHeight){
     pc.save();pc.globalAlpha=normOpacity(l.opacity);pc.globalCompositeOperation=l.blend;
     pc.translate(l.x+l.w/2,l.y+l.h/2);
     pc.rotate(l.rotation*Math.PI/180);pc.scale(l.flipH?-1:1,l.flipV?-1:1);
-    pc.drawImage(layerImage(l),-l.w/2,-l.h/2,l.w,l.h);
+    pc.drawImage(layerVisualForReconstruction(l),-l.w/2,-l.h/2,l.w,l.h);
     pc.restore();
   }
   pc.restore();

@@ -1,6 +1,7 @@
 // PSD parsing runs in a worker to avoid blocking the editor while decoding large files.
 import {regionMask,recolorPixels,photoAdjust,hexToRGB,rgbToHex,clamp} from './engine.js';
 import {colorSelection,paintSelection} from './color-tools.mjs';
+import {selectAssetRegion,growShrinkMask,maskBounds} from './selection-tools.mjs';
 import {initUpdates} from './updater.js';
 
 const $=id=>document.getElementById(id);
@@ -12,7 +13,7 @@ let documentModel=null,layers=[],selectedId=null,selection=null,zoom=1,history=[
 // reconstruction of masks, layer styles, groups and text is never assumed exact.
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 let nextId=1;
-let selectionPreview=null;
+let selectionPreview=null,selectionParts=[];
 let panX=0,panY=0;
 let gradientStops=[{id:1,color:'#F5B8CC',position:0},{id:2,color:'#9185D5',position:100}];
 let nextStopId=3;
@@ -36,7 +37,33 @@ function newLayer(obj){return {id:nextId++,name:'레이어',x:0,y:0,w:100,h:100,
 function sel(){return layers.find(l=>l.id===selectedId)||null;}
 function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
 function checkpoint(l){if(!l)return;history.push(settingsSnapshot(l));if(history.length>12)history.shift();hasLayerEdits=true;if(previewMode==='composite')setPreviewMode('layers');}
-function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];originalComposite=null;previewMode='layers';hasLayerEdits=false;selectionPreview=null;panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
+function checkpointBatch(list){
+  if(list.length===1){checkpoint(list[0]);return;}
+  history.push({batch:list.map(settingsSnapshot)});
+  if(history.length>12)history.shift();
+  hasLayerEdits=true;if(previewMode==='composite')setPreviewMode('layers');
+}
+function clearSelections(){
+  selectionParts=[];selection=null;selectionPreview=null;
+  $('pickedHex').value='—';$('pickedSwatch').style.backgroundColor='';
+  updateSelectionUi();
+}
+function updateSelectionUi(){
+  const count=selectionParts.reduce((n,p)=>n+p.count,0);
+  const layersCount=new Set(selectionParts.map(p=>p.id)).size;
+  const label=selectionParts.length+'개 영역'+(layersCount>1?' · '+layersCount+'개 레이어':'');
+  if($('selectionPartsCount'))$('selectionPartsCount').textContent=label;
+  if($('selectionInfo'))$('selectionInfo').textContent=selectionParts.length
+    ?selectionParts.length+'개 영역 · '+count.toLocaleString()+'개 픽셀 선택 · Shift+클릭으로 추가 가능'
+    :'색상/에셋 영역을 클릭해 선택하세요. Shift+클릭은 누적 선택입니다.';
+}
+function updateSelectionPreview(){
+  selection=selectionParts.at(-1)||null;
+  selectionPreview=selection?createMaskPreview(selection):null;
+  updateSelectionUi();
+}
+
+function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];originalComposite=null;previewMode='layers';hasLayerEdits=false;clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -287,10 +314,10 @@ function refreshProperties(){
   $('fontFamily').value=l?.fontFamily||'';$('fontSize').value=l?.fontSize||32;$('textColor').value=l?.textColor||'#333333';
   for(const input of document.querySelectorAll('[data-adjust]')){const k=input.dataset.adjust;input.value=l?.adjust?.[k]||0;const id='out'+k[0].toUpperCase()+k.slice(1);if($(id))$(id).textContent=input.value;}
   $('textPanel').hidden=l?.type!=='text';
-  $('selectionInfo').textContent=selection&&selection.id===selectedId?'선택된 색상 픽셀 '+selection.count.toLocaleString()+'개 · 레이어 내 '+(selection.bounds?selection.bounds.w+'×'+selection.bounds.h+'px 범위':'영역 없음'):'왼쪽에서 레이어를 선택한 뒤 해당 색상을 클릭하세요.';
+  updateSelectionUi();
 }
 function refreshAll(){refreshLayers();refreshProperties();setPreviewMode(previewMode);}
-function select(id){selectedId=id;selection=null;selectionPreview=null;refreshAll();}
+function select(id,keepSelections=false){selectedId=id;if(!keepSelections)clearSelections();refreshAll();}
 function applyPan(){holder.style.transform='translate3d('+panX+'px,'+panY+'px,0)';}
 function setZoom(v){
   zoom=clamp(v,.1,8);
@@ -322,6 +349,7 @@ const stageCenter=()=>{const r=stage.getBoundingClientRect();return [r.left+r.wi
 $('zoomIn').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom*1.25);};
 $('zoomOut').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom/1.25);};
 $('zoomFit').onclick=fitZoom;
+$('panReset').onclick=()=>{panX=panY=0;applyPan();stage.scrollLeft=0;stage.scrollTop=0;notify('캔버스 이동을 초기화했습니다. 휠 버튼으로 자유롭게 이동할 수 있습니다.');};
 stage.addEventListener('wheel',e=>{
   if(!documentModel)return;
   e.preventDefault();
@@ -353,8 +381,8 @@ stage.addEventListener('pointerdown',beginMiddlePan,true);
 window.addEventListener('pointermove',e=>{
   if(!middlePan||e.pointerId!==middlePan.pointerId)return;
   e.preventDefault();
-  panX=middlePan.panX+e.clientX-middlePan.startX;
-  panY=middlePan.panY+e.clientY-middlePan.startY;
+  panX=middlePan.panX+(e.clientX-middlePan.startX)*1.35;
+  panY=middlePan.panY+(e.clientY-middlePan.startY)*1.35;
   applyPan();
 },true);
 function endMiddlePan(e){

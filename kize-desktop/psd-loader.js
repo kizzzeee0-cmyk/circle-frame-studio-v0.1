@@ -96,6 +96,63 @@ export function importPsdPixels(buffer, options={}) {
   const bytesPerChannel=header.bits<=8?1:header.bits===16?2:4;
   const decodedByteBudget=ab.byteLength>=350*1024*1024?320*1024*1024:640*1024*1024;
   let decodedBytes=0,decodedPixels=0, skippedCount=0;
+  const groupMaskCache=new Map();
+  const factory=options.createCanvas||(typeof OffscreenCanvas==='function'
+    ?(width,height)=>new OffscreenCanvas(width,height):null);
+  const decodeNodeMasks=(node,nodeName)=>{
+    const maskSpecs=[];
+    let failed=false,vectorUnsupported=false,featherUnsupported=false;
+    const decodeOne=(mask,decoder,label)=>{
+      if(!mask||mask.disabled)return;
+      try{
+        const mw=Math.max(0,Math.round((mask.right??0)-(mask.left??0)));
+        const mh=Math.max(0,Math.round((mask.bottom??0)-(mask.top??0)));
+        const pixels=mw*mh;
+        if(!mw||!mh||pixels>16_000_000||decodedBytes+pixels*5>decodedByteBudget)
+          throw Error('마스크 크기·메모리 제한');
+        const spec=normalizeMaskData(decoder(node),mask,node);
+        if(!spec)throw Error('PSD 마스크 채널 데이터 없음');
+        maskSpecs.push(spec);decodedBytes+=pixels*5;
+        if(spec.feather>0)featherUnsupported=true;
+      }catch(error){
+        failed=true;
+        warnings.push(nodeName+' ('+label+' 읽기 실패: '+(error?.message||error)+
+          ' — 마스크 안전 편집 제한)');
+      }
+    };
+    decodeOne(node.mask,getLayerMaskImageData,'픽셀 마스크');
+    decodeOne(node.realMask,getLayerRealMaskImageData,'보조 마스크');
+    const vector=node.vectorMask;
+    // The PSD user-mask channel can already contain rasterized vector data.
+    // Do not apply a second vector mask on top of that saved raster channel.
+    const coveredByRaster=Boolean(node.mask?.fromVectorData &&maskSpecs.length);
+    if(vector&&!vector.disable&&!vector.disabled&&!coveredByRaster){
+      try{
+        const pixels=header.width*header.height;
+        if(!factory||decodedBytes+pixels*5>decodedByteBudget)
+          throw Error('벡터 마스크 렌더러 또는 메모리 부족');
+        const spec=rasterizeVectorMask(vector,header.width,header.height,factory);
+        maskSpecs.push(spec);decodedBytes+=pixels*5;
+      }catch(error){
+        vectorUnsupported=true;failed=true;
+        warnings.push(nodeName+' (벡터 경로는 정확한 선택 범위로 변환하지 못해 편집 제한: '+
+          (error?.message||error)+')');
+      }
+    }
+    if(featherUnsupported){
+      failed=true;
+      warnings.push(nodeName+' (Photoshop 마스크 Feather를 정확히 재현하지 못해 선택 편집 제한)');
+    }
+    return {maskSpecs,failed,vectorUnsupported,featherUnsupported};
+  };
+  const getGroupMask=(g)=>{
+    if(groupMaskCache.has(g.key))return groupMaskCache.get(g.key);
+    const state=decodeNodeMasks(g.layer,'그룹 '+g.name);
+    const entry={key:g.key,name:g.name,maskSpecs:state.maskSpecs,failed:state.failed,
+      vectorUnsupported:state.vectorUnsupported};
+    groupMaskCache.set(g.key,entry);
+    return entry;
+  };
   const cap=Math.min(sourceLayers.length, PSD_LIMITS.layerCount);
   for(let i=0;i<cap;i++){
     const {layer,name,hidden,compatibility,sourceKey,clippingBaseKey,clippingUnresolved}=sourceLayers[i];
@@ -120,32 +177,11 @@ export function importPsdPixels(buffer, options={}) {
       skippedCount++;failed.push(name+' ('+(e?.message||'디코딩 실패')+')');
       continue;
     }
-    // Only decode masks of layers which were successfully decoded. Mask
-    // channels may be independently positioned and are NOT always the same
-    // dimensions as the raw layer bitmap.
-    const maskSpecs=[];
-    let maskDecodeFailed=false;
-    const decodeMask=(metadata,decoder,label)=>{
-      if(!metadata||metadata.disabled)return;
-      try{
-        const mw=Math.max(0,Math.round((metadata.right??0)-(metadata.left??0)));
-        const mh=Math.max(0,Math.round((metadata.bottom??0)-(metadata.top??0)));
-        const size=mw*mh;
-        // A 24M pixel mask could consume >120 MiB during 8-bit decode.
-        // Fail closed instead of freezing the application or editing behind it.
-        if(!mw||!mh||size>24_000_000||decodedBytes+size*5>decodedByteBudget)
-          throw Error('마스크 메모리 제한 초과 또는 크기 불일치');
-        const spec=normalizeMaskData(decoder(layer),metadata,layer);
-        if(spec){maskSpecs.push(spec);decodedBytes+=size*5;}
-      }catch(e){
-        maskDecodeFailed=true;
-        warnings.push(name+' ('+label+' 분석 불가: '+(e?.message||e)+
-          ' — 이 레이어의 안전한 색상 선택을 제한합니다.)');
-      }
-    };
-    decodeMask(layer.mask,getLayerMaskImageData,'픽셀 마스크');
-    decodeMask(layer.realMask,getLayerRealMaskImageData,'보조 마스크');
-    if(maskSpecs.some(m=>m.feather>0))warnings.push(name+' (PSD 마스크 Feather는 색상 선택의 정확한 재현을 지원하지 않습니다.)');
+    const selfMasks=decodeNodeMasks(layer,name);
+    const ancestorGroupKeys=sourceLayers[i].ancestorGroupKeys||[];
+    const ancestorMasks=sourceLayers[i].ancestorGroups||[];
+    for(const group of ancestorMasks)getGroupMask(group);
+    const groupDecodeFailed=ancestorGroupKeys.some(key=>groupMaskCache.get(key)?.failed);
     decodedPixels+=bitmap.width*bitmap.height;
     decodedBytes+=bitmap.width*bitmap.height*4*bytesPerChannel;
     decoded.push({
@@ -154,9 +190,10 @@ export function importPsdPixels(buffer, options={}) {
       type:layer.text?'text':(layer.placedLayer?'smart-object':'image'),
       psdText:layer.text||null,
       compatibility,sourceKey,clippingBaseKey,clippingUnresolved,
-      maskSpecs,maskDecodeFailed,
-      unsupportedVectorMask:Boolean(layer.vectorMask&&!layer.vectorMask.disabled&&!layer.mask?.fromVectorData),
-      unsupportedGroupMask:Boolean(compatibility.groupMasked),
+      maskSpecs:selfMasks.maskSpecs,maskDecodeFailed:selfMasks.failed,
+      unsupportedVectorMask:selfMasks.vectorUnsupported,
+      unsupportedGroupMask:Boolean(groupDecodeFailed),
+      ancestorGroupKeys,
     });
     if(i%12===0)progress('PSD 레이어 해석 '+(i+1)+'/'+cap);
   }
@@ -191,6 +228,6 @@ export function importPsdPixels(buffer, options={}) {
   });
   // Report covers every decoded layer; missing/skipped ones are counted
   // separately so incomplete documents are never misrepresented as exact.
-  return {header,layers:decoded,composite,layerTotal:sourceLayers.length,
+  return {header,layers:decoded,groupMasks:[...groupMaskCache.values()],composite,layerTotal:sourceLayers.length,
     decodedCount:decoded.length,skippedCount,warnings,compatibilityReport};
 }

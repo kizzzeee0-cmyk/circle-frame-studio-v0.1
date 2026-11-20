@@ -209,15 +209,12 @@ jobs:
           if ((Get-Item $zip).Length -lt 500000) { throw 'Release ZIP is suspiciously small' }
           $sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
           "$sha256  $zip" | Set-Content -Path "$zip.sha256" -Encoding ascii
-          @(
-            "# KIZE DESIGN TOOL v$version",
-            "",
-            "KIZE 전용 Windows 수동 업데이트 설치 파일입니다.",
-            "새 버전이 감지되면 KIZE 앱 상단에서 변경 사항을 확인하고 ZIP을 다운로드할 수 있습니다.",
-            "설치 전에 KIZE 프로젝트를 저장하고 실행 중인 프로그램을 종료해 주세요.",
-            "",
-            "이 배포는 공식 서명 자동 설치가 아닙니다. 사용자가 직접 ZIP을 풀고 EXE를 실행합니다."
-          ) | Set-Content 'kize-release-notes.md' -Encoding UTF8
-          gh release create $tag $setup.FullName $zip "$zip.sha256" --repo $env:GH_REPO --target $env:GITHUB_SHA --title "KIZE DESIGN TOOL v$version" --notes-file 'kize-release-notes.md'
+          $notesFile = 'kize-desktop/RELEASE_NOTES_KR.md'
+          if (-not (Test-Path $notesFile)) { throw 'KIZE release notes are missing' }
+          $notes = Get-Content $notesFile -Raw -Encoding UTF8
+          if (-not $notes.StartsWith("KIZE DESIGN TOOL v$version")) {
+            throw 'Release notes must start with matching KIZE version'
+          }
+          gh release create $tag $setup.FullName $zip "$zip.sha256" --repo $env:GH_REPO --target $env:GITHUB_SHA --title "KIZE DESIGN TOOL v$version" --notes-file $notesFile
           if ($LASTEXITCODE -ne 0) { throw 'GitHub Release publish failed' }
           Write-Host "KIZE release $tag published with EXE, ZIP and SHA-256."

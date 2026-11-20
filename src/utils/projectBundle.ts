@@ -12,7 +12,7 @@ interface BundleAsset {
 interface BundleManifest {
   format: 'circle-frame-studio-bundle'
   version: 1
-  appVersion: '0.34'
+  appVersion: '0.35'
   createdAt: string
   assets: BundleAsset[]
 }
@@ -89,7 +89,7 @@ export async function exportPortableProject(project: FrameProject) {
   const manifest: BundleManifest = {
     format: 'circle-frame-studio-bundle',
     version: 1,
-    appVersion: '0.34',
+    appVersion: '0.35',
     createdAt: new Date().toISOString(),
     assets,
   }
@@ -98,7 +98,7 @@ export async function exportPortableProject(project: FrameProject) {
 
   const zipped = zipSync(files, { level: 0 })
   const blob = new Blob([zipped], { type: 'application/zip' })
-  downloadBlob(blob, 'circle-frame-project-v034.cfszip')
+  downloadBlob(blob, 'circle-frame-project-v035.cfszip')
   return { assetCount: assets.length, size: blob.size }
 }
 

@@ -139,6 +139,7 @@ async function importPsd(file){
     compatibility:pl.compatibility||null,
     maskSpecs:pl.maskSpecs||[],maskDecodeFailed:Boolean(pl.maskDecodeFailed),
     unsupportedVectorMask:Boolean(pl.unsupportedVectorMask),
+    unsupportedGroupMask:Boolean(pl.unsupportedGroupMask),
     clipBaseKey:pl.clippingBaseKey||null,clippingUnresolved:Boolean(pl.clippingUnresolved),
     sourceKey:pl.sourceKey||null,
     psdText:pl.psdText||null,textValue:pl.psdText?.text||'',

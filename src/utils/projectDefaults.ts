@@ -31,7 +31,6 @@ export function defaultBackground(): BackgroundSettings {
     fileName: '',
     mimeType: '',
     opacity: 1,
-    blendMode: 'normal',
     fit: 'cover',
   }
 }
@@ -81,6 +80,7 @@ export function createMediaLayer(
     scale: 1,
     rotation: 0,
     opacity: 1,
+    blendMode: 'normal',
     fit: 'cover',
     maskMode: 'circle',
     maskRadius: 700,

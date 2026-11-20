@@ -29,7 +29,8 @@ function formatSavedAt(value: number) {
 function sourceLabel(record: RecentSaveRecord) {
   if (record.source === 'png') return 'PNG 저장'
   if (record.source === 'animation') return '움직이는 파일 저장'
-  return 'JSON 저장'
+  if (record.source === 'project') return '프로젝트 저장'
+  return 'JSON 백업'
 }
 
 function getLayerCounts(record: RecentSaveRecord) {

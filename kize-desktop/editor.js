@@ -574,33 +574,65 @@ $('addGradientStop').onclick=()=>{
 };
 refreshGradientUi();
 $('applyColor').onclick=()=>{
-  const l=sel();
-  if(!l||!selection||selection.id!==l.id){notify('먼저 왼쪽에서 레이어를 선택하고 원하는 색상 픽셀을 클릭해 주세요.');return;}
-  const mode=$('colorMode').value;
-  let result;
-  try {
-    const base=layerImage(l),px=toImageData(base);
-    result=paintSelection(px.data,px.width,px.height,selection,{
-      mode,color:$('targetColor').value,
-      stops:gradientStops.map(s=>({color:s.color,position:s.position})),
-      angle:Number($('gradientAngle').value),
-      preserveShading:$('preserveShading').checked,
-    });
-    if(!result.count){notify('적용할 색상 픽셀이 없습니다.');return;}
-    checkpoint(l);
-    px.data.set(result.data);
-    l.canvas=pixelCanvas(px);
-    if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
-    selection=null;selectionPreview=null;
-    refreshAll();
-    notify(result.count.toLocaleString()+'개 픽셀에 '+(mode==='gradient'?'그라데이션':'단색')+
-      ' 적용 · 「'+l.name+'」 레이어만 변경했습니다.');
-  } catch(error){notify('색상 변경 실패: '+(error?.message||error));console.error(error);}
+  if(!selectionParts.length){notify('먼저 색상이나 에셋 영역을 클릭해 선택하세요. Shift+클릭으로 여러 영역을 추가할 수 있습니다.');return;}
+  const mode=$('colorMode').value,selectedLayers=layers.filter(l=>selectionParts.some(p=>p.id===l.id));
+  const updates=[];
+  let total=0;
+  try{
+    for(const l of selectedLayers){
+      const parts=selectionParts.filter(p=>p.id===l.id&&p.count>0);
+      if(!parts.length)continue;
+      const image=toImageData(layerImage(l)),n=image.width*image.height;
+      const output=new Uint8ClampedArray(image.data);
+      const covered=new Uint8Array(n);
+      let changed=0;
+      for(const part of parts){
+        if(part.w!==image.width||part.h!==image.height)
+          throw Error('선택 후 레이어 크기가 바뀌었습니다. 다시 선택해 주세요.');
+        const isolated=new Uint8Array(n);
+        for(let i=0;i<n;i++)if(!covered[i]&&part.mask[i]){
+          isolated[i]=part.mask[i];covered[i]=1;
+        }
+        const painted=paintSelection(image.data,image.width,image.height,{...part,mask:isolated},{
+          mode,color:$('targetColor').value,
+          stops:gradientStops.map(x=>({color:x.color,position:x.position})),
+          angle:Number($('gradientAngle').value),
+          preserveShading:$('preserveShading').checked,
+          tintAsset:$('assetTint').checked&&part.mode==='asset',
+          protectWhite:$('protectWhite').checked
+        });
+        for(let i=0;i<n;i++)if(isolated[i]&&image.data[i*4+3]){
+          const index=i*4;
+          output[index]=painted.data[index];
+          output[index+1]=painted.data[index+1];
+          output[index+2]=painted.data[index+2];
+          changed++;
+        }
+      }
+      if(changed)updates.push({layer:l,image:{width:image.width,height:image.height,data:output},count:changed});
+      total+=changed;
+    }
+    if(!updates.length){notify('수정할 픽셀이 없습니다. 선택 범위를 다시 확인해 주세요.');return;}
+    checkpointBatch(updates.map(u=>u.layer));
+    for(const u of updates){
+      const l=u.layer;
+      l.canvas=pixelCanvas(u.image);
+      if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
+    }
+    const layerCount=updates.length;
+    clearSelections();refreshAll();
+    notify(total.toLocaleString()+'px · '+layerCount+'개 레이어 색감 변경 완료 (한 번에 되돌리기 가능)');
+  }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error(e);}
 };
 $('undo').onclick=()=>{
   const last=history.pop();if(!last){notify('되돌릴 작업이 없습니다.');return;}
-  const l=layers.find(x=>x.id===last.id);if(!l)return;
-  Object.assign(l,last);selection=null;selectionPreview=null;refreshAll();notify('마지막 편집을 되돌렸습니다.');
+  const snapshots=last.batch||[last];
+  for(const original of snapshots){
+    const l=layers.find(x=>x.id===original.id);
+    if(l)Object.assign(l,original);
+  }
+  clearSelections();refreshAll();
+  notify(snapshots.length>1?snapshots.length+'개 레이어를 한 번에 되돌렸습니다.':'마지막 편집을 되돌렸습니다.');
 };
 for(const [id,key] of [['propX','x'],['propY','y'],['propW','w'],['propH','h']]){
   $(id).onchange=e=>{const l=sel();if(!l)return;checkpoint(l);const v=Number(e.target.value);if(Number.isFinite(v)){l[key]=key==='w'||key==='h'?clamp(Math.round(v),1,20000):Math.round(v);}refreshAll();syncGuides();};

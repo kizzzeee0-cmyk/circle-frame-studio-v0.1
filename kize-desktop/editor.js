@@ -406,10 +406,12 @@ function layerVisualForReconstruction(l){
   const sourceKey=l.canvas,photoKey=l.photoSource;
   const colorKey=JSON.stringify(l.adjust||{})+'/'+l.offsetX+'/'+l.offsetY+'/'+l.scale;
   const geometryKey=[l.x,l.y,l.w,l.h,l.rotation,l.flipH,l.flipV,
-    base?.visible,base?.x,base?.y,base?.w,base?.h].join(',');
+    base?.visible,base?.x,base?.y,base?.w,base?.h,base?.rotation,
+    base?.flipH,base?.flipV,base?.scale,base?.offsetX,base?.offsetY].join(',');
   const cached=maskedRenderCache.get(l);
   if(cached&&cached.canvas===sourceKey&&cached.photo===photoKey&&cached.colorKey===colorKey&&
-    cached.geometryKey===geometryKey)return cached.preview;
+    cached.geometryKey===geometryKey&&cached.baseCanvas===base?.canvas&&
+    cached.basePhoto===base?.photoSource)return cached.preview;
   const original=layerImage(l);
   if(original.width*original.height>12_000_000){
     // Avoid freezing WebView by allocating multiple >48MB bitmaps for every
@@ -421,7 +423,8 @@ function layerVisualForReconstruction(l){
     const filtered=maskedLayerRgba(source.data,source.width,source.height,l,
       id=>layers.find(v=>v.id===id));
     const preview=pixelCanvas({width:source.width,height:source.height,data:filtered});
-    maskedRenderCache.set(l,{canvas:sourceKey,photo:photoKey,colorKey,geometryKey,preview});
+    maskedRenderCache.set(l,{canvas:sourceKey,photo:photoKey,colorKey,geometryKey,
+      baseCanvas:base?.canvas,basePhoto:base?.photoSource,preview});
     return preview;
   }catch(e){
     // Fail closed: never show raw Photoshop pixels as though unmasked.

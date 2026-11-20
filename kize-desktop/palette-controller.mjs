@@ -198,5 +198,6 @@ export function installPaletteController(api){
   $('palettePreview').onclick=()=>previewOrApply(false);
   $('paletteApply').onclick=()=>previewOrApply(true);
   refresh();
-  return {refresh,dismiss,exportZip,updateMapping};
+  return {refresh,dismiss,exportZip,updateMapping,
+    preview:()=>schedule({preview:true})};
 }

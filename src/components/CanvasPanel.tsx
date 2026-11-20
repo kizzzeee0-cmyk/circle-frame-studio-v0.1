@@ -145,16 +145,21 @@ export default function CanvasPanel({
     }
   }, [project, timeSec, playing, effectiveResolution, useGpu])
 
-  const sample = (event: MouseEvent<HTMLCanvasElement>) => {
-    if (!event.altKey || !onSampleColor) return
+  const sampleAt = (clientX: number, clientY: number) => {
+    if (!onSampleColor) return
     const display = useGpu ? gpuRef.current : ref.current
     const source = useGpu ? renderSurfaceRef.current : ref.current
     if (!display || !source) return
     const rect = display.getBoundingClientRect()
-    const x = Math.floor((event.clientX - rect.left) * (source.width / rect.width))
-    const y = Math.floor((event.clientY - rect.top) * (source.height / rect.height))
+    const x = Math.floor((clientX - rect.left) * (source.width / rect.width))
+    const y = Math.floor((clientY - rect.top) * (source.height / rect.height))
     const data = source.getContext('2d')?.getImageData(x, y, 1, 1).data
     if (data && data[3] > 0) onSampleColor(rgbToHex(data[0], data[1], data[2]))
+  }
+
+  const sample = (event: MouseEvent<HTMLCanvasElement>) => {
+    if (!event.altKey) return
+    sampleAt(event.clientX, event.clientY)
   }
 
   const wheel = (event: WheelEvent<HTMLDivElement>) => {
@@ -178,9 +183,10 @@ export default function CanvasPanel({
     }
   }
 
-  const beginTransform = (event: PointerEvent, mode: 'move' | 'resize' | 'rotate') => {
-    if (!selectedLayers.length || selectedLayers.some(layer => layer.locked)) return
-    const currentBounds = selectionBounds(selectedLayers)
+  const beginTransform = (event: PointerEvent, mode: 'move' | 'resize' | 'rotate', overrideLayers?: MediaLayer[]) => {
+    const transformLayers = overrideLayers ?? selectedLayers
+    if (!transformLayers.length || transformLayers.some(layer => layer.locked)) return
+    const currentBounds = selectionBounds(transformLayers)
     if (!currentBounds) return
     event.preventDefault()
     event.stopPropagation()
@@ -196,7 +202,7 @@ export default function CanvasPanel({
       centerY: currentBounds.y,
       startDistance: Math.max(8, Math.hypot(dx, dy)),
       startAngle: Math.atan2(dy, dx),
-      layers: selectedLayers.map(layer => ({ ...layer })),
+      layers: transformLayers.map(layer => ({ ...layer })),
     }
     ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
   }
@@ -385,6 +391,41 @@ export default function CanvasPanel({
 
           {settings.showGuides && guide.x !== null && <div className="smart-guide vertical" style={{ left: (50 + guide.x * fitScale / project.width * 100) + '%' }} />}
           {settings.showGuides && guide.y !== null && <div className="smart-guide horizontal" style={{ top: (50 + guide.y * fitScale / project.height * 100) + '%' }} />}
+
+          {(project.mediaLayers ?? []).slice().reverse().filter(layer =>
+            layer.visible && timeSec >= layer.startTime && timeSec <= layer.endTime
+          ).map(layer => {
+            const widthPct = layer.width * layer.scale * fitScale / project.width * 100
+            const heightPct = layer.height * layer.scale * fitScale / project.height * 100
+            const groupLayers = layer.groupId
+              ? (project.mediaLayers ?? []).filter(item => item.groupId === layer.groupId && item.visible)
+              : [layer]
+            return <button
+              key={'hit-' + layer.id}
+              type="button"
+              className={'canvas-layer-hitbox ' + (selectedMediaIds.includes(layer.id) ? 'selected' : '')}
+              style={{
+                left: (50 + layer.x * fitScale / project.width * 100 - widthPct / 2) + '%',
+                top: (50 + layer.y * fitScale / project.height * 100 - heightPct / 2) + '%',
+                width: widthPct + '%',
+                height: heightPct + '%',
+                transform: 'rotate(' + layer.rotation + 'deg)',
+              }}
+              title={layer.name}
+              onPointerDown={event => {
+                if (event.altKey) {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  sampleAt(event.clientX, event.clientY)
+                  return
+                }
+                const additive = event.ctrlKey || event.metaKey || event.shiftKey
+                const alreadySelected = selectedMediaIds.includes(layer.id)
+                onSelectMedia?.(layer.id, additive)
+                if (!additive) beginTransform(event, 'move', alreadySelected ? selectedLayers : groupLayers)
+              }}
+            />
+          })}
 
           {overlayStyle && (
             <div className={'transform-box ' + (selectedLayers.length > 1 ? 'multi' : 'single')} style={overlayStyle} onPointerDown={event => beginTransform(event, 'move')}>

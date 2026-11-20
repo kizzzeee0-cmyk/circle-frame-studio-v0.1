@@ -93,6 +93,33 @@ export default function PropertyPanel({
     colors[index] = value
     nestedGlitter({ colors })
   }
+  const setGlitterMainColor = (value: string) => {
+    const colors = [...design.glitter.colors] as [string, string, string, string]
+    colors[0] = value
+    onChange({ ...design, color: value, glitter: { ...design.glitter, colors } })
+  }
+  const setGlitterSecondaryColor = (value: string) => {
+    const colors = [...design.glitter.colors] as [string, string, string, string]
+    colors[1] = value
+    onChange({ ...design, secondaryColor: value, glitter: { ...design.glitter, colors } })
+  }
+  const setGlitterAnimationMode = (mode: FrameDesign['glitter']['animationMode']) => {
+    const rotates = mode === 'rotate' || mode === 'rotate-twinkle'
+    onChange({
+      ...design,
+      glitter: {
+        ...design.glitter,
+        animationMode: mode,
+        animated: mode !== 'none',
+        flowEnabled: mode === 'sweep',
+      },
+      rotationAnimation: {
+        ...design.rotationAnimation,
+        enabled: rotates,
+        easing: 'linear',
+      },
+    })
+  }
   const setTripleColor = (index: 0 | 1 | 2, value: string) => {
     const colors = [...design.tripleRing.colors] as [string, string, string]
     colors[index] = value
@@ -287,63 +314,105 @@ export default function PropertyPanel({
 
       {design.kind === 'glitter' && (
         <section className="property-section glitter-ring-section">
-          <h3>글리터 · 반짝이 세부 설정</h3>
-          <div className="color-count-buttons four-up">
-            {[1,2,3,4].map(n => <button key={n} type="button" className={design.glitter.colorCount === n ? 'active' : ''} onClick={() => nestedGlitter({ colorCount: n as 1|2|3|4 })}>{n}색</button>)}
-          </div>
-          <ColorField label="글리터 색상 1" value={design.glitter.colors[0]} onChange={v => setGlitterColor(0, v)} eyedrop />
-          {design.glitter.colorCount >= 2 && <ColorField label="글리터 색상 2" value={design.glitter.colors[1]} onChange={v => setGlitterColor(1, v)} />}
-          {design.glitter.colorCount >= 3 && <ColorField label="글리터 색상 3" value={design.glitter.colors[2]} onChange={v => setGlitterColor(2, v)} />}
-          {design.glitter.colorCount >= 4 && <ColorField label="글리터 색상 4" value={design.glitter.colors[3]} onChange={v => setGlitterColor(3, v)} />}
+          <h3>글리터 · 표면 설정</h3>
 
-          <div className="pattern-sequence-preview" title="글리터 팔레트">
-            {Array.from({length: 16}, (_, i) => <i key={i} style={{background: design.glitter.colors[i % design.glitter.colorCount]}} />)}
-          </div>
-
-          <label className="control"><span><b>입자 스타일</b></span>
-            <select value={design.glitter.particleStyle} onChange={e => nestedGlitter({ particleStyle: e.target.value as FrameDesign['glitter']['particleStyle'] })}>
-              <option value="soft">Soft · 미세 펄</option>
-              <option value="twinkle">Twinkle · 별빛 강조</option>
-              <option value="sugar">Sugar · 작은 결정</option>
-              <option value="luminous">Luminous · 발광 베이스</option>
+          <label className="control"><span><b>글리터 스타일</b></span>
+            <select value={design.glitter.surfaceStyle} onChange={e => nestedGlitter({ surfaceStyle: e.target.value as FrameDesign['glitter']['surfaceStyle'] })}>
+              <option value="gradient">Gradient Surface · 그라데이션 글리터</option>
+              <option value="fine">Fine Pearl · 미세 펄</option>
+              <option value="twinkle">Elegant Twinkle · 은은한 별빛</option>
+              <option value="holographic">Pastel Holographic · 홀로그램</option>
+              <option value="legacy">Legacy Particle · 기존 글리터</option>
             </select>
           </label>
-          <ColorField label="포인트 하이라이트 색상" value={design.glitter.highlightColor} onChange={v => nestedGlitter({ highlightColor: v })} />
-          <ColorField label="글로우 색상" value={design.glitter.glowColor} onChange={v => nestedGlitter({ glowColor: v })} />
-          <label className="toggle"><input type="checkbox" checked={design.glitter.flowEnabled} onChange={e => nestedGlitter({ flowEnabled: e.target.checked })} /><span>둘레를 따라 흐르는 빛</span></label>
-          {design.glitter.flowEnabled && <label className="control"><span><b>빛 흐름 방향</b></span>
-            <select value={design.glitter.flowDirection} onChange={e => nestedGlitter({ flowDirection: Number(e.target.value) as 1|-1 })}>
-              <option value={1}>시계 방향</option><option value={-1}>반시계 방향</option>
+
+          <ColorField label="메인 색상" value={design.glitter.colors[0] || design.color} onChange={setGlitterMainColor} eyedrop />
+          <ColorField label="서브 색상" value={design.glitter.colors[1] || design.secondaryColor} onChange={setGlitterSecondaryColor} />
+          <Slider label="링 두께" value={design.thickness} min={12} max={180} suffix="px" onChange={n => patch({ thickness: n })} />
+          <Slider label="글리터 강도" value={Math.round(design.glitter.textureContrast * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ textureContrast: n / 100 })} />
+
+          <label className="control"><span><b>애니메이션 모드</b><em>{design.glitter.animationMode === 'twinkle' ? '추천' : ''}</em></span>
+            <select value={design.glitter.animationMode} onChange={e => setGlitterAnimationMode(e.target.value as FrameDesign['glitter']['animationMode'])}>
+              <option value="twinkle">반짝임만 · 추천</option>
+              <option value="rotate">링 회전만</option>
+              <option value="rotate-twinkle">회전 + 반짝임</option>
+              <option value="sweep">흐르는 반사광</option>
+              <option value="none">정지</option>
             </select>
-          </label>}
+          </label>
 
-          <Slider label="글리터 밀도" value={design.glitter.density} min={20} max={500} onChange={n => nestedGlitter({ density: Math.round(n) })} />
-          <Slider label="작은 입자 크기" value={design.glitter.particleSize} min={1} max={18} step={.5} suffix="px" onChange={n => nestedGlitter({ particleSize: n })} />
-          <Slider label="큰 반짝이 크기" value={design.glitter.sparkleSize} min={3} max={36} step={.5} suffix="px" onChange={n => nestedGlitter({ sparkleSize: n })} />
-          <Slider label="별 반짝이 비율" value={Math.round(design.glitter.sparkleRatio * 100)} min={0} max={60} suffix="%" onChange={n => nestedGlitter({ sparkleRatio: n / 100 })} />
-          <Slider label="링 주변 퍼짐" value={design.glitter.spread} min={2} max={100} suffix="px" onChange={n => nestedGlitter({ spread: n })} />
-          <Slider label="입자 빛 번짐" value={design.glitter.glow} min={0} max={30} suffix="px" onChange={n => nestedGlitter({ glow: n })} />
-          <Slider label="기본 링 불투명도" value={Math.round(design.glitter.baseOpacity * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ baseOpacity: n / 100 })} />
-          <Slider label="안쪽·바깥쪽 빛선" value={Math.round(design.glitter.edgeHighlight * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ edgeHighlight: n / 100 })} />
+          {(design.glitter.animationMode === 'rotate' || design.glitter.animationMode === 'rotate-twinkle') && (
+            <Slider label="1회전 시간" value={design.rotationAnimation.secondsPerTurn} min={1} max={20} step={.1} suffix="s" onChange={n => nestedRotation({ secondsPerTurn: n, enabled: true, easing: 'linear' })} />
+          )}
+          {design.glitter.animationMode !== 'none' && design.glitter.animationMode !== 'rotate' && (
+            <Slider label={design.glitter.animationMode === 'sweep' ? '반사광 속도' : '반짝임 속도'} value={design.glitter.animationSpeed} min={.1} max={2} step={.05} suffix="x" onChange={n => nestedGlitter({ animationSpeed: n })} />
+          )}
 
-          <label className="toggle"><input type="checkbox" checked={design.glitter.animated} onChange={e => nestedGlitter({ animated: e.target.checked })} /><span>실시간 반짝임 애니메이션</span></label>
-          {design.glitter.animated && <>
-            <label className="control"><span><b>반짝임 움직임</b></span>
-              <select value={design.glitter.animationStyle} onChange={e => nestedGlitter({ animationStyle: e.target.value as FrameDesign['glitter']['animationStyle'] })}>
-                <option value="twinkle">개별 반짝임 · Twinkle</option>
-                <option value="flash">별빛 점멸 · Flash</option>
-                <option value="shimmer">빛띠 이동 · Shimmer</option>
-                <option value="orbit">두 빛점 회전 · Orbit</option>
-                <option value="mixed">혼합형 · Mixed</option>
-              </select>
-            </label>
-            <Slider label="반짝임 속도" value={design.glitter.animationSpeed} min={.1} max={3} step={.05} suffix="x" onChange={n => nestedGlitter({ animationSpeed: n })} />
-            <Slider label="반짝임 강도" value={Math.round(design.glitter.animationStrength * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ animationStrength: n / 100 })} />
-            <Slider label="움직임 부드러움" value={Math.round(design.glitter.animationSmoothness * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ animationSmoothness: n / 100 })} />
-            <Slider label="이동 빛 폭" value={Math.round(design.glitter.sweepWidth * 100)} min={3} max={45} suffix="%" onChange={n => nestedGlitter({ sweepWidth: n / 100 })} />
-          </>}
+          {design.glitter.surfaceStyle !== 'legacy' && (
+            <div className="glitter-engine-note">
+              <b>Surface Glitter</b>
+              <span>링 표면의 미세 질감은 고정된 상태로 유지하고, 일부 빛의 밝기만 부드럽게 변화합니다.</span>
+            </div>
+          )}
 
-          <p className="hint">미세한 점과 4갈래 별빛은 완전히 꺼졌다 갑자기 켜지는 대신 잔광을 남기며 부드럽게 밝아지고 어두워집니다. 움직임 부드러움을 높이면 속도·크기 변화가 완만해지고 Shimmer/Orbit에는 부드러운 빛 꼬리가 생깁니다.</p>
+          <details className="glitter-advanced">
+            <summary>고급 글리터 설정</summary>
+            <div className="glitter-advanced-body">
+              <div className="color-count-buttons four-up">
+                {[1,2,3,4].map(n => <button key={n} type="button" className={design.glitter.colorCount === n ? 'active' : ''} onClick={() => nestedGlitter({ colorCount: n as 1|2|3|4 })}>{n}색</button>)}
+              </div>
+              <ColorField label="글리터 색상 1" value={design.glitter.colors[0]} onChange={v => setGlitterColor(0, v)} eyedrop />
+              {design.glitter.colorCount >= 2 && <ColorField label="글리터 색상 2" value={design.glitter.colors[1]} onChange={v => setGlitterColor(1, v)} />}
+              {design.glitter.colorCount >= 3 && <ColorField label="글리터 색상 3" value={design.glitter.colors[2]} onChange={v => setGlitterColor(2, v)} />}
+              {design.glitter.colorCount >= 4 && <ColorField label="글리터 색상 4" value={design.glitter.colors[3]} onChange={v => setGlitterColor(3, v)} />}
+
+              <div className="pattern-sequence-preview" title="글리터 팔레트">
+                {Array.from({length: 16}, (_, i) => <i key={i} style={{background: design.glitter.colors[i % design.glitter.colorCount]}} />)}
+              </div>
+
+              <Slider label="미세 글리터 밀도" value={design.glitter.density} min={80} max={900} onChange={n => nestedGlitter({ density: Math.round(n) })} />
+              <Slider label="기본 입자 크기" value={design.glitter.particleSize} min={.4} max={8} step={.1} suffix="px" onChange={n => nestedGlitter({ particleSize: n })} />
+              <Slider label="입자 크기 다양성" value={Math.round(design.glitter.particleSizeVariation * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ particleSizeVariation: n / 100 })} />
+              <Slider label="강조 반짝임 개수" value={design.glitter.accentSparkleCount} min={0} max={18} onChange={n => nestedGlitter({ accentSparkleCount: Math.round(n) })} />
+              <Slider label="강조 반짝임 크기" value={design.glitter.sparkleSize} min={3} max={28} step={.5} suffix="px" onChange={n => nestedGlitter({ sparkleSize: n })} />
+              <Slider label="반짝임 유지 폭" value={Math.round(design.glitter.accentSparkleDuration * 100)} min={5} max={60} suffix="%" onChange={n => nestedGlitter({ accentSparkleDuration: n / 100 })} />
+              <Slider label="표면 하이라이트" value={Math.round(design.glitter.surfaceHighlight * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ surfaceHighlight: n / 100 })} />
+              <Slider label="안쪽·바깥쪽 림" value={Math.round(design.glitter.rimStrength * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ rimStrength: n / 100 })} />
+              <Slider label="빛 번짐" value={design.glitter.glow} min={0} max={20} suffix="px" onChange={n => nestedGlitter({ glow: n })} />
+              <Slider label="반짝임 강도" value={Math.round(design.glitter.animationStrength * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ animationStrength: n / 100 })} />
+
+              {design.glitter.animationMode === 'sweep' && <>
+                <Slider label="반사광 길이" value={Math.round(design.glitter.sweepWidth * 100)} min={3} max={30} suffix="%" onChange={n => nestedGlitter({ sweepWidth: n / 100 })} />
+                <label className="control"><span><b>반사광 방향</b></span>
+                  <select value={design.glitter.flowDirection} onChange={e => nestedGlitter({ flowDirection: Number(e.target.value) as 1|-1 })}>
+                    <option value={1}>시계 방향</option><option value={-1}>반시계 방향</option>
+                  </select>
+                </label>
+              </>}
+
+              {design.glitter.surfaceStyle === 'legacy' && <>
+                <label className="control"><span><b>기존 입자 스타일</b></span>
+                  <select value={design.glitter.particleStyle} onChange={e => nestedGlitter({ particleStyle: e.target.value as FrameDesign['glitter']['particleStyle'] })}>
+                    <option value="soft">Soft · 미세 펄</option>
+                    <option value="twinkle">Twinkle · 별빛 강조</option>
+                    <option value="sugar">Sugar · 작은 결정</option>
+                    <option value="luminous">Luminous · 발광 베이스</option>
+                  </select>
+                </label>
+                <Slider label="기존 별 반짝이 비율" value={Math.round(design.glitter.sparkleRatio * 100)} min={0} max={60} suffix="%" onChange={n => nestedGlitter({ sparkleRatio: n / 100 })} />
+                <Slider label="기존 링 주변 퍼짐" value={design.glitter.spread} min={2} max={100} suffix="px" onChange={n => nestedGlitter({ spread: n })} />
+              </>}
+
+              <ColorField label="포인트 하이라이트" value={design.glitter.highlightColor} onChange={v => nestedGlitter({ highlightColor: v })} />
+              <ColorField label="글로우 색상" value={design.glitter.glowColor} onChange={v => nestedGlitter({ glowColor: v })} />
+
+              <label className="control"><span><b>글리터 랜덤 시드</b></span>
+                <input type="number" min={0} max={999999} step={1} value={design.pattern.seed} onChange={e => nestedPattern({ seed: Math.max(0, Math.round(Number(e.target.value) || 0)) })} />
+              </label>
+            </div>
+          </details>
+
+          <p className="hint">새 Surface Glitter는 미세 입자를 링 영역 안에 고정해 두고 밝기만 시간에 따라 변화시킵니다. 회전 모드는 완성된 링 전체를 한 번에 회전하므로 개별 반짝이가 뒤섞이지 않습니다.</p>
         </section>
       )}
 

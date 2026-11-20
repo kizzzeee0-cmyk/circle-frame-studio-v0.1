@@ -112,7 +112,7 @@ export default function MediaPanel(props: Props) {
             <button type="button" className="danger-mini" onClick={props.onDeleteSelected}>삭제</button>
           </div>
           {props.selectedMediaIds.length > 1 && !activeGroup && <button type="button" onClick={props.onGroupSelected}>그룹 만들기</button>}
-          {selectedGroups.size > 0 && <button type="button" onClick={props.onUngroupSelected}>그룹 해제</button>
+          {selectedGroups.size > 0 && <button type="button" onClick={props.onUngroupSelected}>그룹 해제</button>}
           {activeGroup ? (
             <div className="active-group-controls">
               <input value={activeGroup.name} onChange={event => props.onRenameGroup(activeGroup.id, event.target.value)} aria-label="그룹 이름" />

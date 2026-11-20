@@ -1764,3 +1764,73 @@ body { background: #F3F0F2; }
 .media-layer-card { padding: 5px 6px !important; border-radius: 8px !important; }
 .media-layer-mini-actions { gap: 2px !important; }
 .media-layer-mini-actions button { width: 23px !important; height: 23px !important; font-size: 8px !important; }
+
+/* v0.34 — settings search, compact toolbar, timeline space recovery */
+.section-search-row {
+  order: -90;
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  gap: 4px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #F0EDF4;
+  background: rgba(252,251,253,.96);
+}
+.section-search-row input {
+  min-width: 0;
+  border: 1px solid #E3DFE8;
+  border-radius: 8px;
+  background: #FFF;
+  padding: 6px 8px;
+  font-size: 9px;
+  outline: none;
+}
+.section-search-row input:focus { border-color: #BDB3E5; box-shadow: 0 0 0 2px rgba(129,117,212,.08); }
+.section-search-row button {
+  border: 1px solid #E3DFE8;
+  border-radius: 8px;
+  background: #FFF;
+  padding: 5px 7px;
+  color: #776F81;
+  font-size: 7.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.section-filtered-out { display: none !important; }
+
+.toolbar-icon-button {
+  width: 32px;
+  min-width: 32px;
+  padding: 7px 0 !important;
+  font-size: 16px !important;
+}
+.toolbar-save-main { font-weight: 750; }
+.toolbar-project-menu > div { min-width: 170px; }
+.toolbar-menu-divider { height: 1px; background: #EEEAF2; margin: 2px 3px; }
+.compact-help-menu summary {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  font-weight: 800;
+}
+.toolbar { gap: 4px; }
+.toolbar button, .toolbar-more summary { padding: 7px 8px; font-size: 10px; }
+.autofit { font-size: 9px; padding: 0 2px; }
+.top-export-resolution { padding: 6px 5px; font-size: 9px; }
+.autosave-status { min-width: 60px; padding: 5px 7px; font-size: 7.5px; }
+
+.composer-center:has(.timeline-panel.collapsed) {
+  grid-template-rows: minmax(360px, 1fr) 48px;
+}
+.timeline-panel.collapsed .timeline-header { min-height: 46px; padding-top: 6px; padding-bottom: 6px; }
+.timeline-panel.collapsed .timeline-help,
+.timeline-panel.collapsed .timeline-project-controls label,
+.timeline-panel.collapsed .timeline-project-controls select { display: none; }
+
+@media (max-width: 1380px) {
+  .toolbar .autosave-status { display: none; }
+  .toolbar .autofit { display: none; }
+}

@@ -9,6 +9,9 @@ import {compareRgba,publicFidelityReport} from './fidelity-audit.mjs';
 import {layerConstraintAlpha,constrainSelection} from './psd-mask-core.mjs';
 import {maskedLayerRgba} from './masked-preview.mjs';
 import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
+import {protectOccludedPixels,pointIsOccluded,sourcePixelToDocument} from './visible-occlusion.mjs';
+import {parseVariantColors,variantFileName} from './palette-variants.mjs';
+import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
 const canvas=$('renderCanvas'),ctx=canvas.getContext('2d',{alpha:true});
@@ -335,6 +338,22 @@ function sourceToCanvas(l){
   cx.drawImage(source,(output.width-dw)/2+l.offsetX,(output.height-dh)/2+l.offsetY,dw,dh);
   return output;
 }
+const alphaPreviewCache=new WeakMap();
+function sampleLayerAlpha(l,x,y){
+  if(!l?.canvas)return 0;
+  const signature=[l.canvas,l.photoSource,l.scale,l.offsetX,l.offsetY];
+  let cache=alphaPreviewCache.get(l);
+  if(!cache||signature.some((part,i)=>part!==cache.signature[i])){
+    const c=sourceToCanvas(l),rgba=toImageData(c).data;
+    const alpha=new Uint8Array(c.width*c.height);
+    for(let i=0;i<alpha.length;i++)alpha[i]=rgba[i*4+3];
+    cache={signature,alpha,w:c.width,h:c.height};
+    alphaPreviewCache.set(l,cache);
+    // Clipping bases read this stable bitmap alpha, never stale raw pixels.
+    l.alphaPixels=alpha;
+  }
+  return cache.alpha[y*cache.w+x]||0;
+}
 function layerImage(l){
   let image=sourceToCanvas(l);
   if(!Object.values(l.adjust||{}).some(v=>v!==0))return image;
@@ -345,6 +364,8 @@ const maskedRenderCache=new WeakMap();
 function layerVisualForReconstruction(l){
   const clipped=Boolean(l.clipBaseId||l.clipBaseKey);
   const bitmapMask=Boolean(l.maskSpecs?.length||l.groupMaskSpecs?.length);
+  if(l.maskDecodeFailed||l.unsupportedVectorMask||l.unsupportedGroupMask||l.clippingUnresolved)
+    return blankCanvas(l.canvas.width,l.canvas.height);
   if(!clipped&&!bitmapMask)return layerImage(l);
   const base=clipped?layers.find(v=>v.id===l.clipBaseId):null;
   const sourceKey=l.canvas,photoKey=l.photoSource;
@@ -368,9 +389,8 @@ function layerVisualForReconstruction(l){
     maskedRenderCache.set(l,{canvas:sourceKey,photo:photoKey,colorKey,geometryKey,preview});
     return preview;
   }catch(e){
-    // Unsupported mask cases are shown only in this *approximate* preview;
-    // selection and color editing remain fail-closed for these layers.
-    return original;
+    // Fail closed: never show raw Photoshop pixels as though unmasked.
+    return blankCanvas(original.width,original.height);
   }
 }
 function drawOriginalAndPatches(){
@@ -765,10 +785,9 @@ function regionAt(l,px,py,mode){
   const result=mode==='asset'
     ?selectAssetRegion(input,visual.width,visual.height,px,py,options)
     :colorSelection(input,visual.width,visual.height,px,py,options);
-  const mask=constrainSelection(result.mask,visual.width,visual.height,l,
-    id=>layers.find(x=>x.id===id));
-  const bounds=maskBounds(mask.mask,visual.width,visual.height);
-  return {...result,mask:mask.mask,count:mask.count,bounds:bounds.bounds,
+  // Keep the unconstrained selection as the immutable base. PSD mask alpha
+  // is applied ONCE after widening/shrinking, never squared by double masking.
+  return {...result,
     mode,id:l.id,w:visual.width,h:visual.height};
 }
 function reapplyMaskAmount(part){
@@ -778,11 +797,18 @@ function reapplyMaskAmount(part){
   const limited=layer?constrainSelection(adjusted,part.w,part.h,layer,
     id=>layers.find(x=>x.id===id)):null;
   part.mask=limited?.mask||adjusted;
+  if(layer)part.mask=protectOccludedPixels(part.mask,part.w,part.h,
+    layer,layers,sampleLayerAlpha);
   const stats=maskBounds(part.mask,part.w,part.h);
   part.count=stats.count;part.bounds=stats.bounds;
   part.preview=part.bounds?createMaskPreview(part):null;
 }
 function pickLayerColor(l,px,py,additive=false){
+  const point=sourcePixelToDocument(l,px,py,l.canvas.width,l.canvas.height);
+  if(pointIsOccluded(l,point.x,point.y,layers,sampleLayerAlpha)){
+    notify('다른 레이어에 가려진 부분입니다. 위쪽 레이어를 선택하거나 보이는 부분을 클릭해 주세요.');
+    return;
+  }
   const mode=$('selectionMode').value;
   let region;
   try{region=regionAt(l,px,py,mode);}
@@ -794,6 +820,7 @@ function pickLayerColor(l,px,py,additive=false){
   }
   region.baseMask=region.mask;
   reapplyMaskAmount(region);
+  if(!region.count){notify('가려짐 또는 PSD 마스크로 인해 실제 수정 가능한 픽셀이 없습니다.');return;}
   if(!additive)selectionParts=[];
   // Guard against duplicate Shift-click causing unintentionally stacked fill.
   const duplicate=selectionParts.find(p=>p.id===region.id&&p.seed?.x===region.seed?.x&&p.seed?.y===region.seed?.y);
@@ -951,6 +978,7 @@ $('applyColor').onclick=()=>{
           preserveShading:$('preserveShading').checked,
           tintAsset:$('assetTint').checked&&part.mode==='asset',
           protectWhite:$('protectWhite').checked,
+          smartPalette:$('smartPalette').checked,
         };
         const effectivePart={...part,mask:isolated};
         if(appearanceEnabled){

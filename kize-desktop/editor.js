@@ -1009,34 +1009,48 @@ $('selectionMode').onchange=()=>{
 };
 $('selectAllOpaque').onclick=()=>{
   if(!documentModel){notify('먼저 PNG 또는 PSD 파일을 불러와 주세요.');return;}
-  // For PSD, "all" means all editable pixels of the active layer, not the
-  // uneditable composite of every different Photoshop group.
-  const l=sel();
-  if(!l||!l.visible||!l.canvas){notify('전체 선택할 편집 가능한 레이어를 먼저 선택해 주세요.');return;}
+  // Ctrl+A means all visible editable artwork, not the last clicked
+  // Photoshop layer. Transparent pixels never become opaque.
+  const isPsd=Boolean(originalComposite)||['PSD','PSB'].includes(documentModel.kind);
+  const targets=isPsd?layers.filter(l=>l.visible&&l.canvas)
+    :layers.filter(l=>l.visible&&l.canvas);
+  if(!targets.length){notify('전체 선택할 보이는 이미지가 없습니다.');return;}
+  let allocated=0,skipped=0,count=0;
+  const nextParts=[];
   try{
-    const original=toImageData(layerImage(l)),total=original.width*original.height;
-    const mask=new Uint8Array(total);
-    let first=-1;
-    for(let i=0;i<total;i++){
-      if(original.data[i*4+3]>=8){mask[i]=255;if(first<0)first=i;}
+    for(const l of targets){
+      const visual=toImageData(layerImage(l)),total=visual.width*visual.height;
+      allocated+=total;
+      if(allocated>32_000_000)
+        throw Error('전체 레이어 선택이 메모리 안전 한도를 넘습니다. 레이어를 줄이거나 일부를 선택해 주세요.');
+      const mask=new Uint8Array(total);
+      let first=-1;
+      for(let i=0;i<total;i++){
+        // Even a partially antialiased pixel remains editable, but
+        // fully transparent pixels are never selected.
+        if(visual.data[i*4+3]>=8){mask[i]=255;if(first<0)first=i;}
+      }
+      if(first<0)continue;
+      const stats=maskBounds(mask,visual.width,visual.height),p=first*4;
+      const part={...stats,mask,baseMask:mask,mode:'color',seed:null,
+        sample:[visual.data[p],visual.data[p+1],visual.data[p+2]],id:l.id,
+        w:visual.width,h:visual.height};
+      try{reapplyMaskAmount(part);}catch{skipped++;continue;}
+      if(part.count){count+=part.count;nextParts.push(part);}
     }
-    if(first<0){notify('투명 영역 외에 선택 가능한 픽셀이 없습니다.');return;}
-    const result=maskBounds(mask,original.width,original.height);
-    const offset=first*4;
-    const region={...result,mask,baseMask:mask,mode:'color',seed:null,
-      sample:Array.from(original.data.slice(offset,offset+3)),id:l.id,
-      w:original.width,h:original.height};
-    reapplyMaskAmount(region);
-    if(!region.count){notify('PSD 마스크/가려짐 때문에 선택 가능한 픽셀이 없습니다.');return;}
-    selectionParts=[region];lastColorAction='';
+    if(!nextParts.length){
+      notify('PSD 마스크 또는 투명도로 인해 전체 선택할 수 있는 영역이 없습니다.');return;
+    }
+    selectionParts=nextParts;lastColorAction='';
     updateSelectionPreview();refreshProperties();render();
-    const percent=Math.round(100*region.count/total);
-    notify('전체 선택 완료 · '+region.count.toLocaleString()+
-      'px ('+percent+'%) · 투명 영역 제외 · Ctrl+A로 다시 선택 가능');
-    $('workflowStatus').textContent=documentModel.kind==='IMAGE'
-      ?'전체 PNG에서 투명하지 않은 그림만 선택했어요. 파스텔 팔레트 조합은 아래에서 바로 적용할 수도 있습니다.'
-      :'현재 PSD 레이어의 표시된 픽셀 전체를 선택했어요. 다른 레이어는 변경되지 않습니다.';
-  }catch(error){notify('전체 선택 실패: '+(error?.message||error));}
+    notify('그림 전체 선택 완료 · '+count.toLocaleString()+'개 픽셀 · '+
+      nextParts.length+'개 레이어 · 투명 영역 제외'+(skipped?' · 미지원 레이어 '+skipped+'개 제외':''));
+    $('workflowStatus').textContent=
+      '그림 전체가 선택되었어요 ('+nextParts.length+'개 레이어). '+
+      '단색 변경을 원하면 색상을 지정하고, 여러 색 조합은 팔레트 탭에서 바로 적용하세요.';
+  }catch(error){
+    notify('전체 선택 실패: '+(error?.message||error));
+  }
 };
 $('clearSelection').onclick=()=>{clearSelections();refreshProperties();render();notify('선택한 영역을 해제했습니다.');};
 $('maskAdjust').oninput=e=>$('maskAdjustOut').textContent=(Number(e.target.value)>0?'+':'')+e.target.value+'px';

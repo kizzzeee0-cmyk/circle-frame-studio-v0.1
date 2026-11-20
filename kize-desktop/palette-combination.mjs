@@ -29,7 +29,7 @@ export function discoverSourceColors(rgba,w,h,count,{preserveWhiteBlack=true,mas
   const desired=clamp(Math.trunc(count),1,6);
   const pixels=w*h;
   if(mask&&mask.length!==pixels)throw Error('색상 인식 대상 선택 영역 크기가 잘못되었습니다.');
-  const stride=Math.max(1,Math.floor(pixels/MAX_SAMPLE));
+  const stride=mask?1:Math.max(1,Math.floor(pixels/MAX_SAMPLE));
   const bins=new Map();
   for(let i=0;i<pixels;i+=stride){
     if(mask&&!mask[i])continue;

@@ -35,15 +35,16 @@ export function inspectPsdHeader(buffer) {
     throw Error('현재 색상 모드는 지원하지 않습니다 (모드 ' + colorMode + '). Photoshop에서 RGB로 변환해 저장해 주세요.');
   return { version, width, height, bits, colorMode };
 }
-function enumerate(children, prefix='', ancestorHidden=false, output=[],groups=[]) {
-  for(const layer of children||[]){
+function enumerate(children, prefix='', ancestorHidden=false, output=[],groups=[],parentKey='root') {
+  for(let index=0;index<(children||[]).length;index++){
+    const layer=children[index];
     const name=layer.name||'이름 없는 레이어';
     const fullName=prefix?prefix+' / '+name:name;
     if(Array.isArray(layer.children)){
-      const group={name,blendMode:layer.blendMode||'pass through',
+      const group={name,key:parentKey+'/'+index,blendMode:layer.blendMode||'pass through',
         masked:Boolean(layer.mask||layer.vectorMask),
         effects:Boolean(layer.effects)};
-      enumerate(layer.children,fullName,ancestorHidden||!!layer.hidden,output,[...groups,group]);
+      enumerate(layer.children,fullName,ancestorHidden||!!layer.hidden,output,[...groups,group],group.key);
     } else {
       output.push({layer,name:fullName,hidden:ancestorHidden||!!layer.hidden,
         compatibility:inspectPhotoshopLayer(layer,groups)});

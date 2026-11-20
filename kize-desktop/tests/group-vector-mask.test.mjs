@@ -42,3 +42,13 @@ test('layer selection constrains own mask, two nested group masks, including cli
   assert.deepEqual([0,1,2,3].map(x=>layerConstraintAlpha(child,x+.5,.5,id=>id===1?base:null)),
     [0,255,255,0]);
 });
+
+test('clipped Photoshop layer does not square the alpha of its shared parent group mask',()=>{
+  const group={x:0,y:0,w:2,h:1,density:1,defaultColor:0,
+    pixels:Uint8Array.from([128,255])};
+  const base={id:91,visible:true,x:0,y:0,w:2,h:1,canvas:{width:2,height:1},
+    alphaPixels:Uint8Array.from([255,255]),groupMaskSpecs:[group]};
+  const child={id:92,x:0,y:0,w:2,h:1,clipBaseId:91,groupMaskSpecs:[group]};
+  assert.equal(layerConstraintAlpha(child,.5,.5,id=>id===91?base:null),128);
+  assert.equal(layerConstraintAlpha(child,1.5,.5,id=>id===91?base:null),255);
+});

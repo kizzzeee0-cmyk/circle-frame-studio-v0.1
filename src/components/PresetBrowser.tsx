@@ -3,7 +3,7 @@ import type { FramePreset, FrameProject } from '../types'
 import { PRESETS } from '../presets'
 import { renderProject } from '../render/renderer'
 import { preloadProjectAssets } from '../utils/assets'
-import { APP_VERSION } from '../updateNotes'
+import { APP_VERSION, UPDATED_PRESET_IDS } from '../updateNotes'
 
 function Thumb({ preset }: { preset: FramePreset }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -43,6 +43,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
 }
 
 interface Props {
+  showUpdateHints: boolean
   onSelect: (preset: FramePreset) => void
   userPresets: FramePreset[]
   onUploadAsset: (file?: File) => void
@@ -131,7 +132,7 @@ function matchesCategory(preset: FramePreset, key: string) {
   }
 }
 
-export default function PresetBrowser({ onSelect, userPresets, onUploadAsset, currentAssetName, currentAssetUrl }: Props) {
+export default function PresetBrowser({ showUpdateHints, onSelect, userPresets, onUploadAsset, currentAssetName, currentAssetUrl }: Props) {
   const [category, setCategory] = useState('all')
   const [query, setQuery] = useState('')
   const [showAllCategories, setShowAllCategories] = useState(false)
@@ -200,6 +201,7 @@ export default function PresetBrowser({ onSelect, userPresets, onUploadAsset, cu
       <div className="preset-grid">
         {list.map(preset => (
           <div className={favoriteSet.has(preset.id) ? 'preset-card favorite' : 'preset-card'} key={preset.id} role="button" tabIndex={0} onClick={() => onSelect(preset)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onSelect(preset) }} title="현재 프레임으로 사용">
+            {showUpdateHints && UPDATED_PRESET_IDS.includes(preset.id as typeof UPDATED_PRESET_IDS[number]) && <span className="preset-update-badge">NEW</span>}
             <span className="preset-favorite" role="button" tabIndex={0} title={favoriteSet.has(preset.id) ? '즐겨찾기 해제' : '즐겨찾기'} onClick={event => { event.stopPropagation(); toggleFavorite(preset.id) }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); toggleFavorite(preset.id) } }}>{favoriteSet.has(preset.id) ? '★' : '☆'}</span>
             <Thumb preset={preset} />
             <span className="preset-name">{preset.name}</span>

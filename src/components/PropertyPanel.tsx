@@ -5,6 +5,7 @@ import { PALETTES } from '../presets/palettes'
 import { uid } from '../utils/id'
 
 interface Props {
+  showUpdateHints: boolean
   design: FrameDesign
   timelineDuration: number
   onTimelineDurationChange: (duration: number) => void
@@ -62,6 +63,7 @@ function ColorField({ label, value, onChange, eyedrop = false }: { label: string
 }
 
 export default function PropertyPanel({
+  showUpdateHints,
   design,
   timelineDuration,
   onTimelineDurationChange,
@@ -363,9 +365,9 @@ export default function PropertyPanel({
 
       {design.kind === 'glitter' && (
         <section className="property-section glitter-ring-section">
-          <h3>글리터 · 표면 설정</h3>
+          <h3>글리터 · 표면 설정 {showUpdateHints && <span className="update-inline-badge">NEW</span>}</h3>
 
-          <label className="control"><span><b>글리터 스타일</b></span>
+          <label className="control"><span><b>글리터 스타일</b>{showUpdateHints && <em className="update-control-badge">NEW · Orbit / Reflection</em>}</span>
             <select value={design.glitter.surfaceStyle} onChange={e => setGlitterSurfaceStyle(e.target.value as FrameDesign['glitter']['surfaceStyle'])}>
               <option value="fine">글리터 질감형 링 · Fine Pearl</option>
               <option value="orbit">글리터 궤도형 · 링 없이 흐름</option>
@@ -405,6 +407,7 @@ export default function PropertyPanel({
           {design.glitter.twinkleEnabled && (
             <Slider label="반짝임 빈도" value={design.glitter.animationSpeed} min={.2} max={2} step={.05} suffix="x" onChange={n => nestedGlitter({ animationSpeed: n })} />
           )}
+          {showUpdateHints && <div className="update-location-note"><span>UPDATED</span><small>링 회전 · 궤도 · 트윙클 · 하이라이트를 각각 따로 조절할 수 있어요</small></div>}
           <div className="glitter-motion-switches">
             <label className="toggle"><input type="checkbox" checked={design.rotationAnimation.enabled} onChange={e => nestedRotation({ enabled: e.target.checked, easing: 'linear' })} /><span>링 자체 회전</span></label>
             <label className="toggle"><input type="checkbox" checked={design.glitter.orbitEnabled} onChange={e => nestedGlitter({ orbitEnabled: e.target.checked, animated: true })} /><span>글리터 궤도 이동</span></label>

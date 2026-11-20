@@ -161,3 +161,21 @@
 .target-color-row input[type=color]{width:46px!important;height:38px!important;flex:none;margin:0!important;cursor:pointer}
 .target-color-row input[type=text]{flex:1;min-width:0!important;width:auto!important;box-sizing:border-box;border:1px solid #e8e2ec;border-radius:7px;padding:9px;font-size:12px;font-variant-numeric:tabular-nums}
 #colorFinishHint{color:#8b8297;margin:7px 0 13px;line-height:1.55}
+
+/* v0.13 — distinct "apply palette" flow vs "save result ZIP". */
+.palette-combo-panel{border:1px solid #e4deeb;background:#faf9fc;border-radius:9px;padding:10px;margin:11px 0 12px}
+.palette-combo-panel[hidden]{display:none!important}
+.palette-combo-panel>label:not(.check){display:block;font-size:10px;margin:10px 0}
+.palette-combo-panel>label:not(.check)>select{display:block;margin-top:5px;width:100%;min-width:0;box-sizing:border-box}
+.palette-combo-panel>.check{display:flex;align-items:flex-start;gap:6px;margin:9px 0;font-size:10px;line-height:1.4;color:#7e7489}
+.palette-apply-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:7px;margin:10px 0}
+.palette-apply-row button{min-width:0;line-height:1.45;white-space:normal}
+.palette-map{display:flex;flex-direction:column;gap:5px;margin:12px 0;border:1px solid #ebe7ef;border-radius:8px;background:#fff;padding:9px}
+.palette-map-caption{font-size:10px;color:#8b7e97;line-height:1.5}
+.palette-map-item{display:flex;align-items:center;gap:9px;font-size:10px;color:#766b80;padding:4px 2px}
+.palette-map-source,.palette-map-target{width:27px;height:23px;border:1px solid #d9d5df;border-radius:5px;display:inline-block;flex-shrink:0}
+.palette-map-arrow{font-size:12px;color:#a399ad}
+.palette-map-item code{font-size:10px;background:none;padding:0;font-variant-numeric:tabular-nums}
+#paletteScopeHint{font-size:10px;line-height:1.5;margin:8px 0 0;color:#97899f}
+#selectAllOpaque{flex:1}
+#paletteApply{border-radius:8px}

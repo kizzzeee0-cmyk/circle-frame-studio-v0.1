@@ -2,8 +2,10 @@ import type { FrameProject } from '../types'
 import { renderProject } from '../render/renderer'
 import { preloadProjectAssets } from './assets'
 import { preloadProjectMedia, seekProjectMedia } from './media'
+import { createProjectAudioMix } from './audio'
+import { encodePngMov } from './mov'
 
-export type AnimatedExportFormat = 'gif' | 'webp' | 'apng' | 'webm' | 'mp4'
+export type AnimatedExportFormat = 'gif' | 'webp' | 'apng' | 'webm' | 'mp4' | 'mov'
 export type AnimatedLoopCount = 0 | 1 | 2
 
 export interface AnimatedExportOptions {
@@ -14,6 +16,7 @@ export interface AnimatedExportOptions {
   loopCount: AnimatedLoopCount
   webpQuality: number
   videoBitrateMbps?: number
+  includeAudio?: boolean
 }
 
 export interface AnimatedExportProgress {
@@ -66,7 +69,7 @@ export function isVideoFormatSupported(format: 'webm' | 'mp4') {
 
 function assertMemoryBudget(options: AnimatedExportOptions) {
   const rawBytes = estimateAnimatedRawMemory(options)
-  if (!['gif','webm','mp4'].includes(options.format) && rawBytes > 320 * 1024 * 1024) {
+  if (!['gif','webm','mp4','mov'].includes(options.format) && rawBytes > 320 * 1024 * 1024) {
     throw new Error('이 설정은 브라우저 메모리를 너무 많이 사용합니다. 2000px에서는 FPS 또는 길이를 낮추거나 GIF/영상 출력을 선택해 주세요.')
   }
 }

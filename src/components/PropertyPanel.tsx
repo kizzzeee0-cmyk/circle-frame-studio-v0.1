@@ -76,6 +76,8 @@ export default function PropertyPanel({
   const nestedTwoTone = (partial: Partial<FrameDesign['twoToneFlow']>) => patch({ twoToneFlow: { ...design.twoToneFlow, ...partial } })
   const nestedTriple = (partial: Partial<FrameDesign['tripleRing']>) => patch({ tripleRing: { ...design.tripleRing, ...partial } })
   const nestedGlitter = (partial: Partial<FrameDesign['glitter']>) => patch({ glitter: { ...design.glitter, ...partial } })
+  const nestedJelly = (partial: Partial<FrameDesign['jelly']>) => patch({ jelly: { ...design.jelly, ...partial } })
+  const nestedRotation = (partial: Partial<FrameDesign['rotationAnimation']>) => patch({ rotationAnimation: { ...design.rotationAnimation, ...partial } })
   const setGlitterColor = (index: number, value: string) => {
     const colors = [...design.glitter.colors] as [string, string, string, string]
     colors[index] = value
@@ -175,7 +177,7 @@ export default function PropertyPanel({
             <option value="wavy">Wavy</option><option value="scallop">Scallop</option><option value="scribble">Scribble</option>
             <option value="rough">Rough</option><option value="brush">Brush</option><option value="sparkle">Sparkle</option>
             <option value="star">Star</option><option value="heart">Heart</option><option value="ribbon">Ribbon</option>
-            <option value="flower">Flower</option><option value="asset">내 PNG 반복 프레임</option><option value="glossy">Glossy</option><option value="glitter">Glitter Ring</option>
+            <option value="flower">Flower</option><option value="asset">내 PNG 반복 프레임</option><option value="glossy">Glossy</option><option value="glitter">Glitter Ring</option><option value="jelly">Jelly Balloon Ring</option>
           </select>
         </label>
         <Slider label="원 크기" value={design.radius} min={120} max={930} suffix="px" onChange={n => patch({ radius: n })} />
@@ -185,6 +187,45 @@ export default function PropertyPanel({
         <Slider label="Y 위치" value={design.offsetY} min={-300} max={300} suffix="px" onChange={n => patch({ offsetY: n })} />
         <Slider label="불투명도" value={design.opacity} min={0} max={1} step={.01} onChange={n => patch({ opacity: n })} />
       </section>
+
+      <section className="property-section frame-motion-section">
+        <h3>프레임 회전 애니메이션</h3>
+        <label className="toggle"><input type="checkbox" checked={design.rotationAnimation.enabled} onChange={e => nestedRotation({ enabled: e.target.checked })} /><span>제자리 회전 ON/OFF</span></label>
+        {design.rotationAnimation.enabled && <>
+          <label className="control"><span><b>회전 방향</b></span>
+            <select value={design.rotationAnimation.direction} onChange={e => nestedRotation({ direction: Number(e.target.value) as 1|-1 })}>
+              <option value={1}>시계 방향</option><option value={-1}>반시계 방향</option>
+            </select>
+          </label>
+          <Slider label="1회전 시간" value={design.rotationAnimation.secondsPerTurn} min={.25} max={20} step={.05} suffix="s" onChange={n => nestedRotation({ secondsPerTurn: n })} />
+          <Slider label="시작 각도" value={design.rotationAnimation.startAngle} min={-360} max={360} suffix="°" onChange={n => nestedRotation({ startAngle: n })} />
+          <label className="control"><span><b>회전 감속 방식</b></span>
+            <select value={design.rotationAnimation.easing} onChange={e => nestedRotation({ easing: e.target.value as FrameDesign['rotationAnimation']['easing'] })}>
+              <option value="linear">일정 속도</option><option value="ease-in">가속</option><option value="ease-out">감속</option><option value="ease-in-out">가속 + 감속</option>
+            </select>
+          </label>
+          <Slider label="회전 시작 시간" value={design.rotationAnimation.startTime} min={0} max={60} step={.05} suffix="s" onChange={n => nestedRotation({ startTime: n })} />
+          <Slider label="회전 종료 시간" value={design.rotationAnimation.endTime} min={0} max={60} step={.05} suffix="s" onChange={n => nestedRotation({ endTime: n })} />
+          <p className="hint">회전 중심은 캔버스 정중앙의 현재 프레임 중심을 그대로 사용합니다. 미디어는 별도 레이어이므로 프레임만 회전하고 사진은 고정할 수 있습니다.</p>
+        </>}
+      </section>
+
+      {design.kind === 'jelly' && (
+        <section className="property-section jelly-section">
+          <h3>젤리 · 풍선 링</h3>
+          <ColorField label="메인 색상" value={design.color} onChange={v => patch({ color: v })} eyedrop />
+          <ColorField label="볼륨 보조색" value={design.secondaryColor} onChange={v => patch({ secondaryColor: v })} />
+          <ColorField label="곡선 하이라이트" value={design.jelly.highlightColor} onChange={v => nestedJelly({ highlightColor: v })} />
+          <ColorField label="그림자 색상" value={design.jelly.shadowColor} onChange={v => nestedJelly({ shadowColor: v })} />
+          <Slider label="하이라이트 불투명도" value={Math.round(design.jelly.highlightOpacity * 100)} min={0} max={100} suffix="%" onChange={n => nestedJelly({ highlightOpacity: n / 100 })} />
+          <Slider label="하이라이트 두께" value={Math.round(design.jelly.highlightWidth * 100)} min={3} max={30} suffix="%" onChange={n => nestedJelly({ highlightWidth: n / 100 })} />
+          <Slider label="하이라이트 길이" value={Math.round(design.jelly.highlightLength * 100)} min={5} max={42} suffix="%" onChange={n => nestedJelly({ highlightLength: n / 100 })} />
+          <Slider label="하이라이트 개수" value={design.jelly.highlightCount} min={1} max={8} onChange={n => nestedJelly({ highlightCount: Math.round(n) })} />
+          <Slider label="그림자 강도" value={Math.round(design.jelly.shadowOpacity * 100)} min={0} max={100} suffix="%" onChange={n => nestedJelly({ shadowOpacity: n / 100 })} />
+          <Slider label="볼륨감" value={Math.round(design.jelly.volume * 100)} min={0} max={100} suffix="%" onChange={n => nestedJelly({ volume: n / 100 })} />
+          <p className="hint">참고 이미지처럼 긴 흰색 곡선 하이라이트가 두꺼운 링을 따라 배치됩니다. 색상을 바꿔도 하이라이트와 볼륨 셰이딩은 유지됩니다.</p>
+        </section>
+      )}
 
       {design.kind === 'triple' && (
         <section className="property-section triple-ring-section">
@@ -232,6 +273,23 @@ export default function PropertyPanel({
           <div className="pattern-sequence-preview" title="글리터 팔레트">
             {Array.from({length: 16}, (_, i) => <i key={i} style={{background: design.glitter.colors[i % design.glitter.colorCount]}} />)}
           </div>
+
+          <label className="control"><span><b>입자 스타일</b></span>
+            <select value={design.glitter.particleStyle} onChange={e => nestedGlitter({ particleStyle: e.target.value as FrameDesign['glitter']['particleStyle'] })}>
+              <option value="soft">Soft · 미세 펄</option>
+              <option value="twinkle">Twinkle · 별빛 강조</option>
+              <option value="sugar">Sugar · 작은 결정</option>
+              <option value="luminous">Luminous · 발광 베이스</option>
+            </select>
+          </label>
+          <ColorField label="포인트 하이라이트 색상" value={design.glitter.highlightColor} onChange={v => nestedGlitter({ highlightColor: v })} />
+          <ColorField label="글로우 색상" value={design.glitter.glowColor} onChange={v => nestedGlitter({ glowColor: v })} />
+          <label className="toggle"><input type="checkbox" checked={design.glitter.flowEnabled} onChange={e => nestedGlitter({ flowEnabled: e.target.checked })} /><span>둘레를 따라 흐르는 빛</span></label>
+          {design.glitter.flowEnabled && <label className="control"><span><b>빛 흐름 방향</b></span>
+            <select value={design.glitter.flowDirection} onChange={e => nestedGlitter({ flowDirection: Number(e.target.value) as 1|-1 })}>
+              <option value={1}>시계 방향</option><option value={-1}>반시계 방향</option>
+            </select>
+          </label>}
 
           <Slider label="글리터 밀도" value={design.glitter.density} min={20} max={500} onChange={n => nestedGlitter({ density: Math.round(n) })} />
           <Slider label="작은 입자 크기" value={design.glitter.particleSize} min={1} max={18} step={.5} suffix="px" onChange={n => nestedGlitter({ particleSize: n })} />

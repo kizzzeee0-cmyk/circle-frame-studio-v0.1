@@ -27,6 +27,17 @@ export function validateManifest(m){
     names.add(layer.bitmap);
     if(layer.photoBitmap&&!safe(layer.photoBitmap))
       throw Error('교체 사진의 파일명이 잘못되었습니다.');
+    if(layer.maskFiles!==undefined){
+      if(!Array.isArray(layer.maskFiles)||layer.maskFiles.length>2)
+        throw Error('PSD 레이어 마스크가 잘못되었습니다.');
+      for(const mask of layer.maskFiles){
+        if(!safe(mask.bitmap)||!Number.isInteger(mask.w)||!Number.isInteger(mask.h)||
+          !Number.isFinite(mask.x)||!Number.isFinite(mask.y)||
+          mask.w<1||mask.h<1||mask.w*mask.h>40_000_000||
+          ![0,255].includes(mask.defaultColor)||!Number.isFinite(mask.density))
+          throw Error('PSD 레이어 마스크의 크기·좌표 또는 투명도가 잘못되었습니다.');
+      }
+    }
   }
   if(m.composite&&!safe(m.composite))throw Error('원본 합성 미리보기 경로가 잘못되었습니다.');
   if(m.appearancePatches!==undefined){
@@ -52,8 +63,12 @@ export function createArchive(manifest,images){
     if(size>CONTENT_LIMIT)throw Error('프로젝트 이미지 총량이 안전 한도를 초과했습니다. 큰 PSD는 원본을 유지하고 PNG를 별도로 출력해 주세요.');
     entries[name]=[bytes,{level:0}];
   }
-  for(const l of manifest.layers)if(!entries[l.bitmap]||(l.photoBitmap&&!entries[l.photoBitmap]))
-    throw Error('프로젝트 이미지가 누락되었습니다: '+l.name);
+  for(const l of manifest.layers){
+    if(!entries[l.bitmap]||(l.photoBitmap&&!entries[l.photoBitmap]))
+      throw Error('프로젝트 이미지가 누락되었습니다: '+l.name);
+    for(const mask of l.maskFiles||[])if(!entries[mask.bitmap])
+      throw Error('PSD 레이어 마스크 파일이 누락되었습니다: '+l.name);
+  }
   if(manifest.composite&&!entries[manifest.composite])throw Error('PSD 원본 미리보기가 누락되었습니다.');
   for(const patch of manifest.appearancePatches||[])if(!entries[patch.bitmap])throw Error('PSD 외관 보존 편집 이미지가 누락되었습니다.');
   return zipSync(entries,{level:0});
@@ -73,7 +88,8 @@ export function readArchive(input){
   }});
   if(!files['manifest.json'])throw Error('KIZE 프로젝트 정보를 찾지 못했습니다.');
   const manifest=validateManifest(JSON.parse(strFromU8(files['manifest.json'])));
-  const names=[...manifest.layers.flatMap(l=>[l.bitmap,...(l.photoBitmap?[l.photoBitmap]:[])]),...(manifest.composite?[manifest.composite]:[]),...(manifest.appearancePatches||[]).map(p=>p.bitmap)];
+  const names=[...manifest.layers.flatMap(l=>[l.bitmap,...(l.photoBitmap?[l.photoBitmap]:[]),
+    ...(l.maskFiles||[]).map(mask=>mask.bitmap)]),...(manifest.composite?[manifest.composite]:[]),...(manifest.appearancePatches||[]).map(p=>p.bitmap)];
   for(const name of names)if(!isPng(files[name]))throw Error('레이어 이미지가 없거나 손상되었습니다: '+name);
   return {manifest,images:files};
 }

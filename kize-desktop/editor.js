@@ -453,16 +453,80 @@ function repickCurrentColor(){
 $('colorTolerance').onchange=repickCurrentColor;
 $('connectedOnly').onchange=repickCurrentColor;
 $('showHidden').onchange=refreshLayers;
+// Multi-stop linear gradient editor. Stops, their percentages and angle are
+// regular user-editable properties; no opaque "AI-picked" placeholder colors.
+function refreshGradientUi(){
+  $('solidControls').hidden=$('colorMode').value!=='solid';
+  $('gradientControls').hidden=$('colorMode').value!=='gradient';
+  const parent=$('gradientStops');parent.replaceChildren();
+  const sorted=gradientStops.slice().sort((a,b)=>a.position-b.position);
+  for(const stop of sorted){
+    const row=document.createElement('div');row.className='gradient-stop';
+    const color=document.createElement('input');color.type='color';color.value=stop.color;
+    color.setAttribute('aria-label','색상점 '+stop.position+'% 색상');
+    color.oninput=e=>{stop.color=e.target.value;updateGradientPreview();};
+    const pos=document.createElement('input');pos.type='number';pos.min=0;pos.max=100;pos.step=1;
+    pos.value=stop.position;pos.setAttribute('aria-label','색상점 위치 퍼센트');
+    pos.onchange=e=>{stop.position=clamp(Number(e.target.value),0,100);refreshGradientUi();};
+    const percent=document.createElement('span');percent.textContent='%';percent.className='gradient-percent';
+    const remove=document.createElement('button');remove.type='button';remove.className='stop-remove';
+    remove.textContent='×';remove.title='색상점 제거';remove.disabled=gradientStops.length<=2;
+    remove.onclick=()=>{gradientStops=gradientStops.filter(x=>x.id!==stop.id);refreshGradientUi();};
+    row.append(color,pos,percent,remove);parent.append(row);
+  }
+  $('addGradientStop').disabled=gradientStops.length>=6;
+  updateGradientPreview();
+}
+function updateGradientPreview(){
+  const sorted=gradientStops.slice().sort((a,b)=>a.position-b.position);
+  const cssAngle=180-Number($('gradientAngle').value);
+  $('gradientPreview').style.background='linear-gradient('+cssAngle+'deg, '+
+    sorted.map(s=>s.color+' '+s.position+'%').join(', ')+')';
+  $('angleLabel').textContent=$('gradientAngle').value+'°';
+}
+$('colorMode').onchange=refreshGradientUi;
+$('gradientAngle').oninput=updateGradientPreview;
+$('addGradientStop').onclick=()=>{
+  if(gradientStops.length>=6)return;
+  const a=gradientStops.slice().sort((x,y)=>x.position-y.position);
+  let maxGap=-1,left=a[0],right=a[1];
+  for(let i=1;i<a.length;i++){
+    const gap=a[i].position-a[i-1].position;
+    if(gap>maxGap){maxGap=gap;left=a[i-1];right=a[i];}
+  }
+  const position=Math.round((left.position+right.position)/2);
+  gradientStops.push({id:nextStopId++,color:'#FFF3CE',position});
+  refreshGradientUi();
+};
+refreshGradientUi();
 $('applyColor').onclick=()=>{
-  const l=sel();if(!l||!selection||selection.id!==l.id){notify('먼저 수정할 레이어의 색상 영역을 클릭해 선택하세요.');return;}
-  checkpoint(l);const base=layerImage(l),px=toImageData(base),result=recolorPixels(px.data,px.width,px.height,selection.mask,$('targetColor').value);
-  px.data.set(result.data);l.canvas=pixelCanvas(px);if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
-  selection=null;refreshAll();notify(result.count.toLocaleString()+'개 픽셀 변경 완료 · 사진 보정 레이어는 현재 보이는 상태로 픽셀에 고정됩니다.');
+  const l=sel();
+  if(!l||!selection||selection.id!==l.id){notify('먼저 왼쪽에서 레이어를 선택하고 원하는 색상 픽셀을 클릭해 주세요.');return;}
+  const mode=$('colorMode').value;
+  let result;
+  try {
+    const base=layerImage(l),px=toImageData(base);
+    result=paintSelection(px.data,px.width,px.height,selection,{
+      mode,color:$('targetColor').value,
+      stops:gradientStops.map(s=>({color:s.color,position:s.position})),
+      angle:Number($('gradientAngle').value),
+      preserveShading:$('preserveShading').checked,
+    });
+    if(!result.count){notify('적용할 색상 픽셀이 없습니다.');return;}
+    checkpoint(l);
+    px.data.set(result.data);
+    l.canvas=pixelCanvas(px);
+    if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
+    selection=null;selectionPreview=null;
+    refreshAll();
+    notify(result.count.toLocaleString()+'개 픽셀에 '+(mode==='gradient'?'그라데이션':'단색')+
+      ' 적용 · 「'+l.name+'」 레이어만 변경했습니다.');
+  } catch(error){notify('색상 변경 실패: '+(error?.message||error));console.error(error);}
 };
 $('undo').onclick=()=>{
   const last=history.pop();if(!last){notify('되돌릴 작업이 없습니다.');return;}
   const l=layers.find(x=>x.id===last.id);if(!l)return;
-  Object.assign(l,last);selection=null;refreshAll();notify('마지막 편집을 되돌렸습니다.');
+  Object.assign(l,last);selection=null;selectionPreview=null;refreshAll();notify('마지막 편집을 되돌렸습니다.');
 };
 for(const [id,key] of [['propX','x'],['propY','y'],['propW','w'],['propH','h']]){
   $(id).onchange=e=>{const l=sel();if(!l)return;checkpoint(l);const v=Number(e.target.value);if(Number.isFinite(v)){l[key]=key==='w'||key==='h'?clamp(Math.round(v),1,20000):Math.round(v);}refreshAll();syncGuides();};

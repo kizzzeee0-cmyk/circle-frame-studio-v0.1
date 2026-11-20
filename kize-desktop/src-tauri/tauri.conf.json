@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "KIZE DESIGN TOOL",
+  "version": "0.3.0",
+  "identifier": "tool.kize.design",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "KIZE DESIGN TOOL",
+        "width": 1520,
+        "height": 920,
+        "minWidth": 1060,
+        "minHeight": 680,
+        "backgroundColor": "#F7F5FA"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico",
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png"
+    ]
+  }
+}

@@ -13,6 +13,7 @@ import {protectOccludedPixels,pointIsOccluded,sourcePixelToDocument} from './vis
 import {parseVariantColors,variantFileName} from './palette-variants.mjs';
 import {paintPolicy,effectiveColor,defaultImportSelection} from './color-workflow.mjs';
 import {PALETTE_PRESETS} from './palette-presets.mjs';
+import {installPaletteController} from './palette-controller.mjs';
 import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
@@ -25,6 +26,8 @@ let unsavedChanges=false;
 // reconstruction of masks, layer styles, groups and text is never assumed exact.
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 let temporaryPreview=null,lastColorAction='';
+let palettePreviewActive=false;
+let paletteController=null;
 // Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
 // still use the explicitly marked reconstructed view.
 let appearancePatches=[],appearanceSafe=true;
@@ -73,7 +76,8 @@ function checkpointBatch(list){
   redoHistory=[];markEdited(Boolean(originalComposite&&appearanceSafe));
 }
 function clearSelections(){
-  temporaryPreview=null;
+  temporaryPreview=null;palettePreviewActive=false;
+  if($('palettePreview'))$('palettePreview').textContent='조합 미리보기';
   if($('previewColor'))$('previewColor').textContent='변경 미리보기';
   selectionParts=[];selection=null;selectionPreview=null;
   $('pickedHex').value='—';$('pickedSwatch').style.backgroundColor='';
@@ -229,6 +233,9 @@ async function importPsd(file){
   layers=built;psdGroupMasks=groupMasks;lastImportPsd=true;
   $('selectionMode').value=defaultImportSelection('PSD');
   $('selectedLayerOnly').checked=false;
+  $('variantOutputMode').value='single';
+  $('variantDetails').open=false;
+  paletteController?.refresh();
   // Prefer Photoshop's own merged pixels over a naive layer redraw.
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
@@ -260,7 +267,10 @@ async function importRaster(file){
   const c=blankCanvas(image.width,image.height);c.getContext('2d').drawImage(image,0,0);image.close();
   openDoc(c.width,c.height,file.name,'IMAGE');layers=[newLayer({name:file.name,type:'image',canvas:c,x:0,y:0,w:c.width,h:c.height})];lastImportPsd=false;
   $('selectionMode').value=defaultImportSelection('IMAGE');
-  $('selectedLayerOnly').checked=false;selectedId=layers[0].id;refreshAll();fitZoom();
+  $('selectedLayerOnly').checked=false;
+  $('variantOutputMode').value='combo';
+  $('variantDetails').open=true;
+  selectedId=layers[0].id;refreshAll();fitZoom();paletteController?.refresh();
   notify('이미지를 레이어로 불러왔습니다. 클릭하여 색상 영역을 선택하세요.');
 }
 async function importProject(file){
@@ -965,6 +975,37 @@ $('selectionMode').onchange=()=>{
   notify($('selectionMode').value==='asset'
     ?'에셋 단위 선택: 연결된 요소의 그림자와 색상을 함께 조정할 수 있습니다.':'유사 색상 선택: 선택한 색상 계열만 변경합니다.');
 };
+$('selectAllOpaque').onclick=()=>{
+  if(!documentModel){notify('먼저 PNG 또는 PSD 파일을 불러와 주세요.');return;}
+  // For PSD, "all" means all editable pixels of the active layer, not the
+  // uneditable composite of every different Photoshop group.
+  const l=sel();
+  if(!l||!l.visible||!l.canvas){notify('전체 선택할 편집 가능한 레이어를 먼저 선택해 주세요.');return;}
+  try{
+    const original=toImageData(layerImage(l)),total=original.width*original.height;
+    const mask=new Uint8Array(total);
+    let first=-1;
+    for(let i=0;i<total;i++){
+      if(original.data[i*4+3]>=8){mask[i]=255;if(first<0)first=i;}
+    }
+    if(first<0){notify('투명 영역 외에 선택 가능한 픽셀이 없습니다.');return;}
+    const result=maskBounds(mask,original.width,original.height);
+    const offset=first*4;
+    const region={...result,mask,baseMask:mask,mode:'color',seed:null,
+      sample:Array.from(original.data.slice(offset,offset+3)),id:l.id,
+      w:original.width,h:original.height};
+    reapplyMaskAmount(region);
+    if(!region.count){notify('PSD 마스크/가려짐 때문에 선택 가능한 픽셀이 없습니다.');return;}
+    selectionParts=[region];lastColorAction='';
+    updateSelectionPreview();refreshProperties();render();
+    const percent=Math.round(100*region.count/total);
+    notify('전체 선택 완료 · '+region.count.toLocaleString()+
+      'px ('+percent+'%) · 투명 영역 제외 · Ctrl+A로 다시 선택 가능');
+    $('workflowStatus').textContent=documentModel.kind==='IMAGE'
+      ?'전체 PNG에서 투명하지 않은 그림만 선택했어요. 파스텔 팔레트 조합은 아래에서 바로 적용할 수도 있습니다.'
+      :'현재 PSD 레이어의 표시된 픽셀 전체를 선택했어요. 다른 레이어는 변경되지 않습니다.';
+  }catch(error){notify('전체 선택 실패: '+(error?.message||error));}
+};
 $('clearSelection').onclick=()=>{clearSelections();refreshProperties();render();notify('선택한 영역을 해제했습니다.');};
 $('maskAdjust').oninput=e=>$('maskAdjustOut').textContent=(Number(e.target.value)>0?'+':'')+e.target.value+'px';
 $('maskAdjust').onchange=()=>{
@@ -1189,11 +1230,12 @@ function updateVariantSwatches(){
       item.title=color===actual?'입력 HEX 그대로':'입력 '+color+' → 적용 '+actual;
       panel.append(item);
     }
-    $('variantSummary').textContent=colors.length+'가지 시안 · '+(
+    $('variantSummary').textContent=($('variantOutputMode').value==='combo'
+      ?colors.length+'색을 하나의 PNG 조합으로 적용 · ':'색상마다 PNG 하나씩 저장 · ')+(
       $('variantFinish').value==='exact'?'선택한 HEX 그대로 적용':
       $('variantFinish').value==='pastel'?'표시한 파스텔 HEX로 적용':
       '원본의 밝기/여러 색상 관계를 보존하므로 실제 픽셀 색상은 HEX와 다를 수 있음'
-    )+' · 원본 파일은 그대로 유지됩니다.';
+    )+' · ZIP 저장은 현재 화면을 변경하지 않습니다. 변경하려면 팔레트 조합 적용을 눌러 주세요.';
   }catch(error){
     $('variantSummary').textContent=error.message;
   }
@@ -1333,6 +1375,7 @@ $('previewColor').onclick=()=>{
 };
 
 $('exportVariants').onclick=async()=>{
+  if($('variantOutputMode').value==='combo')return paletteController?.exportZip();
   if(!documentModel||!selectionParts.length){notify('시안 추출 전 색상/에셋 영역을 선택해 주세요.');return;}
   if(documentModel.width*documentModel.height>8_000_000){
     notify('메모리 보호: 시안 일괄 생성은 800만 픽셀 이하에서만 지원합니다.');return;
@@ -1365,6 +1408,51 @@ $('exportVariants').onclick=async()=>{
   }catch(e){notify('시안 생성 실패: '+(e?.message||e));console.error(e);}
   finally{button.disabled=false;}
 };
+
+// The PNG palette controller is intentionally independent from PSD's legacy
+// single-swatch-per-file export. A palette preview does not modify the document.
+paletteController=installPaletteController({
+  pngSource(){
+    if(!documentModel||documentModel.kind!=='IMAGE'||layers.length!==1)return null;
+    const layer=layers[0];
+    if(!layer.visible||!layer.canvas||layer.x!==0||layer.y!==0||
+       layer.w!==documentModel.width||layer.h!==documentModel.height||
+       layer.rotation||layer.flipH||layer.flipV)return null;
+    const image=toImageData(layerImage(layer));
+    return {layerId:layer.id,rgba:image.data,width:image.width,height:image.height};
+  },
+  selectedMask(layerId,w,h){
+    const parts=selectionParts.filter(p=>p.id===layerId&&p.count);
+    if(!parts.length)return null;
+    const combined=new Uint8Array(w*h);
+    for(const part of parts){
+      if(part.mask.length!==combined.length)return null;
+      for(let i=0;i<combined.length;i++)if(part.mask[i]>combined[i])combined[i]=part.mask[i];
+    }
+    return combined;
+  },
+  showPreview(image){
+    temporaryPreview=image?pixelCanvas(image):null;
+    palettePreviewActive=Boolean(image);
+    if(image)$('previewColor').textContent='변경 미리보기';
+    render();
+  },
+  commit(layerId,image,changed){
+    const layer=layers.find(l=>l.id===layerId);
+    if(!layer||!documentModel||documentModel.kind!=='IMAGE')
+      throw Error('편집 대상 PNG가 바뀌었습니다. 다시 불러와 주세요.');
+    checkpointBatch([layer]);
+    layer.canvas=pixelCanvas(image);
+    if(layer.photoSource){layer.photoSource=null;layer.adjust=defaultAdjust();layer.type='image';}
+    temporaryPreview=null;palettePreviewActive=false;previewMode='layers';
+    lastColorAction='✓ PNG 전체 팔레트 조합 적용 · '+changed.toLocaleString()+'px';
+    clearSelections();refreshAll();
+  },
+  pngBytes:async image=>canvasToPngBytes(pixelCanvas(image)),
+  download:(blob,name)=>downloadBlob(blob,name),
+  filename:()=>documentModel?.name||'KIZE',
+  notify
+});
 
 function restoreSnapshots(snapshots){
   for(const snapshot of snapshots){
@@ -1582,7 +1670,7 @@ $('saveProject').onclick=async()=>{
     }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.12.0',
+      appVersion:'0.13.0',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,
@@ -1608,7 +1696,9 @@ window.addEventListener('beforeunload',e=>{
 window.addEventListener('keydown',e=>{
   if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
   const key=e.key.toLowerCase();
-  if(key==='z'){
+  if(key==='a'&&!isTextInput(e.target)){
+    e.preventDefault();$('selectAllOpaque').click();
+  }else if(key==='z'){
     e.preventDefault();(e.shiftKey?$('redo'):$('undo')).click();
   }else if(key==='y'){e.preventDefault();$('redo').click();}
   else if(key==='s'){e.preventDefault();$('saveProject').click();}

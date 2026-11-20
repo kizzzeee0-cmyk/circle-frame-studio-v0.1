@@ -5,7 +5,7 @@
 <div class="caption">WORKSPACE</div>
 <button class="side-btn selected" id="menuEditor">◈ <span>디자인 편집기</span></button>
 <div class="help"><strong>원본을 보호하는 편집</strong><p>PSD·PNG 작업물에서 영역과 색상을 수정하고, 별도 KIZE 프로젝트로 저장합니다.</p><p>Ctrl+S 저장 · Ctrl+Z 실행 취소 · Ctrl+Shift+Z 다시 실행</p></div>
-<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.12.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
+<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.13.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
 <section class="workspace"><header class="topbar"><div><div class="eyebrow">KIZE / WORKSPACE</div><h1>디자인 편집기</h1></div><div class="top-actions"><div class="update-control" id="updateControl">
   <button type="button" class="update-badge" id="updateBadge" aria-label="새로운 업데이트 확인" title="새 업데이트가 있습니다" hidden>NEW</button>
   <span id="updateStatus" class="update-status" role="status" aria-live="polite">새 버전 확인 중…</span>
@@ -72,7 +72,8 @@
 <p class="micro">Shift + 클릭: 여러 부분 누적 선택 · Alt + 드래그: 레이어 이동</p>
 <label class="range-label">색상 허용 범위 <span id="toleranceOut">18</span><input id="colorTolerance" type="range" min="0" max="90" value="18"></label>
 <label class="range-label">선택 범위 넓히기 / 좁히기 <span id="maskAdjustOut">0px</span><input id="maskAdjust" type="range" min="-12" max="12" step="1" value="0"></label>
-<div class="buttonrow"><button type="button" id="clearSelection" class="subtle">선택 해제</button><span id="selectionPartsCount" class="small muted">0개 영역</span></div>
+<div class="buttonrow"><button type="button" id="selectAllOpaque" class="subtle" title="Ctrl+A · PNG에서는 투명 픽셀을 제외한 전체 디자인을 선택">전체 선택 (투명 제외)</button><button type="button" id="clearSelection" class="subtle">선택 해제</button></div>
+<div id="selectionPartsCount" class="small muted">0개 영역</div>
 <label class="check color-conn"><input type="checkbox" id="connectedOnly" checked> 연결된 유사 색상만 선택 (다른 에셋 보호)</label>
 <div id="selectionInfo" class="selection-details">색상을 클릭하면 선택 범위가 표시됩니다.</div>
 <div class="divider-lite"></div>
@@ -106,8 +107,12 @@
 <label class="check shading-check"><input type="checkbox" id="preserveShading" checked> 명암 대비 유지</label>
 <div class="buttonrow color-action-row"><button type="button" class="subtle" id="previewColor">변경 미리보기</button><button class="primary" id="applyColor">선택한 부분에 색상 적용</button></div>
 <div class="buttonrow"><button id="undo" title="Ctrl+Z">되돌리기</button><button id="redo" title="Ctrl+Shift+Z 또는 Ctrl+Y">다시 실행</button></div>
-<details class="variant-details"><summary>색상별 시안 일괄 생성 · PNG ZIP (30가지 색상 조합)</summary>
-<p class="micro">① 먼저 그림에서 바꿀 부분 선택 → ② 아래 조합 선택 또는 HEX 입력 → ③ 적용 색 확인 → ④ ZIP 생성. ZIP 생성은 원본 작업을 변경하지 않습니다.</p><p class="micro">선택한 에셋을 서로 다른 색상으로 각각 미리보기 파일로 추출합니다. 현재 프로젝트는 변경되지 않습니다.</p><label>추천 팔레트 30종<select id="variantPreset"><option value="">직접 입력</option></select></label><label>시안 HEX 색상 (2~6개, 쉼표 구분)<input id="variantColors" type="text" value="#BEB5ED, #F2BFD1, #B8DECB" spellcheck="false"></label>
+<details class="variant-details" id="variantDetails"><summary>팔레트 조합 적용 · PNG 시안 저장 (30가지 색상 조합)</summary>
+<p class="micro">PNG 전체에 여러 색상을 한 번에 적용할 수 있습니다. ZIP 저장은 파일 내보내기이며, 화면에서 색을 바꾸려면 아래의 <strong>‘팔레트 조합 적용’</strong> 버튼을 눌러 주세요.</p>
+<label>변경할 방식<select id="variantOutputMode">
+<option value="combo">전체 색상 조합 적용 · 여러 색을 한 번에 (PNG 추천)</option>
+<option value="single">색상별 단색 시안 · 색마다 PNG 1개씩 (기존 방식)</option>
+</select></label><label>추천 팔레트 30종<select id="variantPreset"><option value="">직접 입력</option></select></label><label>시안 HEX 색상 (2~6개, 쉼표 구분)<input id="variantColors" type="text" value="#BEB5ED, #F2BFD1, #B8DECB" spellcheck="false"></label>
 <label>시안 색상 처리<select id="variantFinish">
   <option value="exact">입력 HEX 그대로 (기본)</option>
   <option value="pastel">입력 색상을 더 파스텔로 보정</option>
@@ -119,9 +124,27 @@
 <input id="variantSoftnessNumber" type="number" min="0" max="85" value="38" aria-label="시안 부드러움 숫자 입력"><span>%</span>
 </div>
 <div class="variant-swatches" id="variantSwatches" aria-label="실제 출력될 기준 색상 미리보기"></div>
+<div id="paletteComboPanel" class="palette-combo-panel">
+  <label>적용 범위<select id="paletteScope">
+    <option value="all">PNG의 투명하지 않은 전체 그림 (선택 없이도 적용)</option>
+    <option value="selected">현재 선택한 부분만 (부분 색상 유지)</option>
+  </select></label>
+  <label class="check"><input type="checkbox" id="paletteProtectNeutrals" checked> 완전한 흰색·검정 외곽선 보호</label>
+  <label class="check"><input type="checkbox" id="palettePreserveTone"> 원본의 부드러운 명암 변화 살리기 (원하는 HEX에서 약간 달라질 수 있음)</label>
+  <div class="palette-map" id="paletteMapping" aria-label="PNG의 원래 색상이 어느 팔레트 색상으로 바뀌는지"></div>
+  <div class="buttonrow palette-apply-row">
+    <button type="button" class="subtle" id="palettePreview">조합 미리보기</button>
+    <button type="button" class="primary" id="paletteApply">선택한 팔레트 조합을 PNG에 적용</button>
+  </div>
+  <label>ZIP에 담을 조합<select id="paletteZipCount">
+    <option value="1">현재 선택한 조합 1개</option>
+    <option value="4">현재 조합 + 추천 3개 (총 4개 시안)</option>
+  </select></label>
+  <p class="micro" id="paletteScopeHint">투명도와 원본 크기를 유지하고, 서로 다른 원본 색상 계열을 각 팔레트 색상에 대응시킵니다.</p>
+</div>
 <small id="variantSummary" class="micro">각 시안은 선택한 영역에 해당 색상을 적용해 별도의 PNG로 저장합니다.</small>
-<button type="button" id="exportVariants" class="subtle fill">선택 영역을 색상별 PNG ZIP으로 저장</button></details>
-<p class="micro">변경은 선택된 PSD 레이어에만 적용합니다. 원본 PSD는 덮어쓰지 않습니다.</p>
+<button type="button" id="exportVariants" class="subtle fill">팔레트 조합 PNG를 ZIP으로 저장 (적용하지 않음)</button></details>
+<p class="micro">PNG 전체 팔레트 변경은 원본 투명도·크기를 유지합니다. PSD의 기존 색상별 단색 ZIP 기능도 그대로 이용할 수 있습니다.</p>
 </section>
 <section class="panel" id="photoPanel"><div class="title">사진 보정 · Camera Raw 스타일</div><p class="micro">비파괴 기본 톤 보정이며 Photoshop Camera Raw와 동일한 엔진은 아닙니다.</p>
 <div class="photo-sliders">

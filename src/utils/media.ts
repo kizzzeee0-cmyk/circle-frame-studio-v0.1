@@ -104,7 +104,7 @@ async function ensureImage(assetId: string, sourceUrl: string) {
   if (!key) return undefined
   const cached = imageCache.get(key)
   if (cached) return cached
-  const url = sourceUrl || await getStoredMediaUrl(assetId)
+  const url = assetId ? await getStoredMediaUrl(assetId) : sourceUrl
   if (!url) return undefined
   const image = new Image()
   image.decoding = 'async'
@@ -122,7 +122,7 @@ async function ensureVideo(assetId: string, sourceUrl: string) {
   if (!key) return undefined
   const cached = videoCache.get(key)
   if (cached) return cached
-  const url = sourceUrl || await getStoredMediaUrl(assetId)
+  const url = assetId ? await getStoredMediaUrl(assetId) : sourceUrl
   if (!url) return undefined
 
   const video = document.createElement('video')

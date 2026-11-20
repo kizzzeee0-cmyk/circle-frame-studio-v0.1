@@ -7,6 +7,7 @@ import {
   estimateAnimatedRawMemory,
   exportAnimatedFrame,
   getAnimatedFrameCount,
+  isRealtimeVideoFormatSupported,
   isVideoFormatSupported,
   type AnimatedExportFormat,
   type AnimatedExportOptions,
@@ -40,7 +41,19 @@ function hasAnimatedLayer(project: FrameProject) {
   const designs = project.layers?.length
     ? project.layers.filter(layer => layer.visible !== false).map(layer => layer.design)
     : [project.design]
-  return designs.some(design => design.kind === 'glitter' && design.glitter.animated)
+  const frameMotion = designs.some(design =>
+    (design.kind === 'glitter' && design.glitter.animated) ||
+    design.rotationAnimation.enabled
+  )
+  const mediaMotion = (project.mediaLayers ?? []).some(layer =>
+    layer.visible && (
+      layer.kind === 'video' ||
+      layer.animation.intro !== 'none' ||
+      layer.animation.outro !== 'none' ||
+      layer.animation.continuous !== 'none'
+    )
+  )
+  return frameMotion || mediaMotion || project.background?.type === 'video'
 }
 
 export default function AnimatedExportModal({ open, project, onClose, onExported }: Props) {
@@ -57,14 +70,15 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
   const movFormat = options.format === 'mov'
   const memoryHeavy = !['gif','webm','mp4','mov'].includes(options.format) && rawMb > 320
   const movHeavy = movFormat && rawMb > 1600
-  const videoSupported = options.format === 'webm'
-    ? isVideoFormatSupported('webm')
-    : options.format === 'mp4'
-      ? isVideoFormatSupported('mp4')
-      : true
   const animated = hasAnimatedLayer(project)
   const estimatedVideoMb = videoFormat ? ((options.videoBitrateMbps ?? 12) * options.duration / 8) : 0
   const audioLayers = (project.mediaLayers ?? []).filter(layer => layer.kind === 'video' && layer.visible && layer.audioEnabled && layer.audioVolume > 0).length
+  const needsRealtimeAudio = videoFormat && options.includeAudio !== false && audioLayers > 0
+  const videoSupported = options.format === 'webm'
+    ? (needsRealtimeAudio ? isRealtimeVideoFormatSupported('webm') : isVideoFormatSupported('webm'))
+    : options.format === 'mp4'
+      ? (needsRealtimeAudio ? isRealtimeVideoFormatSupported('mp4') : isVideoFormatSupported('mp4'))
+      : true
 
   useEffect(() => {
     if (!open) return
@@ -126,6 +140,14 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
     if (name === '빠른 스파클') setOptions(prev => ({ ...prev, fps: 24, duration: 1, webpQuality: 86 }))
   }
 
+  const applyExportPreset = (name: string) => {
+    const duration = Math.max(.5, Math.min(30, project.timeline?.duration ?? options.duration))
+    if (name === '프로필 WebP') setOptions(prev => ({ ...prev, format: 'webp', resolution: 500, fps: 20, duration, webpQuality: 90, includeAudio: false }))
+    if (name === '투명 MOV') setOptions(prev => ({ ...prev, format: 'mov', resolution: 1000, fps: 30, duration, includeAudio: false }))
+    if (name === '방송 MP4') setOptions(prev => ({ ...prev, format: 'mp4', resolution: 2000, fps: 30, duration, videoBitrateMbps: 28, includeAudio: true }))
+    if (name === '고품질 WebM') setOptions(prev => ({ ...prev, format: 'webm', resolution: 1000, fps: 30, duration, videoBitrateMbps: 18, includeAudio: false }))
+  }
+
   const startExport = async () => {
     if (memoryHeavy || movHeavy || !videoSupported) return
     setBusy(true)
@@ -165,7 +187,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
         <div className="animated-export-header">
           <div>
             <h2>움직이는 파일 내보내기</h2>
-            <p>현재 글리터 움직임을 투명 애니메이션 파일로 저장합니다.</p>
+            <p>프레임·글리터·사진·영상·PNG 애니메이션과 오디오까지 현재 타임라인 그대로 합성합니다.</p>
           </div>
           <button type="button" className="recent-close" disabled={busy} onClick={onClose}>×</button>
         </div>
@@ -182,19 +204,24 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
               <span>{frames}프레임</span>
             </div>
 
-            {!animated && <div className="animated-warning">현재 프로젝트에 ON 상태의 애니메이션 글리터가 없습니다. 파일은 저장되지만 움직임이 거의 없을 수 있습니다.</div>}
+            {!animated && <div className="animated-warning">현재 프로젝트에 영상·프레임 회전·글리터·PNG 애니메이션이 없습니다. 움직이는 형식으로 저장해도 정적인 결과가 반복될 수 있습니다.</div>}
 
             <div className="animated-format-note">
               {options.format === 'gif' && <>GIF는 호환성이 가장 좋지만 <b>256색 + 1bit 투명도</b>라 반투명 글로우가 단순화될 수 있습니다.</>}
               {options.format === 'webp' && <>Animated WebP는 <b>투명 배경과 부드러운 색상</b>을 유지하면서 용량도 비교적 작아 기본 추천입니다.</>}
               {options.format === 'apng' && <>APNG는 <b>반투명 글로우를 무손실</b>로 가장 잘 보존하지만 파일 용량이 커질 수 있습니다.</>}
-              {options.format === 'webm' && <>WebM은 영상 레이어·프레임 회전·PNG 애니메이션까지 합성합니다. <b>투명 알파는 브라우저 VP9 인코더에 따라 보존되지 않을 수 있어</b> 투명 결과가 필수라면 APNG/WebP를 권장합니다.</>}
-              {options.format === 'mp4' && <>MP4는 브라우저가 H.264 MediaRecorder를 지원할 때만 활성화됩니다. MP4는 알파 투명을 지원하지 않으므로 투명 배경은 검정/불투명으로 변환될 수 있습니다.</>}
+              {options.format === 'webm' && <>{needsRealtimeAudio ? <>WebM + 오디오는 브라우저 MediaRecorder로 실시간 합성합니다.</> : <>WebM은 WebCodecs 오프라인 프레임 인코딩을 우선 사용하며 <b>VP9 알파를 유지</b>하도록 출력합니다.</>} 지원 환경에 따라 코덱 사용 가능 여부가 달라질 수 있습니다.</>}
+              {options.format === 'mp4' && <>{needsRealtimeAudio ? <>MP4 + 오디오는 H.264 MediaRecorder 지원 환경에서 실시간 합성합니다.</> : <>MP4는 WebCodecs 오프라인 프레임 인코딩을 우선 사용해 타임스탬프를 정확히 맞춥니다.</>} MP4는 알파 투명을 지원하지 않습니다.</>}
               {options.format === 'mov' && <>Alpha MOV는 각 프레임을 <b>투명 PNG로 보존한 QuickTime MOV</b>입니다. 파일은 크지만 반투명 글로우와 알파 가장자리를 정확하게 유지합니다.</>}
             </div>
           </div>
 
           <div className="animated-export-controls">
+            <div className="animated-export-preset-row">
+              {['프로필 WebP','투명 MOV','방송 MP4','고품질 WebM'].map(name =>
+                <button key={name} type="button" disabled={busy} onClick={() => applyExportPreset(name)}>{name}</button>
+              )}
+            </div>
             <div className="animated-preset-row">
               {['부드러운 글리터','화려한 반짝임','잔잔한 쉬머','빠른 스파클'].map(name =>
                 <button key={name} type="button" className={presetLabel === name ? 'active' : ''} disabled={busy} onClick={() => applyPreset(name)}>{name}</button>
@@ -257,6 +284,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
               <input type="checkbox" disabled={busy || audioLayers === 0} checked={options.includeAudio !== false} onChange={e => set('includeAudio', e.target.checked)} />
               <span>영상 레이어 오디오 함께 출력 {audioLayers > 0 ? '(' + audioLayers + '개)' : '· 오디오 레이어 없음'}</span>
             </label>}
+            {videoFormat && <p className="animated-small-note">{needsRealtimeAudio ? '오디오 포함 모드: 실시간 합성 경로 · PC 성능에 따라 프레임 기록이 달라질 수 있습니다.' : '오디오 없음 모드: WebCodecs 오프라인 인코딩을 우선 사용해 정확한 프레임 타이밍을 유지합니다.'}</p>}
 
             {videoFormat && !videoSupported && <div className="animated-error">
               현재 브라우저에서 이 영상 코덱을 지원하지 않습니다. WebM/MP4 중 지원되는 형식을 선택하거나 APNG/Animated WebP를 사용해 주세요.

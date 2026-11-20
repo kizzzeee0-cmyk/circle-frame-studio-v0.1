@@ -23,6 +23,10 @@ export interface AnimatedExportProgress {
   message: string
 }
 
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException('내보내기가 취소되었습니다.', 'AbortError')
+}
+
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('이미지 생성에 실패했습니다.')), type, quality)
@@ -94,6 +98,7 @@ async function exportGif(
   project: FrameProject,
   options: AnimatedExportOptions,
   onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
 ) {
   const mod = await import('gifenc')
   const GIFEncoder = mod.GIFEncoder
@@ -106,6 +111,7 @@ async function exportGif(
   const repeat = options.loopCount === 0 ? 0 : options.loopCount === 1 ? -1 : 1
 
   for (let i = 0; i < frameCount; i++) {
+    throwIfAborted(signal)
     const progress = i / frameCount
     await renderTimedFrame(canvas, project, progress, options.duration)
     const image = frameImage(canvas)
@@ -130,6 +136,7 @@ async function exportGif(
     if (i % 2 === 1) await new Promise(resolve => setTimeout(resolve, 0))
   }
 
+  throwIfAborted(signal)
   onProgress?.({ stage: 'encode', current: frameCount, total: frameCount, message: 'GIF 파일 마무리 중' })
   gif.finish()
   return new Blob([gif.bytes()], { type: 'image/gif' })
@@ -139,6 +146,7 @@ async function collectFrames(
   project: FrameProject,
   options: AnimatedExportOptions,
   onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
 ) {
   assertMemoryBudget(options)
   const canvas = makeAnimationCanvas(options.resolution)
@@ -146,6 +154,7 @@ async function collectFrames(
   const frames: Uint8Array[] = []
 
   for (let i = 0; i < frameCount; i++) {
+    throwIfAborted(signal)
     await renderTimedFrame(canvas, project, i / frameCount, options.duration)
     const image = frameImage(canvas)
     frames.push(new Uint8Array(image.data))
@@ -164,8 +173,10 @@ async function exportApng(
   project: FrameProject,
   options: AnimatedExportOptions,
   onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
 ) {
-  const frames = await collectFrames(project, options, onProgress)
+  const frames = await collectFrames(project, options, onProgress, signal)
+  throwIfAborted(signal)
   onProgress?.({ stage: 'encode', current: 0, total: 1, message: 'APNG 압축 중 · 투명 글로우 무손실 유지' })
   const mod = await import('@upng/upng-js')
   const UPNG = mod.default
@@ -179,8 +190,10 @@ async function exportAnimatedWebp(
   project: FrameProject,
   options: AnimatedExportOptions,
   onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
 ) {
-  const frames = await collectFrames(project, options, onProgress)
+  const frames = await collectFrames(project, options, onProgress, signal)
+  throwIfAborted(signal)
   onProgress?.({ stage: 'encode', current: 0, total: 1, message: 'Animated WebP 압축 중' })
   const mod = await import('wasm-webp')
   const delay = Math.max(20, Math.round(1000 / options.fps))
@@ -197,6 +210,7 @@ async function exportCanvasVideo(
   project: FrameProject,
   options: AnimatedExportOptions,
   onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
 ) {
   const format = options.format === 'mp4' ? 'mp4' : 'webm'
   if (!isVideoFormatSupported(format)) {
@@ -224,6 +238,7 @@ async function exportCanvasVideo(
   const frameDelay = 1000 / fps
 
   for (let i = 0; i < frameCount; i++) {
+    throwIfAborted(signal)
     const progress = i / frameCount
     await renderTimedFrame(canvas, project, progress, options.duration)
     track.requestFrame?.()
@@ -236,6 +251,7 @@ async function exportCanvasVideo(
     await new Promise(resolve => setTimeout(resolve, frameDelay))
   }
 
+  throwIfAborted(signal)
   recorder.stop()
   await stopped
   capture.getTracks().forEach(item => item.stop())
@@ -260,14 +276,16 @@ export async function exportAnimatedFrame(
   project: FrameProject,
   options: AnimatedExportOptions,
   onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
 ) {
   await prepareProject(project)
   let blob: Blob
-  if (options.format === 'gif') blob = await exportGif(project, options, onProgress)
-  else if (options.format === 'apng') blob = await exportApng(project, options, onProgress)
-  else if (options.format === 'webp') blob = await exportAnimatedWebp(project, options, onProgress)
-  else blob = await exportCanvasVideo(project, options, onProgress)
+  if (options.format === 'gif') blob = await exportGif(project, options, onProgress, signal)
+  else if (options.format === 'apng') blob = await exportApng(project, options, onProgress, signal)
+  else if (options.format === 'webp') blob = await exportAnimatedWebp(project, options, onProgress, signal)
+  else blob = await exportCanvasVideo(project, options, onProgress, signal)
 
+  throwIfAborted(signal)
   const ext = options.format === 'apng' ? 'png' : options.format
   const label = options.format === 'apng' ? 'apng' : options.format
   downloadBlob(blob, 'circle-frame-v031-' + label + '-' + options.resolution + 'px-' + exportDate() + '.' + ext)

@@ -1458,6 +1458,7 @@ $('exportVariants').onclick=async()=>{
 // The PNG palette controller is intentionally independent from PSD's legacy
 // single-swatch-per-file export. A palette preview does not modify the document.
 paletteController=installPaletteController({
+  canUse:()=>canEditWholePalette(),
   pngSource(){
     if(!canEditWholePalette())return null;
     const layer=layers[0];

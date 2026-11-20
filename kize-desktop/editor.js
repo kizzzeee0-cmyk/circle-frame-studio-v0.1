@@ -344,7 +344,7 @@ function layerImage(l){
 const maskedRenderCache=new WeakMap();
 function layerVisualForReconstruction(l){
   const clipped=Boolean(l.clipBaseId||l.clipBaseKey);
-  const bitmapMask=Boolean(l.maskSpecs?.length);
+  const bitmapMask=Boolean(l.maskSpecs?.length||l.groupMaskSpecs?.length);
   if(!clipped&&!bitmapMask)return layerImage(l);
   const base=clipped?layers.find(v=>v.id===l.clipBaseId):null;
   const sourceKey=l.canvas,photoKey=l.photoSource;
@@ -637,7 +637,8 @@ function refreshProperties(){
     note.hidden=false;
     const maskMsg=l.maskDecodeFailed?' · 마스크 디코딩 실패(선택 제한)':
       l.unsupportedVectorMask?' · 별도 벡터 마스크 정확한 재현 불가(선택 제한)':
-      l.unsupportedGroupMask?' · 그룹 마스크 원본 정확도 미지원(선택 제한)':
+      l.unsupportedGroupMask?' · 그룹 마스크 디코딩/연산 미지원(선택 제한)':
+      l.groupMaskSpecs?.length?' · 부모 그룹 마스크 선택에 반영 '+l.groupMaskSpecs.length+'개':
       l.clippingUnresolved?' · 클리핑 기준 누락(선택 제한)':
       l.maskSpecs?.length?' · 실제 PSD 마스크 '+l.maskSpecs.length+'개 선택에 반영':
       l.clipBaseId?' · 클리핑 기준 레이어 알파 선택에 반영':'';
@@ -757,7 +758,7 @@ function regionAt(l,px,py,mode){
   // Treat pixels hidden by PSD masks/clipping as TRANSPARENT before flood-fill.
   // Otherwise two visible assets may be accidentally connected through a
   // concealed run of identical RGB pixels in the original layer bitmap.
-  const hasMatte=Boolean(l.maskSpecs?.length||l.clipBaseId);
+  const hasMatte=Boolean(l.maskSpecs?.length||l.groupMaskSpecs?.length||l.clipBaseId);
   const input=hasMatte?maskedLayerRgba(image.data,visual.width,visual.height,l,
     id=>layers.find(v=>v.id===id)):image.data;
   const options={tolerance:Number($('colorTolerance').value),connected:$('connectedOnly').checked};

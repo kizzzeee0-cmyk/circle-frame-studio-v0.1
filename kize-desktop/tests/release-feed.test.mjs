@@ -18,25 +18,25 @@ test('versions are numerically ordered, never lexically',()=>{
   assert.throws(()=>compareVersion('v0.12','0.11.0'),/버전/);
 });
 test('KIZE-only safe releases: an EXE or ZIP must exist before displaying new update',()=>{
-  const a=release('0.16.0');
-  const b=release('0.17.0',{assets:[]});
+  const a=release('0.17.0');
+  const b=release('0.18.0',{assets:[]});
   const other={...release('9.99.9'),tag_name:'circle-v9.99.9'};
   const x=latestKizeRelease([a,b,other],CURRENT_VERSION);
-  assert.equal(x.version,'0.16.0');
-  assert.equal(x.title,'KIZE DESIGN TOOL v0.16.0');
-  assert.equal(x.assetName,'KIZE-DESIGN-TOOL-v0.16.0-Windows.zip');
+  assert.equal(x.version,'0.17.0');
+  assert.equal(x.title,'KIZE DESIGN TOOL v0.17.0');
+  assert.equal(x.assetName,'KIZE-DESIGN-TOOL-v0.17.0-Windows.zip');
   assert.equal(latestKizeRelease([release('0.11.0'),release('0.10.0')]),null);
   assert.equal(latestKizeRelease([release('0.99.0',{draft:true})]),null);
   assert.equal(latestKizeRelease([release('0.99.0',{prerelease:true})]),null);
 });
 test('a hostile GitHub Release cannot redirect KIZE to untrusted downloads',()=>{
-  const r=release('0.16.0');
+  const r=release('0.17.0');
   for(const href of [
     'https://attacker.example/drive.exe',
-    'http://github.com/'+repo+'/releases/download/kize-v0.16.0/'+r.assets[0].name,
+    'http://github.com/'+repo+'/releases/download/kize-v0.17.0/'+r.assets[0].name,
     'https://github.com/'+repo+'/releases/download/circle-v9/'+r.assets[0].name,
-    'https://github.com/'+repo+'/releases/download/kize-v0.16.0/'+r.assets[0].name+'?foo=bar',
-    'https://github.com/'+repo+'/releases/download/kize-v0.16.0/unrelated.exe'
+    'https://github.com/'+repo+'/releases/download/kize-v0.17.0/'+r.assets[0].name+'?foo=bar',
+    'https://github.com/'+repo+'/releases/download/kize-v0.17.0/unrelated.exe'
   ]){
     assert.equal(trustedAsset(r,{...r.assets[0],browser_download_url:href}),false,href);
   }
@@ -44,10 +44,10 @@ test('a hostile GitHub Release cannot redirect KIZE to untrusted downloads',()=>
   assert.equal(trustedAsset(r,{...r.assets[0],state:'new'}),false);
 });
 test('choose highest valid semantic version and prefer ZIP over EXE',()=>{
-  const r=release('0.16.0');
-  const exe='KIZE DESIGN TOOL_0.16.0_x64-setup.exe';
+  const r=release('0.17.0');
+  const exe='KIZE DESIGN TOOL_0.17.0_x64-setup.exe';
   const exeAsset={state:'uploaded',name:exe,browser_download_url:
-    'https://github.com/'+repo+'/releases/download/kize-v0.16.0/'+encodeURIComponent(exe)};
+    'https://github.com/'+repo+'/releases/download/kize-v0.17.0/'+encodeURIComponent(exe)};
   const top=latestKizeRelease([{...r,assets:[exeAsset,...r.assets]},release('0.11.1')]);
   assert.equal(top.assetName,r.assets[0].name);
   assert.equal(latestKizeRelease([{...r,assets:[exeAsset]}]).assetName,exe);

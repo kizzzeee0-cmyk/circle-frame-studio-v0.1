@@ -64,3 +64,41 @@ test('bad color palettes and malformed selections fail explicitly',()=>{
  const map=createPaletteMap(source,3,1,['#ABCDEF','#C0EAE4']);
  assert.throws(()=>applyPaletteMap(source,3,1,map,{mask:new Uint8Array(2)}),/크기/);
 });
+
+
+test('same-hue fill, shadow and dark outline stay one semantic family',()=>{
+ const w=14,h=10;
+ const source=png(w,h,(x,y)=>{
+   if(x===0||y===0||x===w-1||y===h-1)return [82,77,88,255]; // neutral dark outline
+   if(y>=7)return [176,112,139,255]; // darker pink shadow
+   return [224,158,184,255]; // main pink fill
+ });
+ const map=createPaletteMap(source,w,h,['#9ED4F2','#F2D58B','#CFC3F5'],{preserveRoles:true});
+ assert.equal(map.source.length,1,'outline/shadow must not steal extra palette slots');
+ const out=applyPaletteMap(source,w,h,map).data;
+ const main=pixel(out,w,5,4),shadow=pixel(out,w,5,8),outline=pixel(out,w,0,5);
+ assert.deepEqual(main,[158,212,242,255],'dominant fill lands on the chosen target swatch');
+ const lum=p=>.2126*p[0]+.7152*p[1]+.0722*p[2];
+ assert.ok(lum(shadow)<lum(main)-18,'shadow remains darker than its fill');
+ assert.ok(lum(outline)<lum(shadow)-12,'outline remains the deepest tone of the same family');
+ assert.notDeepEqual(shadow,[242,213,139,255],'shadow must not become the second unrelated palette color');
+ assert.notDeepEqual(outline,[207,195,245,255],'outline must not become the third unrelated palette color');
+});
+
+test('role-aware mapping preserves alpha and derives antialiased edge tones',()=>{
+ const w=5,h=1;
+ const source=png(w,h,x=>[
+   [90,86,95,120],
+   [170,110,135,200],
+   [224,158,184,255],
+   [180,120,145,255],
+   [255,255,255,255],
+ ][x]);
+ const map=createPaletteMap(source,w,h,['#9ED4F2','#F1C9D9'],{preserveWhiteBlack:true,preserveRoles:true});
+ const out=applyPaletteMap(source,w,h,map).data;
+ for(let x=0;x<w;x++)assert.equal(out[x*4+3],source[x*4+3]);
+ assert.deepEqual(pixel(out,w,4,0),[255,255,255,255]);
+ const main=pixel(out,w,2,0),edge=pixel(out,w,0,0);
+ const lum=p=>.2126*p[0]+.7152*p[1]+.0722*p[2];
+ assert.ok(lum(edge)<lum(main),'dark antialias/outline tone stays darker without changing alpha');
+});

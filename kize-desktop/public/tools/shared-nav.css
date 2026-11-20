@@ -36,3 +36,67 @@ body:has(#root) .topbar{box-shadow:none;border-bottom-color:#DCE7EF}
 body:has(#root) .toolbar .primary-button{background:#2B86B5;border-color:#2B86B5}
 body:has(#root) .toolbar button:hover,body:has(#root) .soft-button:hover{background:#F0F8FC;border-color:#C8E0EC}
 body:has(#root) input[type=range]{accent-color:#2B86B5}
+
+
+/* v0.16 — unified airy sky chrome. Explicitly override legacy purple/pink button text. */
+#kize-unified-nav{
+  background:#fff;border-bottom-color:#D9EAF4;color:#40576A;box-shadow:none
+}
+#kize-unified-nav .kize-nav-brand{color:#65A9D1}
+#kize-unified-nav .kize-nav-tabs a{color:#5D7D90}
+#kize-unified-nav .kize-nav-tabs a.current{
+  background:#EAF6FD;color:#4B8DB4;border-color:#B8DCEC
+}
+#kize-unified-nav .kize-nav-tabs a:hover{background:#F2FAFE}
+#kize-unified-nav .kize-nav-share span{color:#7C92A4}
+#kize-unified-nav .kize-nav-share select{
+  border-color:#D9EAF4;color:#526F81;background:#fff
+}
+#kize-unified-nav .kize-nav-share button{
+  background:#F2FAFE;color:#5795B9;border-color:#C8E2F0
+}
+#kize-unified-nav #kize-shared-notice{color:#7195A9}
+
+body:has(#previewCanvas){
+  --bg:#F7FBFF;--panel:#FFF;--ink:#40576A;--muted:#7C92A4;--line:#D9EAF4;
+  --accent:#78BCE6;--accent2:#B8DFF4;--shadow:none;background:#F7FBFF!important;color:#40576A
+}
+body:has(#previewCanvas) button.primary{
+  background:#78BCE6!important;border:1px solid #78BCE6!important;color:#fff!important;box-shadow:none!important
+}
+body:has(#previewCanvas) button.primary:hover{
+  background:#67ACD8!important;border-color:#67ACD8!important
+}
+body:has(#previewCanvas) button.secondary{
+  background:#C5E6F7!important;border:1px solid #ACD8EE!important;color:#477791!important;box-shadow:none!important
+}
+body:has(#previewCanvas) button.secondary:hover{
+  background:#B9DFF3!important;border-color:#9FCEE7!important;color:#3E6F89!important
+}
+body:has(#previewCanvas) button.ghost{
+  background:#fff!important;border-color:#D9EAF4!important;color:#4F6778!important;box-shadow:none!important
+}
+body:has(#previewCanvas) .panel{border-color:#D9EAF4;box-shadow:0 5px 18px rgba(70,110,135,.05);border-radius:12px}
+body:has(#previewCanvas) input[type=range]{accent-color:#78BCE6}
+body:has(#previewCanvas) .tab.active,body:has(#previewCanvas) .layer-tab.active{
+  background:#EAF6FD;border-color:#ADD5EA;color:#4C8DB5
+}
+body:has(#previewCanvas) input[type=search],body:has(#previewCanvas) select,
+body:has(#previewCanvas) input[type=text],body:has(#previewCanvas) input[type=number]{
+  background:#fff;border-color:#D9EAF4;color:#40576A
+}
+body:has(#previewCanvas) .topbar h1 span{color:#5794B7;background:#EAF6FD}
+
+body:has(#root){
+  --accent:#78BCE6;--accent-soft:#EAF6FD;--accent-strong:#5FA6D1;
+  --line:#D9EAF4;--muted:#7C92A4;color:#40576A;background:#F7FBFF
+}
+body:has(#root) .brand-mark{background:#78BCE6!important;box-shadow:none!important}
+body:has(#root) .topbar{box-shadow:none;border-bottom-color:#D9EAF4}
+body:has(#root) .toolbar .primary-button{
+  background:#78BCE6!important;border-color:#78BCE6!important;color:#fff!important
+}
+body:has(#root) .toolbar button:hover,body:has(#root) .soft-button:hover{
+  background:#F1F9FE;border-color:#C8E2F0
+}
+body:has(#root) input[type=range]{accent-color:#78BCE6}

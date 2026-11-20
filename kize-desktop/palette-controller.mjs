@@ -52,7 +52,7 @@ export function installPaletteController(api){
     const caption=document.createElement('p');caption.className='palette-map-caption';
     try{
       const {map,actual}=currentPlan();
-      caption.textContent='원본 디자인의 색상 → 현재 조합의 색상 · 사용 면적이 큰 색부터 순서대로 대응';
+      caption.textContent='원본의 독립 색상 패밀리 → 현재 조합의 기준색 · 그림자/외곽선은 같은 패밀리의 명도 단계로 자동 유지';
       box.append(caption);
       for(let i=0;i<map.sourceHex.length;i++){
         const row=document.createElement('div');row.className='palette-map-item';
@@ -69,7 +69,7 @@ export function installPaletteController(api){
         box.append(warning);
       }
       $('paletteScopeHint').textContent=
-        '팔레트 '+map.source.length+'색이 각각 다른 원본 색상에 대응합니다. ZIP은 결과물 저장용이고, 화면에서 바꾸려면 ‘조합 적용’을 누르세요.';
+        '독립 색상 패밀리 '+map.source.length+'개를 팔레트 기준색에 대응합니다. 같은 계열의 외곽선·그림자는 별도 색을 소비하지 않고 자동으로 더 어둡게 유지됩니다.';
     }catch(e){caption.textContent=e?.message||String(e);box.append(caption);}
   }
   function schedule({preview=false}={}){

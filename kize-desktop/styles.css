@@ -266,3 +266,83 @@ linear-gradient(-45deg,transparent 75%,#EFF4F8 75%);background-size:16px 16px;ba
 .char-palette-swatches{display:flex;gap:3px}
 .char-palette-swatches span{height:20px;min-width:0;flex:1;border:1px solid #E3E7EC;border-radius:3px}
 #charPaletteState{color:#5D7C90;line-height:1.5;font-size:10px;margin:7px 0}
+
+
+/* v0.16 — airy powder-sky UI. App chrome only; artwork pixels are untouched. */
+:root{
+  --ui-sky:#91CDF0;
+  --ui-action:#78BCE6;
+  --ui-action-hover:#67ACD8;
+  --ui-pale:#EAF6FD;
+  --ui-bg:#F7FBFF;
+  --ui-divider:#D9EAF4;
+  --ui-text:#40576A;
+  --ui-muted:#7C92A4;
+}
+html,body{background:var(--ui-bg);color:var(--ui-text)}
+.sidebar,.topbar,.left-pane,.right-pane,.toolbar,.statusbar{background:#fff}
+.sidebar,.left-pane{border-right-color:var(--ui-divider)}
+.right-pane{border-left-color:var(--ui-divider)}
+.topbar,.toolbar,.statusbar{border-color:var(--ui-divider)}
+.brand-logo{background:#83C6EA;color:#fff;box-shadow:none}
+.brand strong,.topbar h1,.pane-heading strong,.panel .title{color:#40576A}
+.caption,.eyebrow,.sidebar-bottom,.tiny,.help,.help p,.update-status,.muted{color:#8296A6}
+.help strong{color:#5E7688}
+.side-btn{background:#EDF8FE;color:#5B9BC2;border:1px solid #D7ECF7}
+.side-btn span{color:#4E89AD}
+.primary,.buttonrow button.primary,.palette-main-action button,.palette-main-action .primary{
+  background:#78BCE6!important;border-color:#78BCE6!important;color:#fff!important;box-shadow:none!important
+}
+.primary:hover,.buttonrow button.primary:hover,.palette-main-action button:hover{
+  background:#67ACD8!important;border-color:#67ACD8!important
+}
+.subtle,.color-mode-tab,.buttonrow button,.tool{
+  background:#fff;border-color:#D9EAF4;color:#5A7689
+}
+.subtle:hover,.color-mode-tab:hover,.buttonrow button:hover,.tool:hover{background:#F1F9FE;border-color:#C5E2F1}
+.tool.selected,.color-mode-tab.selected{
+  background:#EAF6FD;color:#4F91B8;border-color:#ADD5EA
+}
+.color-mode-tab.selected small{color:#6F9FB9}
+.check input,.mini-row input[type=range],.photo-sliders input,.range-label input,
+#gradientAngle,#maskAdjust{accent-color:#78BCE6}
+.stage{background-color:#EEF6FB;background-image:radial-gradient(#D5E6F0 .7px,transparent .7px)}
+.stage:focus-visible{outline-color:#8BC7E8}
+.line-v,.line-h{border-color:#8BC7E8}
+.canvas-holder{box-shadow:0 5px 22px rgba(58,94,117,.08)}
+#renderCanvas{
+  background-color:#fff;
+  background-image:linear-gradient(45deg,#EEF4F8 25%,transparent 25%),linear-gradient(-45deg,#EEF4F8 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#EEF4F8 75%),linear-gradient(-45deg,transparent 75%,#EEF4F8 75%)
+}
+.layer:hover{background:#F6FBFE}
+.layer.active{background:#EAF6FD;color:#4E8EB5;border-left-color:#82C4E8}
+.layer-icon,.layer-thumb{border-color:#DDEBF3}
+.active-layer-info,.selection-details,.workflow-guide,.palette-combo-panel,.palette-main-action,
+.effective-color,.pastel-controls,.variant-details,.layer-compatibility,.fidelity-panel{
+  background:#F8FCFE;border-color:#DCEAF3;color:#627E90
+}
+.workflow-step>b{background:#E4F4FC;color:#5798BF}
+.workflow-guide>p{background:#EEF8FD;color:#5E8197}
+.workflow-step strong,.effective-color strong{color:#48687C}
+.workflow-step small,.effective-color small,#variantSummary,#paletteScopeHint{color:#7D94A4}
+.target-color-row input[type=text],.photo-sliders .photo-adjust-row input[type=number],
+.palette-map,#colorPanel select,.panel input[type=number],.panel input[type=text],.panel textarea{
+  border-color:#DCEAF3;background:#FBFDFE;color:#4B6374
+}
+.palette-map-source,.palette-map-target{border-color:#BFD9E8}
+.palette-map-caption,.palette-map-item{color:#698598}
+.palette-role-hint{
+  margin:3px 0 10px!important;padding:7px 8px;border-radius:7px;
+  background:#F2FAFE;color:#66879B!important;border:1px solid #E0EEF6
+}
+.selection-outline-control{
+  color:#56809A;background:#F3FAFE;border-color:#DDECF5
+}
+.selection-outline-control input{accent-color:#78BCE6}
+.update-badge{border-color:#B9DCEA;background:#EDF8FE;color:#4D88A9}
+.update-details{border-color:#DCEAF3;box-shadow:0 8px 24px rgba(55,88,108,.10);color:#536B7B}
+.character-analyzer,.char-adjustments,.char-palette-item{border-color:#DCEAF3}
+.char-dropzone{border-color:#A9D3E9;background:#F5FBFE;color:#4F86A5}
+.char-dropzone.hover{background:#EAF7FD;border-color:#78BCE6}
+.char-palette-item:hover{background:#F4FAFE}
+.char-palette-item.selected{border-color:#78BCE6}

@@ -400,3 +400,72 @@ input[type=range]{accent-color:#ef82a7}
   #referenceColorSection.reference-dock{position:static;max-height:none;overflow:visible}
   #referenceDockToggle{display:none!important}
 }
+
+
+/* KIZE v0.16 — powder sky override for the bundled Cute Pattern Studio. */
+:root{
+  --bg:#F7FBFF;--panel:#FFFFFF;--ink:#40576A;--muted:#7C92A4;--line:#D9EAF4;
+  --accent:#78BCE6;--accent2:#B8DFF4;--shadow:0 5px 18px rgba(70,110,135,.05);--radius:18px
+}
+body{background:#F7FBFF;color:var(--ink)}
+button{transition:.12s background,.12s border-color,.12s color;box-shadow:none}
+button:hover{transform:none}
+button.primary{background:#78BCE6;color:#fff;border:1px solid #78BCE6;box-shadow:none}
+button.primary:hover{background:#67ACD8;border-color:#67ACD8}
+button.secondary{background:#C5E6F7;color:#477791;border:1px solid #ACD8EE;box-shadow:none}
+button.secondary:hover{background:#B9DFF3;color:#3E6F89;border-color:#9FCEE7}
+button.ghost{background:#fff;border:1px solid #D9EAF4;color:#4F6778}
+button.ghost:hover{background:#F3FAFE}
+.topbar{background:#fff;border:1px solid #DCEBF4;box-shadow:none}
+.eyebrow{color:#7FA0B3}
+.topbar h1 span{color:#5794B7;background:#EAF6FD}
+.subtitle{color:#7C92A4}
+.panel{background:#fff;border-color:#D9EAF4;box-shadow:var(--shadow)}
+input[type=search],select,input[type=number],input[type=text],textarea{
+  border-color:#D9EAF4;background:#FBFDFE;color:#40576A
+}
+input[type=range],.switch-row input{accent-color:#78BCE6}
+.tab,.layer-tab{background:#FAFDFE;border-color:#D9EAF4;color:#607C8D}
+.tab.active,.layer-tab.active{background:#EAF6FD;border-color:#ADD5EA;color:#4C8DB5}
+.pattern-card{border-color:#D9EAF4}
+.pattern-card.active{border-color:#8DC9E9;box-shadow:0 0 0 2px rgba(120,188,230,.12)}
+.pattern-fav.on{background:#F5F0D7;border-color:#E5D79B}
+.asset-dropzone,.pattern-restore-dropzone{
+  background:#F7FCFE;border-color:#B8DCEB;color:#587A8E
+}
+.asset-dropzone.dragover,.pattern-restore-dropzone.dragover{
+  background:#EAF7FD;border-color:#78BCE6
+}
+.pattern-restore-shortcut-dropzone{
+  border-color:#B8DCEB;background:#fff;color:#587A8E
+}
+.pattern-restore-shortcut-dropzone:hover,.pattern-restore-shortcut-dropzone.dragover{
+  border-color:#78BCE6;background:#F0FAFE
+}
+.pattern-restore-shortcut-dropzone strong{color:#496A7E}
+.pattern-restore-shortcut-dropzone span{color:#7C92A4}
+.preview-toolbar,.preview-extras{border-color:#D9EAF4}
+.canvas-size-badge,.pill{background:#EAF6FD;border-color:#C6E2F0;color:#558CAD}
+.zoom-box{border-color:#D9EAF4}
+.zoom-box button,.mini-btn,.dropper{background:#F7FBFE;border-color:#D9EAF4;color:#5B788A}
+.canvas-stage{background-color:#F7FBFF}
+.canvas-stage canvas{box-shadow:0 12px 34px rgba(55,91,114,.10)}
+.profile-preview-card,.reference-apply-card,.reference-palette-block,.info-box,
+.layer-editor-card,.reference-preview,.pattern-restore-status,.pattern-restore-loading{
+  background:#F8FCFE;border-color:#DCEBF4
+}
+.layer-chip.active{border-color:#8DC9E9;box-shadow:0 0 0 2px rgba(120,188,230,.10)}
+.layer-chip .bullet{background:#78BCE6}
+.source-type-row button.active{background:#EAF6FD;border-color:#ADD5EA;color:#4C8DB5}
+.reference-apply-grid button:hover{background:#F0FAFE;border-color:#B8DCEB}
+.pattern-restore-candidate.best{border-color:#9ED0E9;background:#F4FBFE}
+.pattern-restore-compare .mini-btn.active{background:#78BCE6;color:#fff;border-color:#78BCE6}
+.reference-dock-toggle,#referenceColorSection.reference-dock .reference-dock-toggle{
+  border-color:#B8DCEB!important;background:#F0FAFE!important;color:#4E89AD!important
+}
+#referenceColorSection.reference-dock{
+  border-color:#D9EAF4;background:rgba(255,255,255,.98);box-shadow:0 12px 34px rgba(55,91,114,.10)
+}
+#referenceColorSection.reference-dock>.section-title-row{
+  background:rgba(255,255,255,.98);border-bottom-color:#E4F0F6
+}

@@ -1,0 +1,65 @@
+name: KIZE v0.16 - Role Recolor and Sky UI Validation
+
+on:
+  push:
+    branches:
+      - kize-v0.16.0-role-aware-recolor-sky-ui
+    paths:
+      - 'kize-desktop/**'
+      - '.github/workflows/kize-v016-validate.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install KIZE dependencies
+        working-directory: kize-desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Unit tests
+        working-directory: kize-desktop
+        run: npm test
+
+      - name: Production frontend build
+        working-directory: kize-desktop
+        run: npm run build
+
+      - name: Browser test - palette role mapping
+        working-directory: kize-desktop
+        run: node tests/browser-palette-combination.mjs
+
+      - name: Browser test - color workflow
+        working-directory: kize-desktop
+        run: node tests/browser-color-workflow.mjs
+
+      - name: Verify bundled tool files
+        shell: pwsh
+        run: |
+          $required = @(
+            "kize-desktop/dist/index.html",
+            "kize-desktop/dist/circle.html",
+            "kize-desktop/dist/tools/pattern/index.html",
+            "kize-desktop/dist/tools/pattern/styles.css",
+            "kize-desktop/dist/tools/shared-nav.css"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Missing built KIZE file: $path" }
+          }
+
+      - name: Upload validated frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: KIZE-DESIGN-TOOL-v0.16.0-validated-frontend
+          path: kize-desktop/dist
+          retention-days: 14
+          if-no-files-found: error

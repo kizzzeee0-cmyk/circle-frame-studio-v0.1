@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#F7F5FA"><title>KIZE DESIGN TOOL</title><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./tools/shared-nav.css"><script defer src="./tools/shared-nav.js"></script></head>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#F7FBFF"><title>KIZE DESIGN TOOL</title><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./tools/shared-nav.css"><script defer src="./tools/shared-nav.js"></script></head>
 <body><div id="app">
 <aside class="sidebar"><div class="brand"><div class="brand-logo">K</div><div><strong>KIZE</strong><small>DESIGN TOOL</small></div></div>
 <div class="caption">WORKSPACE</div>
 <button class="side-btn selected" id="menuEditor">◈ <span>디자인 편집기</span></button>
 <div class="help"><strong>원본을 보호하는 편집</strong><p>PSD·PNG 작업물에서 영역과 색상을 수정하고, 별도 KIZE 프로젝트로 저장합니다.</p><p>Ctrl+S 저장 · Ctrl+Z 실행 취소 · Ctrl+Shift+Z 다시 실행</p></div>
-<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.15.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
+<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.16.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
 <section class="workspace"><header class="topbar"><div><div class="eyebrow">KIZE / WORKSPACE</div><h1>디자인 편집기</h1></div><div class="top-actions"><div class="update-control" id="updateControl">
   <button type="button" class="update-badge" id="updateBadge" aria-label="새로운 업데이트 확인" title="새 업데이트가 있습니다" hidden>NEW</button>
   <span id="updateStatus" class="update-status" role="status" aria-live="polite">새 버전 확인 중…</span>
@@ -175,7 +175,7 @@
     <option value="selected">현재 선택한 부분만 (부분 색상 유지)</option>
   </select></label>
   <label class="check"><input type="checkbox" id="paletteProtectNeutrals" checked> 완전한 흰색·검정 외곽선 보호</label>
-  <label class="check"><input type="checkbox" id="palettePreserveTone"> 원본의 부드러운 명암 변화 살리기 (원하는 HEX에서 약간 달라질 수 있음)</label>
+  <label class="check"><input type="checkbox" id="palettePreserveTone" checked> 외곽선·그림자·밝은 면의 명도 관계 유지 (권장)</label><p class="micro palette-role-hint">같은 색 계열의 진한 외곽선·그림자는 별도 팔레트 색으로 바꾸지 않고, 선택한 기준색에서 자연스럽게 더 어둡게 파생합니다.</p>
   <div class="palette-map" id="paletteMapping" aria-label="PNG의 원래 색상이 어느 팔레트 색상으로 바뀌는지"></div>
   <div class="buttonrow palette-apply-row">
     <button type="button" class="subtle fill" id="palettePreview">조합 미리보기 / 원본 비교</button>

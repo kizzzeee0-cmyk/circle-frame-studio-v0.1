@@ -1543,3 +1543,70 @@ body { background: #F3F0F2; }
   font-size: 8px;
   color: #716A78;
 }
+
+
+/* v0.33 — layer discovery, batch safety, autosave feedback */
+.media-search-row {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 28px;
+  gap: 5px;
+  margin: 7px 0;
+}
+.media-search-row input {
+  min-width: 0;
+  border: 1px solid #E2DCE9;
+  border-radius: 8px;
+  background: #FFF;
+  padding: 7px 8px;
+  font-size: 9px;
+}
+.media-search-row button {
+  border: 1px solid #E2DCE9;
+  border-radius: 8px;
+  background: #FFF;
+  color: #847C8B;
+  cursor: pointer;
+}
+.selection-batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+  margin-top: 4px;
+}
+.selection-batch-actions button {
+  border: 1px solid #E1DAEA;
+  border-radius: 7px;
+  background: #FFF;
+  padding: 5px 7px;
+  font-size: 8px;
+  cursor: pointer;
+}
+.selection-batch-actions .danger-mini {
+  border-color: #E8C3C9;
+  background: #FFF6F7;
+  color: #AF5360;
+}
+.autosave-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 76px;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid #E8E2EE;
+  background: #FAF8FB;
+  color: #9A93A2;
+  font-size: 8.5px;
+  white-space: nowrap;
+}
+.autosave-status.saved {
+  border-color: #E6D9A8;
+  background: #FFF9DF;
+  color: #7B7047;
+}
+.autosave-status.saved::before {
+  content: "✓";
+  font-weight: 900;
+}

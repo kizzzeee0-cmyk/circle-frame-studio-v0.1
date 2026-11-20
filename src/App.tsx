@@ -1059,7 +1059,7 @@ export default function App() {
 
   const batchUpdateMedia = (updates: Array<Partial<MediaLayer> & { id: string }>) => {
     const byId = new Map(updates.map(update => [update.id, update]))
-    commit(draft => {
+    commitCoalesced('batch-media', draft => {
       draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => {
         const update = byId.get(layer.id)
         return update ? { ...layer, ...update } : layer
@@ -1259,7 +1259,7 @@ export default function App() {
     }
   }
 
-  const changeBackground = (next: BackgroundSettings) => commit(draft => {
+  const changeBackground = (next: BackgroundSettings) => commitCoalesced('background', draft => {
     draft.background = next
     return draft
   })

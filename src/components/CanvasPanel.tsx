@@ -424,7 +424,7 @@ export default function CanvasPanel({
           <option value="quality">고품질</option>
           <option value="performance">성능 우선</option>
         </select>
-        <span className={useGpu ? 'gpu-status active' : 'gpu-status'}>{useGpu ? 'GPU' : '2D'}</span>
+        <span className={useGpu ? 'gpu-status active' : 'gpu-status'} title={useGpu ? '2D 캔버스 합성 결과를 WebGL2로 표시합니다. 최종 렌더 품질은 동일합니다.' : 'Canvas 2D 미리보기'}>{useGpu ? 'GPU 표시' : '2D 표시'}</span>
       </div>
 
       <div

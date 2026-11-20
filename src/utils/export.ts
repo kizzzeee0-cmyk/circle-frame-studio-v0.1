@@ -59,13 +59,16 @@ export function estimateAnimatedRawMemory(options: AnimatedExportOptions) {
   return options.resolution * options.resolution * 4 * getAnimatedFrameCount(options)
 }
 
-export function isVideoFormatSupported(format: 'webm' | 'mp4') {
-  if (typeof VideoEncoder !== 'undefined') return true
+export function isRealtimeVideoFormatSupported(format: 'webm' | 'mp4') {
   if (typeof MediaRecorder === 'undefined') return false
   const mime = format === 'mp4'
     ? 'video/mp4;codecs=avc1.42E01E'
     : 'video/webm;codecs=vp9'
   return MediaRecorder.isTypeSupported(mime)
+}
+
+export function isVideoFormatSupported(format: 'webm' | 'mp4') {
+  return typeof VideoEncoder !== 'undefined' || isRealtimeVideoFormatSupported(format)
 }
 
 function assertMemoryBudget(options: AnimatedExportOptions) {
@@ -302,7 +305,7 @@ async function exportCanvasVideo(
   signal?: AbortSignal,
 ) {
   const format = options.format === 'mp4' ? 'mp4' : 'webm'
-  if (!isVideoFormatSupported(format)) {
+  if (!isRealtimeVideoFormatSupported(format)) {
     throw new Error(format === 'mp4'
       ? '현재 브라우저는 MP4 MediaRecorder 인코딩을 지원하지 않습니다. WebM 또는 APNG/Animated WebP를 사용해 주세요.'
       : '현재 브라우저는 VP9 WebM 인코딩을 지원하지 않습니다.')

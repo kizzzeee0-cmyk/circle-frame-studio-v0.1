@@ -1,6 +1,6 @@
 [package]
 name = "kize_design_tool"
-version = "0.3.0"
+version = "0.4.0"
 description = "KIZE DESIGN TOOL Desktop"
 authors = ["KIZE"]
 edition = "2021"
@@ -14,3 +14,5 @@ tauri-build = { version = "2" }
 
 [dependencies]
 tauri = { version = "2" }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

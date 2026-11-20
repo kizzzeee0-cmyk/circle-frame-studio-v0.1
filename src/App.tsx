@@ -528,7 +528,7 @@ export default function App() {
   const handlePortableSave = async () => {
     try {
       await exportPortableProject(project)
-      await recordRecentSave('json')
+      await recordRecentSave('project')
     } catch (error) {
       alert(error instanceof Error ? error.message : '휴대용 프로젝트를 저장하지 못했습니다.')
     }

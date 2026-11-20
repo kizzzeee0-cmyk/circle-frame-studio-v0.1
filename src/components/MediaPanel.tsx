@@ -99,6 +99,11 @@ export default function MediaPanel(props: Props) {
         <input value={props.background.color} onChange={event => props.onBackgroundChange({ ...props.background, color: event.target.value.toUpperCase() })} />
       </div>}
 
+      {props.background.type !== 'transparent' && <label className="control slider-control">
+        <span><b>배경 불투명도</b><em>{Math.round(props.background.opacity * 100)}%</em></span>
+        <input type="range" min={0} max={1} step={.01} value={props.background.opacity} onChange={event => props.onBackgroundChange({ ...props.background, opacity: Number(event.target.value) })} />
+      </label>}
+
       {['image','video'].includes(props.background.type) && <>
         <button type="button" className="soft-button full" onClick={() => backgroundInput.current?.click()}>
           {props.background.fileName ? '배경 원본 변경 · ' + props.background.fileName : '배경 파일 선택'}

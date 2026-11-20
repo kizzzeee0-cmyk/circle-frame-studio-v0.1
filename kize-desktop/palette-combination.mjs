@@ -23,13 +23,16 @@ function paletteRgb(hex){
   if(!rgb)throw Error('팔레트 색상은 #RRGGBB 형식이어야 합니다: '+hex);
   return rgb;
 }
-export function discoverSourceColors(rgba,w,h,count,{preserveWhiteBlack=true}={}){
+export function discoverSourceColors(rgba,w,h,count,{preserveWhiteBlack=true,mask=null}={}){
   if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||
       rgba.length!==w*h*4)throw Error('PNG 픽셀 크기 또는 픽셀 데이터가 잘못되었습니다.');
   const desired=clamp(Math.trunc(count),1,6);
-  const pixels=w*h,stride=Math.max(1,Math.floor(pixels/MAX_SAMPLE));
+  const pixels=w*h;
+  if(mask&&mask.length!==pixels)throw Error('색상 인식 대상 선택 영역 크기가 잘못되었습니다.');
+  const stride=Math.max(1,Math.floor(pixels/MAX_SAMPLE));
   const bins=new Map();
   for(let i=0;i<pixels;i+=stride){
+    if(mask&&!mask[i])continue;
     const p=i*4,r=rgba[p],g=rgba[p+1],b=rgba[p+2],a=rgba[p+3];
     if(!paletteEligible(a,r,g,b,{preserveWhiteBlack}))continue;
     const key=((r>>4)<<8)|((g>>4)<<4)|(b>>4);
@@ -110,7 +113,9 @@ export function applyPaletteMap(rgba,w,h,map,{mask=null}={}){
     eligible++;
     let best=0,score=Infinity;
     for(let k=0;k<map.source.length;k++){
-      const d=distance([r,g,b],map.source[k]);
+      const center=map.source[k];
+      const dr=r-center[0],dg=g-center[1],db=b-center[2];
+      const d=.55*dr*dr+dg*dg+.42*db*db;
       if(d<score){score=d;best=k;}
     }
     const source=map.source[best],target=map.targets[best];

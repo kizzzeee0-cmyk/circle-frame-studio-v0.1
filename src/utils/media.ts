@@ -69,6 +69,18 @@ export async function storeMediaFile(file: File, reuseId?: string) {
   return { id, url, name: file.name, type: file.type }
 }
 
+export async function getStoredMediaBlob(assetId: string): Promise<Blob | undefined> {
+  if (!assetId) return undefined
+  try {
+    const db = await openDb()
+    const tx = db.transaction(STORE, 'readonly')
+    const record = await requestResult(tx.objectStore(STORE).get(assetId)) as StoredAsset | undefined
+    return record?.blob
+  } catch {
+    return undefined
+  }
+}
+
 export async function getStoredMediaUrl(assetId: string) {
   if (!assetId) return ''
   const cached = urlCache.get(assetId)
@@ -158,6 +170,9 @@ export async function preloadMediaLayer(layer: MediaLayer) {
   try {
     if (layer.kind === 'video') await ensureVideo(layer.assetId, layer.sourceUrl)
     else await ensureImage(layer.assetId, layer.sourceUrl)
+    if (layer.customMaskAssetId || layer.customMaskSourceUrl) {
+      await ensureImage(layer.customMaskAssetId, layer.customMaskSourceUrl)
+    }
   } catch {
     if (layer.assetId) missingAssets.add(layer.assetId)
   }
@@ -183,6 +198,11 @@ export async function preloadProjectMedia(project: FrameProject) {
 export function getMediaElement(layer: MediaLayer) {
   const key = sourceKey(layer.assetId, layer.sourceUrl)
   return layer.kind === 'video' ? videoCache.get(key) : imageCache.get(key)
+}
+
+export function getCustomMaskElement(layer: MediaLayer) {
+  const key = sourceKey(layer.customMaskAssetId, layer.customMaskSourceUrl)
+  return key ? imageCache.get(key) : undefined
 }
 
 export function getBackgroundElement(background?: BackgroundSettings) {

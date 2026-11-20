@@ -1,19 +1,13 @@
 name: KIZE DESIGN TOOL - Windows Build & Startup Check
 on:
   push:
-    branches: [kize-v0.9.0-group-vector-mask, kize-v0.10.0-fidelity-smart-edit]
+    branches: [kize-v0.9.0-group-vector-mask, kize-v0.11.0-simple-update-notice]
   pull_request:
     branches: [kize-v0.9.0-group-vector-mask]
     paths:
       - 'kize-desktop/**'
       - '.github/workflows/kize-editor-v04-build.yml'
   workflow_dispatch:
-    inputs:
-      publish_update:
-        description: 'Publish signed updater release (requires signing secrets)'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -123,6 +117,12 @@ jobs:
         run: |
           node tests/browser-variants.mjs
           if ($LASTEXITCODE -ne 0) { throw 'PNG variation batch + 100% preview E2E test failed' }
+      - name: Browser regression - KIZE one-time update badge and manual download
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          node tests/browser-update-notice.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Update badge and download regression failed' }
       - name: Generate app icon
         shell: powershell
         run: |
@@ -144,44 +144,14 @@ jobs:
         run: |
           npx tauri icon icon-source.png --output src-tauri/icons
           if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
-      - name: Configure signed updater only when both credentials exist
-        env:
-          UPDATE_PUBLIC_KEY: ${{ vars.KIZE_UPDATER_PUBLIC_KEY }}
-          UPDATE_PRIVATE_KEY: ${{ secrets.KIZE_UPDATER_PRIVATE_KEY }}
-        shell: pwsh
-        run: |
-          if (-not $env:UPDATE_PUBLIC_KEY -or -not $env:UPDATE_PRIVATE_KEY) {
-            Write-Host 'Update-signing credentials not configured; building standard standalone installer.'
-            if ('${{ inputs.publish_update }}' -eq 'true') { throw 'Cannot publish unsigned updates. Configure GitHub Actions updater keys first.' }
-            exit 0
-          }
-          $path = 'kize-desktop/src-tauri/tauri.conf.json'
-          $obj = Get-Content $path -Raw | ConvertFrom-Json
-          $obj | Add-Member -NotePropertyName plugins -NotePropertyValue @{
-            updater = @{
-              pubkey = $env:UPDATE_PUBLIC_KEY
-              endpoints = @('https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/latest/download/latest.json')
-              windows = @{ installMode = 'passive' }
-            }
-          } -Force
-          $obj.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
-          $obj | ConvertTo-Json -Depth 20 | Set-Content $path -Encoding UTF8
-          Write-Host 'Signed-update support enabled for this build.'
-      - name: Build Windows installer
+      - name: Build standalone Windows installer without signing secrets
         working-directory: kize-desktop
         shell: pwsh
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.KIZE_UPDATER_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.KIZE_UPDATER_PASSWORD }}
-          UPDATE_PUBLIC_KEY: ${{ vars.KIZE_UPDATER_PUBLIC_KEY }}
         run: |
-          if ($env:UPDATE_PUBLIC_KEY -and $env:TAURI_SIGNING_PRIVATE_KEY) {
-            $env:VITE_KIZE_SIGNED_UPDATES='true'
-            npx tauri build --features signed-updates
-          } else {
-            $env:VITE_KIZE_SIGNED_UPDATES='false'
-            npm run desktop
-          }
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $tauri = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if ($package.version -ne $tauri.version) { throw 'KIZE frontend / installer versions mismatch' }
+          npm run desktop
           if ($LASTEXITCODE -ne 0) { throw 'Windows desktop compilation failed' }
       - name: Smoke-test Windows app startup (detect immediate crashes)
         shell: pwsh
@@ -209,30 +179,43 @@ jobs:
       - name: Upload Windows setup
         uses: actions/upload-artifact@v4
         with:
-          name: KIZE-DESIGN-TOOL-v0.10.0-Windows
+          name: KIZE-DESIGN-TOOL-v0.11.0-Windows
           path: kize-desktop/src-tauri/target/release/bundle/nsis/*setup.exe
           if-no-files-found: error
           retention-days: 30
-      - name: Publish signed in-app update
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_update }}
+      - name: Publish KIZE manual-download release (no signing keys needed)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/kize-v0.9.0-group-vector-mask' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          SIGNING_KEY: ${{ secrets.KIZE_UPDATER_PRIVATE_KEY }}
-          UPDATE_PUBLIC_KEY: ${{ vars.KIZE_UPDATER_PUBLIC_KEY }}
+          GH_REPO: ${{ github.repository }}
         shell: pwsh
         run: |
-          if (-not $env:SIGNING_KEY -or -not $env:UPDATE_PUBLIC_KEY) { throw 'Signing credentials missing' }
-          $dir = 'kize-desktop/src-tauri/target/release/bundle/nsis'
-          $setup = Get-ChildItem $dir -Filter '*setup.exe' -File | Select-Object -First 1
-          $sigPath = "$($setup.FullName).sig"
-          if (-not (Test-Path $sigPath)) { throw 'Update signature not generated' }
-          $signature = (Get-Content $sigPath -Raw).Trim()
-          $version = '0.10.0'
+          $ErrorActionPreference = 'Stop'
+          $pkg = Get-Content 'kize-desktop/package.json' -Raw | ConvertFrom-Json
+          $version = [string]$pkg.version
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid KIZE release version' }
           $tag = "kize-v$version"
-          $url = "https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/download/$tag/$($setup.Name)"
-          $json = @{ version=$version; notes='KIZE PSD editor'; platforms=@{ 'windows-x86_64'=@{url=$url;signature=$signature} } } | ConvertTo-Json -Depth 10
-          $json | Set-Content latest.json -Encoding utf8
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -ne 0) { gh release create $tag --title "KIZE DESIGN TOOL v$version" --notes "PSD editing and signed updates" }
-          gh release upload $tag $setup.FullName latest.json --clobber
-          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
+          $existing = @(gh release list --repo $env:GH_REPO --json tagName --limit 100 | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list existing GitHub Releases' }
+          if ($existing | Where-Object { $_.tagName -eq $tag }) {
+            Write-Host "KIZE release $tag already published. Bump package version to release new changes."
+            exit 0
+          }
+          $dir = 'kize-desktop/src-tauri/target/release/bundle/nsis'
+          $setups = @(Get-ChildItem $dir -File -Filter '*setup.exe')
+          if ($setups.Count -ne 1) { throw 'Expected exactly one Windows setup executable' }
+          $setup = $setups[0]
+          $zip = "KIZE-DESIGN-TOOL-v$version-Windows.zip"
+          Compress-Archive -LiteralPath $setup.FullName -DestinationPath $zip -Force
+          if ((Get-Item $zip).Length -lt 500000) { throw 'Release ZIP is suspiciously small' }
+          $sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          "$sha256  $zip" | Set-Content -Path "$zip.sha256" -Encoding ascii
+          $notesFile = 'kize-desktop/RELEASE_NOTES_KR.md'
+          if (-not (Test-Path $notesFile)) { throw 'KIZE release notes are missing' }
+          $notes = Get-Content $notesFile -Raw -Encoding UTF8
+          if (-not $notes.StartsWith("KIZE DESIGN TOOL v$version")) {
+            throw 'Release notes must start with matching KIZE version'
+          }
+          gh release create $tag $setup.FullName $zip "$zip.sha256" --repo $env:GH_REPO --target $env:GITHUB_SHA --title "KIZE DESIGN TOOL v$version" --notes-file $notesFile
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release publish failed' }
+          Write-Host "KIZE release $tag published with EXE, ZIP and SHA-256."

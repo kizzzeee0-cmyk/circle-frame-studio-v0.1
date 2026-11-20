@@ -3,7 +3,8 @@ pub fn run() {
     // A missing updater signing key/config must NEVER prevent the editor from starting.
     // Unsigned builds do not register the updater plugin at all.
     let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init());
 
     #[cfg(feature = "signed-updates")]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());

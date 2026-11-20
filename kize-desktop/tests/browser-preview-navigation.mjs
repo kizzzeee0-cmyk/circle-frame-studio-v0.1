@@ -61,10 +61,10 @@ try{
     const st=stage.getBoundingClientRect();
     return {scrollHeight:stage.scrollHeight,scrollWidth:stage.scrollWidth,
       clientHeight:stage.clientHeight,clientWidth:stage.clientWidth,
-      topDelta:h.top-st.top,leftDelta:h.left-st.left};
+      topDelta:h.top-st.top,leftDelta:h.left-st.left,zoom:document.querySelector('#zoomLabel').textContent,holderW:h.width,holderH:h.height,stageW:st.width,stageH:st.height,sizerH:document.querySelector('#stageSizer').getBoundingClientRect().height,sizerW:document.querySelector('#stageSizer').getBoundingClientRect().width};
   });
   assert.ok(geometry.scrollHeight>geometry.clientHeight+100 && geometry.scrollWidth>geometry.clientWidth+100,
-    'Zoomed artboard must be actually scrollable');
+    'Zoomed artboard must be actually scrollable: '+JSON.stringify(geometry));
   assert.ok(geometry.topDelta>=-2 && geometry.topDelta<=70,
     'Top edge of oversized artboard must be reachable at scrollTop=0: '+JSON.stringify(geometry));
   assert.ok(geometry.leftDelta>=-2 && geometry.leftDelta<=70,

@@ -188,6 +188,7 @@ export function installCharacterPalette({applyPalette,notify,download}){
       const found=old.findIndex(p=>p.name===item.name&&p.colors.join(',')===item.colors.join(','));
       if(found>=0)old.splice(found,1);
       old.unshift(item);localStorage.setItem(KEY,JSON.stringify(old.slice(0,100)));
+      window.dispatchEvent(new Event('kize:palette-saved'));
       $('charPaletteState').textContent='팔레트를 로컬 라이브러리에 저장했어요. 공유 JSON으로 내보내서 다른 도구에서도 가져올 수 있습니다.';
       notify('「'+item.name+'」 팔레트를 로컬에 저장했습니다.');
     }catch(e){notify('팔레트 저장 실패: '+(e?.message||e));}

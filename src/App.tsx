@@ -674,6 +674,16 @@ export default function App() {
     setTimelineTime(0)
   }
 
+  const resetUiLayout = () => {
+    if (!confirm('즐겨찾기·접힘 상태·프리셋 즐겨찾기·타임라인 접힘 등 UI 배치만 초기화할까요? 현재 작업물은 유지됩니다.')) return
+    try {
+      localStorage.removeItem('circle-frame-studio-ui-sections-v034')
+      localStorage.removeItem('circle-frame-studio-preset-favorites-v034')
+      localStorage.removeItem('circle-frame-studio-timeline-collapsed-v034')
+    } catch { /* ignore */ }
+    window.location.reload()
+  }
+
   const addLayer = () => {
     commit(draft => {
       const base = structuredClone(draft.design)
@@ -1386,6 +1396,8 @@ export default function App() {
               <span className="toolbar-menu-divider" />
               <button onClick={() => void handleJsonSave()}>JSON 백업</button>
               <button onClick={() => fileInput.current?.click()}>JSON 불러오기</button>
+              <span className="toolbar-menu-divider" />
+              <button onClick={resetUiLayout}>UI 배치 초기화</button>
             </div>
           </details>
           <details className="toolbar-more shortcut-menu compact-help-menu">

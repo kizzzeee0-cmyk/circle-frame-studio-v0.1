@@ -40,6 +40,10 @@ try{
    await page.waitForFunction(()=>/불러오기 완료/.test(document.querySelector('#importReport')?.textContent||''),null,{timeout:60000});
  };
  const selectAndPaint=async(layerName)=>{
+   await page.locator('#viewLayers').click();
+   assert.deepEqual(await pix(7,9),[230,70,110,255],'Approximate preview preserves the visible upper layer color');
+   assert.deepEqual(await pix(16,9),[248,242,224,255],'Approximate preview hides PSD masked or clipped upper-layer pixels');
+   await page.locator('#viewComposite').click();
    await page.locator('.layer').filter({hasText:layerName}).click();
    await page.locator('#selectionMode').selectOption('asset');
    await page.locator('#preserveShading').uncheck();

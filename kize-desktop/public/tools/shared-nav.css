@@ -17,3 +17,22 @@ body:has(#root){padding:0}
 body:has(#root)>#root{overflow:hidden}
 body:has(#root){--accent:#79BCE5;--accent-soft:#DDEFFA;--accent-strong:#2B86B5;--line:#DCE7EF;--muted:#718494}
 @media(max-width:940px){#kize-unified-nav{gap:8px;padding:0 6px}#kize-unified-nav .kize-nav-share span,#kize-unified-nav #kize-shared-notice{display:none}#kize-unified-nav .kize-nav-tabs a{padding:5px 6px;font-size:10px}}
+
+/* Shared low-glare design tokens. Legacy project canvases retain THEIR pixels
+   and export palettes: these selectors target app chrome only. */
+body:has(#previewCanvas){--bg:#F7FAFC;--panel:#FFF;--ink:#344553;--muted:#718494;--line:#DCE7EF;--accent:#2B86B5;--accent2:#79BCE5;--shadow:none;background:#F7FAFC!important;color:#344553}
+body:has(#previewCanvas) button.primary{background:#2B86B5;box-shadow:none}
+body:has(#previewCanvas) button.secondary{background:#79BCE5;box-shadow:none}
+body:has(#previewCanvas) .panel{border-color:#DCE7EF;box-shadow:none;border-radius:10px}
+body:has(#previewCanvas) input[type=range]{accent-color:#2B86B5}
+body:has(#previewCanvas) .tab.active,body:has(#previewCanvas) .layer-tab.active{background:#DDEFFA;border-color:#BBDDEB;color:#2B86B5}
+body:has(#previewCanvas) input[type=search],body:has(#previewCanvas) select,
+body:has(#previewCanvas) input[type=text],body:has(#previewCanvas) input[type=number]{background:#fff;border-color:#DCE7EF;color:#344553}
+body:has(#previewCanvas) .topbar h1 span{color:#2B86B5;background:#DDEFFA}
+body:has(#root){color:#344553;background:#F7FAFC}
+body:has(#root) .app-shell{height:calc(100vh - 44px)!important;min-height:0!important}
+body:has(#root) .brand-mark{background:#2B86B5!important;box-shadow:none!important}
+body:has(#root) .topbar{box-shadow:none;border-bottom-color:#DCE7EF}
+body:has(#root) .toolbar .primary-button{background:#2B86B5;border-color:#2B86B5}
+body:has(#root) .toolbar button:hover,body:has(#root) .soft-button:hover{background:#F0F8FC;border-color:#C8E0EC}
+body:has(#root) input[type=range]{accent-color:#2B86B5}

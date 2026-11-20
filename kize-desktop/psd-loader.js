@@ -120,26 +120,26 @@ export function importPsdPixels(buffer, options={}) {
     // dimensions as the raw layer bitmap.
     const maskSpecs=[];
     let maskDecodeFailed=false;
-    if(layer.mask&&!layer.mask.disabled){
+    const decodeMask=(metadata,decoder,label)=>{
+      if(!metadata||metadata.disabled)return;
       try{
-        const image=getLayerMaskImageData(layer);
-        const spec=normalizeMaskData(image,layer.mask,layer);
-        if(spec)maskSpecs.push(spec);
+        const mw=Math.max(0,Math.round((metadata.right??0)-(metadata.left??0)));
+        const mh=Math.max(0,Math.round((metadata.bottom??0)-(metadata.top??0)));
+        const size=mw*mh;
+        // A 24M pixel mask could consume >120 MiB during 8-bit decode.
+        // Fail closed instead of freezing the application or editing behind it.
+        if(!mw||!mh||size>24_000_000||decodedBytes+size*5>decodedByteBudget)
+          throw Error('마스크 메모리 제한 초과 또는 크기 불일치');
+        const spec=normalizeMaskData(decoder(layer),metadata,layer);
+        if(spec){maskSpecs.push(spec);decodedBytes+=size*5;}
       }catch(e){
         maskDecodeFailed=true;
-        failed.push(name+' (마스크 별도 해석 불가: '+(e?.message||e)+')');
+        warnings.push(name+' ('+label+' 분석 불가: '+(e?.message||e)+
+          ' — 이 레이어의 안전한 색상 선택을 제한합니다.)');
       }
-    }
-    if(layer.realMask&&!layer.realMask.disabled){
-      try{
-        const image=getLayerRealMaskImageData(layer);
-        const spec=normalizeMaskData(image,layer.realMask,layer);
-        if(spec)maskSpecs.push(spec);
-      }catch(e){
-        maskDecodeFailed=true;
-        failed.push(name+' (보조 마스크 해석 불가: '+(e?.message||e)+')');
-      }
-    }
+    };
+    decodeMask(layer.mask,getLayerMaskImageData,'픽셀 마스크');
+    decodeMask(layer.realMask,getLayerRealMaskImageData,'보조 마스크');
     if(maskSpecs.some(m=>m.feather>0))warnings.push(name+' (PSD 마스크 Feather는 색상 선택의 정확한 재현을 지원하지 않습니다.)');
     decodedPixels+=bitmap.width*bitmap.height;
     decodedBytes+=bitmap.width*bitmap.height*4*bytesPerChannel;

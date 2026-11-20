@@ -105,6 +105,11 @@ export default function CanvasPanel({
   const selectedLayers = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id) && layer.visible)
   const bounds = selectionBounds(selectedLayers)
   const fitScale = getProjectFitScale(project)
+  const assetKey = useMemo(() => JSON.stringify({
+    media: (project.mediaLayers ?? []).map(layer => [layer.assetId, layer.sourceUrl, layer.customMaskAssetId, layer.customMaskSourceUrl]),
+    background: [project.background?.assetId, project.background?.sourceUrl],
+    frameAssets: project.layers.map(layer => layer.design.pattern.customAssetUrl),
+  }), [project.mediaLayers, project.background, project.layers])
 
   useEffect(() => {
     let cancelled = false
@@ -127,7 +132,7 @@ export default function CanvasPanel({
     }
     void load()
     return () => { cancelled = true }
-  }, [project, effectiveResolution, useGpu])
+  }, [assetKey, effectiveResolution, useGpu])
 
   useEffect(() => {
     syncProjectMediaPreview(project, timeSec, playing)

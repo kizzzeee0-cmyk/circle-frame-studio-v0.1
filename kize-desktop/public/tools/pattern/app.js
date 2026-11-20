@@ -124,6 +124,19 @@ function generateAutoPalettes(baseHex){let {h,s,l}=rgbToHsl(hexToRgb(baseHex));l
 out.forEach(v=>{v.colors=normalizeColors(v.colors);v.colors[4]=suggestLineColor(v.colors)});return out}
 function buildCheckerTonePalette(baseHex){let {h,s,l}=rgbToHsl(hexToRgb(baseHex||'#AFC3FF'));let softS=Math.max(.22,Math.min(.74,s||.5));let midL=Math.max(.56,Math.min(.76,l||.68));let toneA=hslToHex(h,Math.min(.75,softS*.92+.05),midL);let toneB=hslToHex(h+3,Math.max(.16,softS*.42),Math.min(.88,midL+.18));let toneC=hslToHex(h-4,Math.max(.12,softS*.26),Math.min(.94,midL+.28));let bg=hslToHex(h,Math.max(.06,softS*.12),.97);let line=suggestLineColor([bg,toneA,toneB,toneC,'#000000']);return normalizeColors([bg,toneA,toneB,toneC,line])}
 function applyCheckerTonePalette(layer=currentLayer(),sync=true){let base=(layer.checkerToneBase||layer.colors?.[1]||'#AFC3FF').toUpperCase();layer.checkerToneBase=base;layer.colors=buildCheckerTonePalette(base);if(sync){persistAll();syncLayerUI();renderPatternListDebounced();renderMain()}}
+// A palette saved in the KIZE editor can be applied to the LIVE pattern
+// layer. This is a real in-app edit, not a link or static preview.
+window.addEventListener('kize:shared-palette-apply',event=>{
+  const colors=event.detail?.colors;
+  if(!Array.isArray(colors)||colors.length<4||colors.some(c=>!/^#[0-9A-F]{6}$/i.test(c)))return;
+  const next=normalizeColors(colors);
+  const layer=currentLayer();
+  layer.colors=next;
+  layer.colors[4]=colors[4]||suggestLineColor(next);
+  if(layer.colorMode==='auto')layer.colorMode='manual';
+  persistAll();syncAll();
+  toast('KIZE 공통 팔레트가 현재 패턴 레이어에 적용됐어요.');
+});
 function applyPaletteToCurrentLayer(colors,applyBg=false){let layer=currentLayer();layer.colors=normalizeColors(colors);layer.colors[4]=suggestLineColor(layer.colors);if(applyBg){setBgGradientFromPalette([layer.colors[0],mixHex(layer.colors[0],layer.colors[2],.28)])}persistAll();syncAll()}
 function renderPaletteCard(parent,item){let card=document.createElement('div');card.className='preset-card';let info=document.createElement('div');info.innerHTML=`<strong>${item.name}</strong><small>${item.note||'추천 팔레트'}</small>`;let sw=document.createElement('div');sw.className='swatch-row';item.colors.forEach(c=>{let s=document.createElement('div');s.className='swatch';s.style.background=c;s.title=c;sw.appendChild(s)});info.appendChild(sw);let acts=document.createElement('div');acts.className='preset-actions';let a1=document.createElement('button');a1.className='mini-btn';a1.textContent='레이어 적용';a1.onclick=()=>applyPaletteToCurrentLayer(item.colors,false);let a2=document.createElement('button');a2.className='mini-btn';a2.textContent='배경+레이어';a2.onclick=()=>applyPaletteToCurrentLayer(item.colors,true);acts.append(a1,a2);card.append(info,acts);parent.appendChild(card)}
 function renderColorRecommendationPanels(){let curated=$('#curatedPaletteList'),auto=$('#autoPaletteList');if(!curated||!auto)return;curated.innerHTML='<div class="muted mini-copy">함께 쓰면 예쁜 조합 프리셋</div>';auto.innerHTML='<div class="muted mini-copy">기준 색상으로 자동 생성한 추천 팔레트</div>';curatedHarmonyPresets.forEach(item=>renderPaletteCard(curated,item));let base=$('#baseColorInput')?.value||currentLayer().colors[1]||'#F5B9D4';generateAutoPalettes(base).forEach(item=>renderPaletteCard(auto,item))}

@@ -1002,6 +1002,41 @@ $('addGradientStop').onclick=()=>{
   refreshGradientUi();
 };
 refreshGradientUi();
+// One visual policy powers direct editing. "Exact" NEVER secretly rotates
+// the source hue, and pastel softness is visible before clicking Apply.
+function editorPaintSettings(color=$('targetColor').value){
+  return {
+    mode:$('colorMode').value,color,finish:$('colorFinish').value,
+    softness:Number($('pastelSoftness').value),
+    stops:gradientStops.map(v=>({color:v.color,position:v.position})),
+    angle:Number($('gradientAngle').value),
+    tintAsset:$('assetTint').checked,
+    protectWhite:$('protectWhite').checked,
+    preserveShading:$('preserveShading').checked
+  };
+}
+function refreshColorFinish(){
+  const pastel=$('colorFinish').value==='pastel';
+  $('pastelControls').hidden=!pastel;
+  const shown=effectiveColor($('targetColor').value,$('colorFinish').value,
+    Number($('pastelSoftness').value));
+  $('effectiveColorText').textContent=shown;
+  $('effectiveColorSwatch').style.backgroundColor=shown;
+  $('effectiveColorPreview').title='미리 표시한 기준 색상 '+shown;
+  if(temporaryPreview)void drawTemporaryPreview();
+}
+$('colorFinish').onchange=refreshColorFinish;
+$('targetColor').oninput=refreshColorFinish;
+$('pastelSoftness').oninput=e=>{
+  $('pastelSoftnessNumber').value=e.target.value;refreshColorFinish();
+};
+$('pastelSoftnessNumber').onchange=e=>{
+  const n=clamp(Math.round(Number(e.target.value)||0),0,85);
+  $('pastelSoftness').value=String(n);e.target.value=String(n);
+  refreshColorFinish();
+};
+refreshColorFinish();
+
 $('applyColor').onclick=()=>{
   if(!selectionParts.length){notify('① 먼저 이미지에서 바꾸고 싶은 색상을 클릭해 주세요.');return;}
   const mode=$('colorMode').value;
@@ -1025,15 +1060,7 @@ $('applyColor').onclick=()=>{
         for(let i=0;i<n;i++)if(!covered[i]&&part.mask[i]){
           isolated[i]=part.mask[i];covered[i]=1;
         }
-        const opts={
-          mode,color:$('targetColor').value,
-          stops:gradientStops.map(x=>({color:x.color,position:x.position})),
-          angle:Number($('gradientAngle').value),
-          preserveShading:$('preserveShading').checked,
-          tintAsset:$('assetTint').checked&&part.mode==='asset',
-          protectWhite:$('protectWhite').checked,
-          smartPalette:$('smartPalette').checked,
-        };
+        const opts=paintPolicy(editorPaintSettings(),part.mode);
         const effectivePart={...part,mask:isolated};
         if(appearanceEnabled){
           // A Photoshop appearance patch is computed from the ACTUAL saved
@@ -1079,14 +1106,68 @@ $('applyColor').onclick=()=>{
   }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error('KIZE appearance paint:',e);}
 };
 
-$('variantPreset').onchange=e=>{if(e.target.value)$('variantColors').value=e.target.value;};
 function variantPaintOptions(color,part){
-  return {mode:'solid',color,
-    stops:gradientStops.map(s=>({color:s.color,position:s.position})),
-    angle:Number($('gradientAngle').value),preserveShading:$('preserveShading').checked,
-    tintAsset:$('assetTint').checked&&part.mode==='asset',
-    protectWhite:$('protectWhite').checked,smartPalette:$('smartPalette').checked};
+  return paintPolicy({
+    mode:'solid',color,finish:$('variantFinish').value,
+    softness:Number($('variantSoftness').value),
+    tintAsset:$('assetTint').checked,
+    protectWhite:$('protectWhite').checked,
+    preserveShading:$('preserveShading').checked
+  },part.mode);
 }
+function updateVariantSwatches(){
+  const panel=$('variantSwatches');panel.replaceChildren();
+  $('variantSoftnessControls').hidden=$('variantFinish').value!=='pastel';
+  try{
+    const colors=parseVariantColors($('variantColors').value);
+    for(const color of colors){
+      const actual=effectiveColor(color,$('variantFinish').value,Number($('variantSoftness').value));
+      const item=document.createElement('span');item.className='variant-swatch';
+      const swatch=document.createElement('b');swatch.style.background=actual;
+      const label=document.createElement('span');label.textContent=actual;
+      item.append(swatch,label);
+      item.title=color===actual?'입력 HEX 그대로':'입력 '+color+' → 적용 '+actual;
+      panel.append(item);
+    }
+    $('variantSummary').textContent=colors.length+'가지 시안 · '+(
+      $('variantFinish').value==='exact'?'선택한 HEX 그대로 적용':
+      $('variantFinish').value==='pastel'?'표시한 파스텔 HEX로 적용':
+      '원본의 밝기/여러 색상 관계를 보존하므로 실제 픽셀 색상은 HEX와 다를 수 있음'
+    )+' · 원본 파일은 그대로 유지됩니다.';
+  }catch(error){
+    $('variantSummary').textContent=error.message;
+  }
+}
+(function setupVariantPresets(){
+  const select=$('variantPreset');
+  for(const groupName of [...new Set(PALETTE_PRESETS.map(p=>p.group))]){
+    const group=document.createElement('optgroup');group.label=groupName;
+    for(const preset of PALETTE_PRESETS.filter(p=>p.group===groupName)){
+      const option=document.createElement('option');
+      option.value=preset.colors.join(', ');
+      option.textContent=preset.label;
+      group.append(option);
+    }
+    select.append(group);
+  }
+})();
+$('variantPreset').onchange=e=>{
+  if(e.target.value)$('variantColors').value=e.target.value;
+  updateVariantSwatches();
+};
+$('variantColors').oninput=()=>{
+  $('variantPreset').value='';
+  updateVariantSwatches();
+};
+$('variantFinish').onchange=updateVariantSwatches;
+$('variantSoftness').oninput=e=>{
+  $('variantSoftnessNumber').value=e.target.value;updateVariantSwatches();
+};
+$('variantSoftnessNumber').onchange=e=>{
+  const n=clamp(Math.round(Number(e.target.value)||0),0,85);
+  $('variantSoftness').value=String(n);e.target.value=String(n);updateVariantSwatches();
+};
+updateVariantSwatches();
 function variantIsolated(part,covered){
   const mask=new Uint8Array(part.mask.length);
   for(let i=0;i<mask.length;i++)if(part.mask[i]&&!covered[i]){
@@ -1166,11 +1247,14 @@ $('exportVariants').onclick=async()=>{
       const c=blankCanvas(documentModel.width,documentModel.height);
       if(originalComposite&&appearanceSafe)drawBatchAppearance(c,color);
       else drawBatchLayers(c,color);
-      entries[variantFileName(documentModel.name,color,index)]=[await canvasToPngBytes(c),{level:0}];
+      entries[variantFileName(documentModel.name,
+        effectiveColor(color,$('variantFinish').value,Number($('variantSoftness').value)),index)]=[await canvasToPngBytes(c),{level:0}];
       await new Promise(resolve=>setTimeout(resolve,0));
     }
     entries['palette.json']=[strToU8(JSON.stringify({format:'KIZE-COLOR-VARIANTS-1',
-      colors,source:documentModel.name,width:documentModel.width,height:documentModel.height,
+      colors,effectiveColors:colors.map(color=>effectiveColor(color,$('variantFinish').value,
+        Number($('variantSoftness').value))),finish:$('variantFinish').value,
+      softness:Number($('variantSoftness').value),source:documentModel.name,width:documentModel.width,height:documentModel.height,
       appearancePreserved:!!(originalComposite&&appearanceSafe)},null,2)),{level:6}];
     downloadBlob(new Blob([zipSync(entries,{level:0})],{type:'application/zip'}),
       (documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'')+'-color-variants.zip');

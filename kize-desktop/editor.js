@@ -628,15 +628,37 @@ $('applyColor').onclick=()=>{
     notify(total.toLocaleString()+'px · '+layerCount+'개 레이어 색감 변경 완료 (한 번에 되돌리기 가능)');
   }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error(e);}
 };
-$('undo').onclick=()=>{
-  const last=history.pop();if(!last){notify('되돌릴 작업이 없습니다.');return;}
-  const snapshots=last.batch||[last];
-  for(const original of snapshots){
-    const l=layers.find(x=>x.id===original.id);
-    if(l)Object.assign(l,original);
+function restoreSnapshots(snapshots){
+  for(const snapshot of snapshots){
+    const l=layers.find(x=>x.id===snapshot.id);
+    if(l)Object.assign(l,snapshot);
   }
   clearSelections();refreshAll();
-  notify(snapshots.length>1?snapshots.length+'개 레이어를 한 번에 되돌렸습니다.':'마지막 편집을 되돌렸습니다.');
+}
+function oppositeSnapshots(source){
+  return source.map(s=>{const l=layers.find(x=>x.id===s.id);return l?settingsSnapshot(l):null;}).filter(Boolean);
+}
+$('undo').onclick=()=>{
+  const last=history.pop();
+  if(!last){notify('되돌릴 작업이 없습니다.');return;}
+  const originals=last.batch||[last];
+  const current=oppositeSnapshots(originals);
+  redoHistory.push({batch:current});
+  if(redoHistory.length>12)redoHistory.shift();
+  restoreSnapshots(originals);
+  unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;
+  notify(originals.length>1?'여러 레이어의 편집을 되돌렸습니다.':'마지막 편집을 되돌렸습니다.');
+};
+$('redo').onclick=()=>{
+  const record=redoHistory.pop();
+  if(!record){notify('다시 실행할 작업이 없습니다.');return;}
+  const redo=record.batch||[record];
+  const current=oppositeSnapshots(redo);
+  history.push({batch:current});
+  if(history.length>12)history.shift();
+  restoreSnapshots(redo);
+  unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;
+  notify('편집을 다시 적용했습니다.');
 };
 for(const [id,key] of [['propX','x'],['propY','y'],['propW','w'],['propH','h']]){
   $(id).onchange=e=>{const l=sel();if(!l)return;checkpoint(l);const v=Number(e.target.value);if(Number.isFinite(v)){l[key]=key==='w'||key==='h'?clamp(Math.round(v),1,20000):Math.round(v);}refreshAll();syncGuides();};

@@ -79,7 +79,9 @@
 <label>채우기 종류
   <select id="colorMode"><option value="solid">단색</option><option value="gradient">그라데이션</option></select>
 </label>
-<div id="solidControls"><label>바꿀 색상 (고른 HEX 기준) <input type="color" id="targetColor" value="#BEB5ED"></label></div>
+<div id="solidControls"><label>바꿀 색상 (고른 HEX 기준)</label>
+<div class="target-color-row"><input type="color" id="targetColor" value="#BEB5ED" aria-label="바꿀 색상 고르기">
+<input type="text" id="targetHex" value="#BEB5ED" maxlength="7" spellcheck="false" aria-label="바꿀 색상 HEX 직접 입력" placeholder="#RRGGBB"></div></div>
 <label class="selection-mode-label">색상을 바꾸는 방식
 <select id="colorFinish">
   <option value="exact">선택한 색상 그대로 (기본 · 가장 정확함)</option>
@@ -99,7 +101,7 @@
   <label class="range-label">그라데이션 방향 <span id="angleLabel">90°</span><input type="range" id="gradientAngle" min="0" max="360" value="90"></label>
 </div>
 <label class="check shading-check"><input type="checkbox" id="assetTint" checked> 에셋 색감 통일 · 그림자/밝기 유지</label>
-<label class="check shading-check"><input type="checkbox" id="smartPalette" checked> 스마트 다색 색감 변경 · 개별 색상 차이 유지</label>
+<p class="micro" id="colorFinishHint">‘선택한 색상 그대로’는 HEX를 정확히 적용합니다. 다른 표현은 위의 색상 변경 방식에서 선택하세요.</p>
 <label class="check shading-check"><input type="checkbox" id="protectWhite" checked> 원본 흰색·검정 선 보호</label>
 <label class="check shading-check"><input type="checkbox" id="preserveShading" checked> 명암 대비 유지</label>
 <div class="buttonrow color-action-row"><button type="button" class="subtle" id="previewColor">변경 미리보기</button><button class="primary" id="applyColor">선택한 부분에 색상 적용</button></div>

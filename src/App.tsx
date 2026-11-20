@@ -1371,20 +1371,25 @@ export default function App() {
           <div><h1>Circle Frame Studio</h1><span>v0.33 · Precision Composer</span></div>
         </div>
         <div className="toolbar">
-          <button onClick={reset}>새 프레임</button>
-          <span className="toolbar-sep" />
-          <button onClick={undo} title="Ctrl+Z">↶ 실행취소</button>
-          <button onClick={redo} title="Ctrl+Y">↷ 다시실행</button>
-          <span className="toolbar-sep" />
+          <button className="toolbar-icon-button" onClick={undo} title="실행취소 · Ctrl/⌘+Z">↶</button>
+          <button className="toolbar-icon-button" onClick={redo} title="다시실행 · Ctrl/⌘+Y">↷</button>
           <span className={lastAutosaveAt ? 'autosave-status saved' : 'autosave-status'} title={lastAutosaveAt ? '마지막 자동 저장 ' + new Date(lastAutosaveAt).toLocaleTimeString() : '자동 저장 준비 중'}>
-            {lastAutosaveAt ? '자동 저장됨' : '자동 저장'}
+            {lastAutosaveAt ? '저장됨' : '자동 저장'}
           </span>
-          <button className="project-package-button" onClick={() => void handlePortableSave()}>프로젝트 저장</button>
-          <button className="project-package-button" onClick={() => bundleInput.current?.click()}>프로젝트 불러오기</button>
-          <input ref={bundleInput} hidden type="file" accept=".cfszip,application/zip" onChange={e => void importPortable(e.target.files?.[0])} />
-          <button onClick={() => setRecentOpen(true)}>최근 저장 내역</button>
-          <details className="toolbar-more shortcut-menu">
-            <summary>단축키</summary>
+          <button className="project-package-button toolbar-save-main" onClick={() => void handlePortableSave()}>프로젝트 저장</button>
+          <details className="toolbar-more toolbar-project-menu">
+            <summary>프로젝트</summary>
+            <div>
+              <button onClick={reset}>새 프로젝트</button>
+              <button onClick={() => bundleInput.current?.click()}>프로젝트 불러오기</button>
+              <button onClick={() => setRecentOpen(true)}>최근 저장 내역</button>
+              <span className="toolbar-menu-divider" />
+              <button onClick={() => void handleJsonSave()}>JSON 백업</button>
+              <button onClick={() => fileInput.current?.click()}>JSON 불러오기</button>
+            </div>
+          </details>
+          <details className="toolbar-more shortcut-menu compact-help-menu">
+            <summary title="단축키 도움말">?</summary>
             <div className="shortcut-menu-body">
               <span><b>Ctrl/⌘ + C / V</b> 선택 요소 복사 / 붙여넣기</span>
               <span><b>Ctrl/⌘ + D</b> 선택 요소 복제</span>
@@ -1396,13 +1401,7 @@ export default function App() {
               <span><b>Esc</b> 선택 해제</span>
             </div>
           </details>
-          <details className="toolbar-more">
-            <summary>기타</summary>
-            <div>
-              <button onClick={() => void handleJsonSave()}>JSON 백업</button>
-              <button onClick={() => fileInput.current?.click()}>JSON 불러오기</button>
-            </div>
-          </details>
+          <input ref={bundleInput} hidden type="file" accept=".cfszip,application/zip" onChange={e => void importPortable(e.target.files?.[0])} />
           <input ref={fileInput} hidden type="file" accept="application/json,.json" onChange={e => importProject(e.target.files?.[0])} />
           <label className="autofit"><input type="checkbox" checked={project.autoFit} onChange={e => commit(d => ({ ...d, autoFit: e.target.checked }))} /> Auto Fit</label>
           <select className="top-export-resolution" value={pngResolution} onChange={e => setPngResolution(Number(e.target.value))} title="PNG 해상도">

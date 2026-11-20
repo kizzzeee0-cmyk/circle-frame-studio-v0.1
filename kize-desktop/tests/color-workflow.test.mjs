@@ -53,7 +53,7 @@ test('color-only selection on a connected four-color border does not absorb whol
   assert.ok(selection.count>0);
   assert.ok(selection.count<w*h/2,'Selecting lavender should not select all colored border');
   assert.equal(selection.mask[0],255);
-  assert.equal(selection.mask[11],0,'Green edge is not selected');
+  assert.equal(selection.mask[5*w+11],0,'Green edge is not selected');
   assert.equal(defaultImportSelection('IMAGE'),'color');
   assert.equal(defaultImportSelection('PSD'),'color');
 });

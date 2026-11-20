@@ -5,7 +5,7 @@
 <div class="caption">WORKSPACE</div>
 <button class="side-btn selected" id="menuEditor">◈ <span>디자인 편집기</span></button>
 <div class="help"><strong>원본을 보호하는 편집</strong><p>PSD·PNG 작업물에서 영역과 색상을 수정하고, 별도 KIZE 프로젝트로 저장합니다.</p><p>Ctrl+S 저장 · Ctrl+Z 실행 취소 · Ctrl+Shift+Z 다시 실행</p></div>
-<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.6.1</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
+<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.7.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
 <section class="workspace"><header class="topbar"><div><div class="eyebrow">KIZE / WORKSPACE</div><h1>디자인 편집기</h1></div><div class="top-actions"><span id="updateStatus" class="update-status">업데이트 설정 준비 중</span><button class="subtle" id="checkUpdate">업데이트 확인</button><span id="dirtyStatus" class="dirty-status">저장됨</span><button class="subtle" id="saveProject" title="Ctrl+S · 수정 가능한 KIZE 프로젝트로 저장">프로젝트 저장</button><button id="exportPng" class="primary">PNG 내보내기</button></div></header>
 <div class="main-grid">
 <aside class="left-pane">
@@ -18,6 +18,17 @@
   <div id="activeLayerInfo" class="active-layer-info">색상을 수정할 레이어를 선택하세요.</div>
 </div>
 <div id="importReport" class="import-report" role="status" hidden></div>
+<details id="psdFidelityPanel" class="fidelity-panel" hidden>
+  <summary>PSD 구조·원본 재현 검사 <span id="psdCompatSummary"></span></summary>
+  <div class="fidelity-body">
+    <p id="psdCompatText">PSD 정보를 분석하지 않았습니다.</p>
+    <button type="button" id="runFidelityAudit" class="subtle fill">Photoshop 원본과 레이어 비교</button>
+    <p id="fidelityMetrics" class="small muted">원본 모습과 재구성 결과를 비교한 뒤 차이가 표시됩니다.</p>
+    <canvas id="fidelityHeatmap" class="fidelity-heatmap" hidden aria-label="레이어 재구성 차이를 빨간색으로 표시"></canvas>
+    <p class="micro">빨간 영역은 원본과 재구성 결과가 다른 부분입니다. 축소 검사이며 원본 데이터에는 영향을 주지 않습니다.</p>
+    <button id="downloadFidelityReport" type="button" class="subtle fill" disabled>진단 보고서 저장 (.json)</button>
+  </div>
+</details>
 <div class="layers" id="layerList" role="listbox" aria-label="레이어 목록"><div class="placeholder">PSD 파일을 불러오면<br>레이어가 여기에 표시됩니다.</div></div>
 <div class="pane-footer"><p>선택한 레이어 안에서 스포이드로 요소를 선택하면 다른 레이어는 변경되지 않습니다.</p><label class="check"><input type="checkbox" id="showHidden" checked> 숨겨진 레이어도 목록에 표시</label></div>
 </aside>
@@ -30,6 +41,7 @@
 </section>
 <aside class="right-pane">
 <div class="pane-heading"><strong>레이어 속성</strong><span id="selectedType">선택 없음</span></div>
+<div id="layerCompatibility" class="layer-compatibility" hidden></div>
 <div id="properties">
 <section class="panel"><div class="title">위치와 크기</div><div class="two"><label>X <input id="propX" type="number" step="1"></label><label>Y <input id="propY" type="number" step="1"></label><label>가로 <input id="propW" type="number" min="1" step="1"></label><label>세로 <input id="propH" type="number" min="1" step="1"></label></div>
 <div class="buttonrow"><button id="centerH">가로 중앙</button><button id="centerV">세로 중앙</button></div><div class="buttonrow"><button id="flipH">좌우 반전</button><button id="flipV">상하 반전</button><button id="rotate90">90° 회전</button></div>

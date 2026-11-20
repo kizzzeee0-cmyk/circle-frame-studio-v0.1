@@ -17,3 +17,11 @@
 #viewComposite:disabled{opacity:.45}
 .preview-status{max-width:27%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#977db2;font-weight:700}
 @media(max-width:1450px){.toolbar{padding:6px 9px}.toolbar .toolgroup{gap:5px}.nav-hint{display:none}}
+
+/* Ensure the *scroll viewport* stays at the window size. Grid/flex intrinsic
+   row heights otherwise grow to the artwork height, making panning impossible. */
+#app{grid-template-rows:minmax(0,1fr)}
+.workspace{height:100%;min-height:0;overflow:hidden}
+.main-grid{min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr)}
+.center-pane{height:100%;min-height:0;overflow:hidden}
+.stage{height:0;flex:1 1 0%;min-height:0;overflow:auto}

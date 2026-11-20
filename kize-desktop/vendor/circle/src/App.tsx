@@ -382,6 +382,7 @@ export default function App() {
   const undoRef = useRef<FrameProject[]>([])
   const redoRef = useRef<FrameProject[]>([])
   const coalesceRef = useRef<{ key: string; time: number }>({ key: '', time: 0 })
+  const receivedTransferRef = useRef(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const bundleInput = useRef<HTMLInputElement>(null)
   const mediaClipboardRef = useRef<MediaLayer[]>([])
@@ -926,10 +927,39 @@ export default function App() {
       })
       setSelectedMediaId(layer.id)
       setSelectedMediaIds([layer.id])
+      return true
     } catch {
       alert('미디어 파일을 저장하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.')
     }
   }
+
+  // Receive the actual PNG bitmap from the KIZE color editor via the
+  // offline shared workspace and import it as a real editable media layer.
+  useEffect(() => {
+    if(new URL(window.location.href).searchParams.get('handoff')!=='1')return
+    if(receivedTransferRef.current)return
+    receivedTransferRef.current=true
+    void (async()=>{
+      const bridge=(window as typeof window & {KIZEBridge?:{
+        getAsset:()=>Promise<{blob:Blob,name:string}|null>,
+        clearAsset:()=>Promise<void>
+      }}).KIZEBridge
+      if(!bridge)return
+      try{
+        const item=await bridge.getAsset()
+        if(!item)return
+        const file=new File([item.blob],item.name||'KIZE-design.png',{type:'image/png'})
+        const success=await importMedia(file,'media')
+        if(success===true){
+          await bridge.clearAsset()
+          const url=new URL(window.location.href);url.searchParams.delete('handoff')
+          window.history.replaceState(null,'',url.pathname+url.search+url.hash)
+        }
+      }catch(error){
+        console.error('KIZE offline media handoff failed',error)
+      }
+    })()
+  },[])
 
   const updateMedia = (next: MediaLayer) => {
     setProject(prev => {

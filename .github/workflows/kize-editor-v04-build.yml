@@ -103,6 +103,12 @@ jobs:
         run: |
           node tests/browser-fidelity-audit.mjs
           if ($LASTEXITCODE -ne 0) { throw 'PSD fidelity audit E2E test failed' }
+      - name: Browser regression - real PSD bitmap masks and clipping visibility
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          node tests/browser-mask-clipping.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'PSD bitmap mask and clipping regression failed' }
       - name: Generate app icon
         shell: powershell
         run: |

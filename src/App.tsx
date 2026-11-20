@@ -387,7 +387,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(project)) } catch { /* quota */ }
+    const timer = window.setTimeout(() => {
+      try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(project)) } catch { /* quota */ }
+    }, 650)
+    return () => window.clearTimeout(timer)
   }, [project])
 
   useEffect(() => {

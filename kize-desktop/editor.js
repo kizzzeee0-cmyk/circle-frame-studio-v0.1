@@ -563,7 +563,7 @@ overlay.addEventListener('pointerdown',e=>{
   if(layer.id!==selectedId)select(layer.id,additive);
   const pixel=pixelInLayer(layer,p.x,p.y);
   if(!pixel)return;
-  if(previewMode==='composite')setPreviewMode('layers');
+  if(previewMode==='composite')setPreviewMode(originalComposite&&appearanceSafe?'appearance':'layers');
   pickLayerColor(layer,pixel.x,pixel.y,additive);
 });
 overlay.addEventListener('pointermove',e=>{
@@ -657,8 +657,11 @@ $('addGradientStop').onclick=()=>{
 refreshGradientUi();
 $('applyColor').onclick=()=>{
   if(!selectionParts.length){notify('먼저 색상이나 에셋 영역을 클릭해 선택하세요. Shift+클릭으로 여러 영역을 추가할 수 있습니다.');return;}
-  const mode=$('colorMode').value,selectedLayers=layers.filter(l=>selectionParts.some(p=>p.id===l.id));
-  const updates=[];
+  const mode=$('colorMode').value;
+  const selectedLayers=layers.filter(l=>selectionParts.some(p=>p.id===l.id));
+  const updates=[],newAppearancePatches=[];
+  const appearanceEnabled=Boolean(originalComposite&&appearanceSafe);
+  const refCtx=appearanceEnabled?originalComposite.getContext('2d',{willReadFrequently:true}):null;
   let total=0;
   try{
     for(const l of selectedLayers){
@@ -675,14 +678,27 @@ $('applyColor').onclick=()=>{
         for(let i=0;i<n;i++)if(!covered[i]&&part.mask[i]){
           isolated[i]=part.mask[i];covered[i]=1;
         }
-        const painted=paintSelection(image.data,image.width,image.height,{...part,mask:isolated},{
+        const opts={
           mode,color:$('targetColor').value,
           stops:gradientStops.map(x=>({color:x.color,position:x.position})),
           angle:Number($('gradientAngle').value),
           preserveShading:$('preserveShading').checked,
           tintAsset:$('assetTint').checked&&part.mode==='asset',
-          protectWhite:$('protectWhite').checked
-        });
+          protectWhite:$('protectWhite').checked,
+        };
+        const effectivePart={...part,mask:isolated};
+        if(appearanceEnabled){
+          // A Photoshop appearance patch is computed from the ACTUAL saved
+          // composite pixels; no naive layer stacking is performed.
+          const rect=transformedSelectionRect(l,effectivePart,documentModel.width,documentModel.height);
+          if(rect){
+            const rgba=refCtx.getImageData(rect.x,rect.y,rect.w,rect.h).data;
+            const patch=makeAppearancePatch(l,effectivePart,documentModel.width,documentModel.height,
+              rgba,[...appearancePatches,...newAppearancePatches],opts);
+            if(patch)newAppearancePatches.push(patch);
+          }
+        }
+        const painted=paintSelection(image.data,image.width,image.height,effectivePart,opts);
         for(let i=0;i<n;i++)if(isolated[i]&&image.data[i*4+3]){
           const index=i*4;
           output[index]=painted.data[index];
@@ -697,14 +713,22 @@ $('applyColor').onclick=()=>{
     if(!updates.length){notify('수정할 픽셀이 없습니다. 선택 범위를 다시 확인해 주세요.');return;}
     checkpointBatch(updates.map(u=>u.layer));
     for(const u of updates){
-      const l=u.layer;
-      l.canvas=pixelCanvas(u.image);
+      const l=u.layer;l.canvas=pixelCanvas(u.image);
       if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
     }
-    const layerCount=updates.length;
+    if(appearanceEnabled){
+      appearancePatches.push(...newAppearancePatches);
+      const record=history.at(-1);
+      if(record)record.appearanceAdded=newAppearancePatches;
+      previewMode='appearance';
+    }else{
+      previewMode='layers';
+    }
     clearSelections();refreshAll();
-    notify(total.toLocaleString()+'px · '+layerCount+'개 레이어 색감 변경 완료 (한 번에 되돌리기 가능)');
-  }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error(e);}
+    notify(appearanceEnabled
+      ?total.toLocaleString()+'px 색상 변경 완료 · Photoshop 원본 외관 유지 편집 ('+newAppearancePatches.length+'개 영역)'
+      :total.toLocaleString()+'px 색상 변경 완료 · 원본 Photoshop 합성 효과는 현재 레이어 재구성에서 정확하게 재현되지 않습니다.');
+  }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error('KIZE appearance paint:',e);}
 };
 function restoreSnapshots(snapshots){
   for(const snapshot of snapshots){

@@ -52,6 +52,18 @@ try{
   assert.ok(initial.holderTop>=initial.stageTop-2 && initial.holderBottom<=initial.stageBottom+2,
     'Artwork must be visible and centered when smaller than the stage');
 
+  // Middle-button hand tool must work even BEFORE zooming, with the artboard
+  // fully fitted and therefore NO horizontal/vertical scrollbars.
+  const fitBounds=await page.locator('#canvasHolder').boundingBox();
+  await page.mouse.move(fitBounds.x+fitBounds.width/2,fitBounds.y+fitBounds.height/2);
+  await page.mouse.down({button:'middle'});
+  await page.mouse.move(fitBounds.x+fitBounds.width/2+88,fitBounds.y+fitBounds.height/2-46,{steps:6});
+  await page.mouse.up({button:'middle'});
+  const fitMoved=await page.locator('#canvasHolder').boundingBox();
+  assert.ok(fitMoved.x-fitBounds.x>65 && fitMoved.y-fitBounds.y<-28,
+    'Middle drag must pan at fit zoom with no scrollbars: '+JSON.stringify({fitBounds,fitMoved}));
+  await page.locator('#zoomFit').click();
+
   // The application must not render an unreachable upper/left half at zoom.
   for(let i=0;i<9;i++)await page.locator('#zoomIn').click();
   const geometry=await page.evaluate(()=>{

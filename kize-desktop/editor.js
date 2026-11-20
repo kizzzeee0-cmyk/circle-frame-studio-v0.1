@@ -17,7 +17,7 @@ function pixelCanvas(p){const c=blankCanvas(p.width,p.height);c.getContext('2d')
 function toImageData(c){return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);}
 function newLayer(obj){return {id:nextId++,name:'레이어',x:0,y:0,w:100,h:100,visible:true,opacity:1,flipH:false,flipV:false,rotation:0,blend:'source-over',type:'image',adjust:defaultAdjust(),offsetX:0,offsetY:0,scale:100,...obj};}
 function sel(){return layers.find(l=>l.id===selectedId)||null;}
-function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
+function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
 function checkpoint(l){if(!l)return;history.push(settingsSnapshot(l));if(history.length>12)history.shift();}
 function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
@@ -153,8 +153,8 @@ $('zoomIn').onclick=()=>setZoom(zoom*1.25);$('zoomOut').onclick=()=>setZoom(zoom
 stage.addEventListener('wheel',e=>{if(e.ctrlKey&&documentModel){e.preventDefault();setZoom(zoom*(e.deltaY<0?1.15:1/1.15));}},{passive:false});
 function localPoint(e){const r=overlay.getBoundingClientRect();return{x:Math.floor((e.clientX-r.left)*overlay.width/r.width),y:Math.floor((e.clientY-r.top)*overlay.height/r.height)};}
 function hit(l,x,y){if(!l.visible||x<l.x||y<l.y||x>=l.x+l.w||y>=l.y+l.h)return false;
-  const px=Math.floor((x-l.x)*l.canvas.width/l.w),py=Math.floor((y-l.y)*l.canvas.height/l.h);if(px<0||py<0||px>=l.canvas.width||py>=l.canvas.height)return false;
-  return toImageData(l.canvas).data[(py*l.canvas.width+px)*4+3]>0;
+  const visual=layerImage(l);const px=Math.floor((x-l.x)*visual.width/l.w),py=Math.floor((y-l.y)*visual.height/l.h);if(px<0||py<0||px>=visual.width||py>=visual.height)return false;
+  return visual.getContext('2d',{willReadFrequently:true}).getImageData(px,py,1,1).data[3]>0;
 }
 overlay.addEventListener('pointerdown',e=>{
   if(!documentModel)return;
@@ -162,12 +162,12 @@ overlay.addEventListener('pointerdown',e=>{
   if(!l)return;
   if(selectedId!==l.id)select(l.id);
   if(e.shiftKey){checkpoint(l);drag={id:l.id,originX:l.x,originY:l.y,start:pt};overlay.setPointerCapture(e.pointerId);return;}
-  const px=Math.floor((pt.x-l.x)*l.canvas.width/l.w),py=Math.floor((pt.y-l.y)*l.canvas.height/l.h);
-  const data=toImageData(l.canvas).data,idx=(py*l.canvas.width+px)*4;
+  const visual=layerImage(l),px=Math.floor((pt.x-l.x)*visual.width/l.w),py=Math.floor((pt.y-l.y)*visual.height/l.h);
+  const data=toImageData(visual).data,idx=(py*visual.width+px)*4;
   const tol=Number($('colorTolerance').value);
-  const mask=regionMask(data,l.canvas.width,l.canvas.height,px,py,tol,$('connectedOnly').checked);
+  const mask=regionMask(data,visual.width,visual.height,px,py,tol,$('connectedOnly').checked);
   let count=0;for(let i=0;i<mask.length;i++)count+=mask[i];
-  selection={id:l.id,mask,w:l.canvas.width,h:l.canvas.height,count};
+  selection={id:l.id,mask,w:visual.width,h:visual.height,count};
   $('pickedHex').value=rgbToHex(data[idx],data[idx+1],data[idx+2]);refreshProperties();render();
   notify('레이어 「'+l.name+'」 안에서 '+count.toLocaleString()+'개 픽셀 선택됨');
 });
@@ -189,9 +189,9 @@ $('colorTolerance').oninput=e=>$('toleranceOut').textContent=e.target.value;
 $('showHidden').onchange=refreshLayers;
 $('applyColor').onclick=()=>{
   const l=sel();if(!l||!selection||selection.id!==l.id){notify('먼저 수정할 레이어의 색상 영역을 클릭해 선택하세요.');return;}
-  checkpoint(l);const px=toImageData(l.canvas),result=recolorPixels(px.data,px.width,px.height,selection.mask,$('targetColor').value);
-  px.data.set(result.data);l.canvas.getContext('2d').putImageData(px,0,0);
-  selection=null;refreshAll();notify(result.count.toLocaleString()+'개 픽셀 · 선택한 레이어에서만 색상이 변경됐습니다.');
+  checkpoint(l);const base=layerImage(l),px=toImageData(base),result=recolorPixels(px.data,px.width,px.height,selection.mask,$('targetColor').value);
+  px.data.set(result.data);l.canvas=pixelCanvas(px);if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
+  selection=null;refreshAll();notify(result.count.toLocaleString()+'개 픽셀 변경 완료 · 사진 보정 레이어는 현재 보이는 상태로 픽셀에 고정됩니다.');
 };
 $('undo').onclick=()=>{
   const last=history.pop();if(!last){notify('되돌릴 작업이 없습니다.');return;}

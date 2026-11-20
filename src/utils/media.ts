@@ -193,9 +193,10 @@ export function getBackgroundElement(background?: BackgroundSettings) {
 
 function targetVideoTime(layer: MediaLayer, sceneTimeSec: number, duration: number) {
   const local = Math.max(0, sceneTimeSec - layer.startTime)
-  const start = Math.max(0, layer.trimStart || 0)
-  const usable = Math.max(.01, duration - start)
-  return Math.min(duration - .001, start + (local % usable))
+  const start = Math.max(0, Math.min(duration - .001, layer.trimStart || 0))
+  const requestedEnd = layer.trimEnd && layer.trimEnd > start ? Math.min(duration, layer.trimEnd) : duration
+  const usable = Math.max(.01, requestedEnd - start)
+  return Math.min(requestedEnd - .001, start + (local % usable))
 }
 
 export function syncProjectMediaPreview(project: FrameProject, sceneTimeSec: number, playing: boolean) {

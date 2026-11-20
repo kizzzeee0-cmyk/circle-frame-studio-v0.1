@@ -214,7 +214,8 @@ async function importCompactProject(file){
 }
 $('importFile').addEventListener('change',async e=>{
   const file=e.target.files?.[0];e.target.value='';if(!file)return;
-  try{if(/\.(psd|psb)$/i.test(file.name))await importPsd(file);else if(/\.kize$/i.test(file.name))await importCompactProject(file);else if(/\.kize\.json$/i.test(file.name))await importProject(file);else await importRaster(file);}
+  try{if(unsavedChanges&&!confirm('저장하지 않은 편집 내용이 있습니다. 새 파일을 열면 현재 편집 내용이 초기화됩니다. 계속하시겠습니까?'))return;
+    if(/\.(psd|psb)$/i.test(file.name))await importPsd(file);else if(/\.kize$/i.test(file.name))await importCompactProject(file);else if(/\.kize\.json$/i.test(file.name))await importProject(file);else await importRaster(file);}
   catch(err){
     const reason=err?.message||String(err);
     notify('불러오기 실패: '+reason);
@@ -703,7 +704,11 @@ $('redo').onclick=()=>{
 for(const [id,key] of [['propX','x'],['propY','y'],['propW','w'],['propH','h']]){
   $(id).onchange=e=>{const l=sel();if(!l)return;checkpoint(l);const v=Number(e.target.value);if(Number.isFinite(v)){l[key]=key==='w'||key==='h'?clamp(Math.round(v),1,20000):Math.round(v);}refreshAll();syncGuides();};
 }
-$('opacityLayer').oninput=e=>{const l=sel();if(l){if(previewMode==='composite')setPreviewMode('layers');hasLayerEdits=true;l.opacity=Number(e.target.value)/100;render();}};
+// Capture slider state before interaction; avoid baking a half-edited frame
+// into undo after the drag has already completed.
+$('opacityLayer').addEventListener('pointerdown',()=>{if(sel())checkpoint(sel());});
+$('opacityLayer').addEventListener('keydown',e=>{if(e.key.startsWith('Arrow')&&sel())checkpoint(sel());});
+$('opacityLayer').oninput=e=>{const l=sel();if(l){markEdited();l.opacity=Number(e.target.value)/100;render();}};
 $('visibleLayer').onchange=e=>{const l=sel();if(l){checkpoint(l);l.visible=e.target.checked;refreshAll();}};
 $('centerH').onclick=()=>align(true);$('centerV').onclick=()=>align(false);
 function align(horizontal){const l=sel();if(!l)return;checkpoint(l);if(horizontal)l.x=Math.round((documentModel.width-l.w)/2);else l.y=Math.round((documentModel.height-l.h)/2);refreshAll();syncGuides();}
@@ -718,15 +723,21 @@ async function replaceImage(file){
   let l=sel();
   if(l){checkpoint(l);l.type='photo';l.name=file.name+' (교체됨)';l.photoSource=src;l.adjust=defaultAdjust();l.offsetX=l.offsetY=0;l.scale=100;}
   else {const w=Math.min(documentModel.width,src.width),h=Math.min(documentModel.height,src.height);l=newLayer({name:file.name,type:'photo',canvas:blankCanvas(w,h),photoSource:src,w,h,x:Math.round((documentModel.width-w)/2),y:Math.round((documentModel.height-h)/2)});layers.push(l);selectedId=l.id;}
-  hasLayerEdits=true;setPreviewMode('layers');selection=null;refreshAll();notify('사진을 기존 레이어 영역에 맞춰 교체했습니다. 내부 이동/크기와 톤을 조정할 수 있습니다.');
+  markEdited();clearSelections();refreshAll();notify('사진을 기존 레이어 영역에 맞춰 교체했습니다. 내부 이동/크기와 톤을 조정할 수 있습니다.');
 }
 $('replaceFile').onchange=async e=>{const f=e.target.files?.[0];e.target.value='';if(f)try{await replaceImage(f);}catch(err){notify('사진 교체 실패: '+err.message);}};
-for(const input of document.querySelectorAll('[data-adjust]'))input.oninput=e=>{
-  const l=sel();if(!l)return;
-  if(!l.photoSource){l.photoSource=cloneCanvas(l.canvas);}
-  if(previewMode==='composite')setPreviewMode('layers');hasLayerEdits=true;
-  const k=e.target.dataset.adjust;l.adjust[k]=Number(e.target.value);const out=$('out'+k[0].toUpperCase()+k.slice(1));if(out)out.textContent=e.target.value;render();
-};
+for(const input of document.querySelectorAll('[data-adjust]')){
+  input.addEventListener('pointerdown',()=>{if(sel())checkpoint(sel());});
+  input.addEventListener('keydown',e=>{if(e.key.startsWith('Arrow')&&sel())checkpoint(sel());});
+  input.oninput=e=>{
+    const l=sel();if(!l)return;
+    if(!l.photoSource)l.photoSource=cloneCanvas(l.canvas);
+    markEdited();
+    const k=e.target.dataset.adjust;l.adjust[k]=Number(e.target.value);
+    const out=$('out'+k[0].toUpperCase()+k.slice(1));if(out)out.textContent=e.target.value;
+    render();
+  };
+}
 $('resetAdjust').onclick=()=>{const l=sel();if(!l)return;checkpoint(l);l.adjust=defaultAdjust();refreshAll();};
 for(const [id,key] of [['photoScale','scale'],['photoOffsetX','offsetX'],['photoOffsetY','offsetY']])$(id).onchange=e=>{const l=sel();if(!l||!l.photoSource)return;checkpoint(l);l[key]=id==='photoScale'?clamp(Number(e.target.value),10,500):Math.round(Number(e.target.value));render();};
 $('applyText').onclick=()=>{

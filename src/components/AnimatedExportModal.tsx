@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FrameProject } from '../types'
 import { renderProject } from '../render/renderer'
 import { preloadProjectAssets } from '../utils/assets'
+import { preloadProjectMedia, syncProjectMediaPreview } from '../utils/media'
 import {
   estimateAnimatedRawMemory,
   exportAnimatedFrame,
@@ -28,6 +29,7 @@ const DEFAULT_OPTIONS: AnimatedExportOptions = {
   loopCount: 0,
   webpQuality: 88,
   videoBitrateMbps: 12,
+  includeAudio: true,
 }
 
 function mb(bytes: number) {
@@ -52,7 +54,9 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
   const frames = getAnimatedFrameCount(options)
   const rawMb = mb(estimateAnimatedRawMemory(options))
   const videoFormat = options.format === 'webm' || options.format === 'mp4'
-  const memoryHeavy = !['gif','webm','mp4'].includes(options.format) && rawMb > 320
+  const movFormat = options.format === 'mov'
+  const memoryHeavy = !['gif','webm','mp4','mov'].includes(options.format) && rawMb > 320
+  const movHeavy = movFormat && rawMb > 1600
   const videoSupported = options.format === 'webm'
     ? isVideoFormatSupported('webm')
     : options.format === 'mp4'
@@ -60,6 +64,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
       : true
   const animated = hasAnimatedLayer(project)
   const estimatedVideoMb = videoFormat ? ((options.videoBitrateMbps ?? 12) * options.duration / 8) : 0
+  const audioLayers = (project.mediaLayers ?? []).filter(layer => layer.kind === 'video' && layer.visible && layer.audioEnabled && layer.audioVolume > 0).length
 
   useEffect(() => {
     if (!open) return
@@ -73,13 +78,14 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
     let start = performance.now()
 
     const run = async () => {
-      await preloadProjectAssets(project)
+      await Promise.all([preloadProjectAssets(project), preloadProjectMedia(project)])
       if (cancelled || !previewRef.current) return
       const tick = (time: number) => {
         if (cancelled || !previewRef.current) return
         const durationMs = options.duration * 1000
         const cycle = ((time - start) % durationMs) / durationMs
-        renderProject(previewRef.current, project, undefined, 0, cycle)
+        syncProjectMediaPreview(project, cycle * options.duration, true)
+        renderProject(previewRef.current, project, undefined, cycle * durationMs, cycle)
         raf = requestAnimationFrame(tick)
       }
       raf = requestAnimationFrame(tick)
@@ -121,7 +127,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
   }
 
   const startExport = async () => {
-    if (memoryHeavy || !videoSupported) return
+    if (memoryHeavy || movHeavy || !videoSupported) return
     setBusy(true)
     setError('')
     setProgress({ stage: 'render', current: 0, total: frames, message: '내보내기 준비 중' })
@@ -149,7 +155,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
       : Math.round((progress.current / Math.max(1, progress.total)) * (progress.stage === 'encode' ? 90 : 82))
     : 0
 
-  const formatName = options.format === 'webp' ? 'Animated WebP' : options.format === 'apng' ? 'APNG' : options.format === 'gif' ? 'GIF' : options.format === 'webm' ? 'WebM' : 'MP4'
+  const formatName = options.format === 'webp' ? 'Animated WebP' : options.format === 'apng' ? 'APNG' : options.format === 'gif' ? 'GIF' : options.format === 'webm' ? 'WebM' : options.format === 'mov' ? 'Alpha MOV' : 'MP4'
 
   return (
     <div className="animated-export-backdrop" onMouseDown={event => {
@@ -184,6 +190,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
               {options.format === 'apng' && <>APNG는 <b>반투명 글로우를 무손실</b>로 가장 잘 보존하지만 파일 용량이 커질 수 있습니다.</>}
               {options.format === 'webm' && <>WebM은 영상 레이어·프레임 회전·PNG 애니메이션까지 합성합니다. <b>투명 알파는 브라우저 VP9 인코더에 따라 보존되지 않을 수 있어</b> 투명 결과가 필수라면 APNG/WebP를 권장합니다.</>}
               {options.format === 'mp4' && <>MP4는 브라우저가 H.264 MediaRecorder를 지원할 때만 활성화됩니다. MP4는 알파 투명을 지원하지 않으므로 투명 배경은 검정/불투명으로 변환될 수 있습니다.</>}
+              {options.format === 'mov' && <>Alpha MOV는 각 프레임을 <b>투명 PNG로 보존한 QuickTime MOV</b>입니다. 파일은 크지만 반투명 글로우와 알파 가장자리를 정확하게 유지합니다.</>}
             </div>
           </div>
 
@@ -201,6 +208,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
                 <option value="gif">GIF · 호환성</option>
                 <option value="webm">WebM · 영상 합성</option>
                 <option value="mp4">MP4 · 브라우저 지원 시</option>
+                <option value="mov">Alpha MOV · 투명 고품질</option>
               </select>
             </label>
 
@@ -233,7 +241,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
                 <option value={2}>2회</option>
               </select>
             </label>
-            {options.format !== 'gif' && <p className="animated-small-note">Animated WebP와 APNG는 현재 무한 반복으로 저장됩니다.</p>}
+            {options.format !== 'gif' && !videoFormat && !movFormat && <p className="animated-small-note">Animated WebP와 APNG는 현재 무한 반복으로 저장됩니다.</p>}
 
             {options.format === 'webp' && <label className="control">
               <span><b>WebP 품질</b><em>{options.webpQuality}%</em></span>
@@ -245,16 +253,22 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
               <input disabled={busy} type="range" min={2} max={50} step={1} value={options.videoBitrateMbps ?? 12} onChange={e => set('videoBitrateMbps', Number(e.target.value))} />
             </label>}
 
+            {videoFormat && <label className="toggle export-audio-toggle">
+              <input type="checkbox" disabled={busy || audioLayers === 0} checked={options.includeAudio !== false} onChange={e => set('includeAudio', e.target.checked)} />
+              <span>영상 레이어 오디오 함께 출력 {audioLayers > 0 ? '(' + audioLayers + '개)' : '· 오디오 레이어 없음'}</span>
+            </label>}
+
             {videoFormat && !videoSupported && <div className="animated-error">
               현재 브라우저에서 이 영상 코덱을 지원하지 않습니다. WebM/MP4 중 지원되는 형식을 선택하거나 APNG/Animated WebP를 사용해 주세요.
             </div>}
 
             <div className={'animated-memory ' + (memoryHeavy ? 'danger' : '')}>
-              <span>{videoFormat ? '예상 영상 파일 크기' : '프레임 원본 메모리 예상'}</span>
+              <span>{videoFormat ? '예상 영상 파일 크기' : movFormat ? 'MOV 처리 기준 원본량' : '프레임 원본 메모리 예상'}</span>
               <strong>{videoFormat ? '약 ' + estimatedVideoMb.toFixed(1) + ' MB' : '약 ' + rawMb.toFixed(0) + ' MB'}</strong>
             </div>
             {videoFormat && <p className="animated-small-note">영상은 전체 RGBA 프레임을 한꺼번에 메모리에 적재하지 않고 브라우저 MediaRecorder로 순차 인코딩합니다. 실제 파일 크기는 장면 복잡도와 브라우저 인코더에 따라 달라질 수 있습니다.</p>}
             {memoryHeavy && <div className="animated-warning">이 조합은 브라우저 메모리 사용량이 너무 큽니다. 해상도·FPS·길이를 낮추거나 GIF를 선택해 주세요.</div>}
+            {movHeavy && <div className="animated-warning">Alpha MOV는 PNG 프레임을 보존하므로 이 설정에서는 메모리/파일 크기가 지나치게 커질 수 있습니다. 해상도·FPS·길이를 낮춰 주세요.</div>}
 
             {progress && <div className="animated-progress">
               <div><i style={{ width: String(progressPercent) + '%' }} /></div>
@@ -265,7 +279,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
             {busy ? (
               <button className="animated-export-cancel" type="button" onClick={() => abortRef.current?.abort()}>내보내기 취소</button>
             ) : (
-              <button className="primary-button animated-export-submit" type="button" disabled={memoryHeavy || !videoSupported} onClick={() => void startExport()}>
+              <button className="primary-button animated-export-submit" type="button" disabled={memoryHeavy || movHeavy || !videoSupported} onClick={() => void startExport()}>
                 {formatName + '로 저장'}
               </button>
             )}

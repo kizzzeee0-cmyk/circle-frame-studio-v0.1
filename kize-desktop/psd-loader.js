@@ -111,18 +111,23 @@ export function importPsdPixels(buffer, options={}) {
   if(sourceLayers.length>cap){skippedCount+=sourceLayers.length-cap;warnings.push('레이어가 많아 '+cap+'개까지만 처리했습니다.');}
   if(ab.byteLength>=350*1024*1024){warnings.push('대용량 모드: 파일 크기는 허용하지만 PC 메모리 상황에 따라 일부 레이어를 제외할 수 있습니다.');}
   if(failed.length){warnings.push('해석하지 못한 레이어 '+failed.length+'개. 예: '+failed.slice(0,2).join(' · '));}
-  // A Photoshop PSD often stores a rendered composite (e.g. adjustment/smart
-  // object effects) which can still be useful when no bitmap layer decoded.
+  // Photoshop stores a flattened (Maximize Compatibility) composite which
+  // preserves layer styles, text rasterization, masks and adjustment layers.
+  // Always decode it when affordable: redrawing layers with Canvas alone is
+  // NOT pixel-identical to Photoshop and must not be the default preview.
   let composite=null;
-  if(!decoded.length || (failed.length && options.useCompositeIfIncomplete)){
-    try{
-      const pxCount=header.width*header.height;
-      if(pxCount<=PSD_LIMITS.documentPixels && pxCount*4*bytesPerChannel<=512*1024*1024){
-        const candidate=getCompositeImageData(psd);
-        if(candidate?.data?.length===candidate.width*candidate.height*4)
-          composite=candidate;
-      }
-    }catch(e){warnings.push('합쳐진 미리보기도 열 수 없습니다: '+(e?.message||e));}
+  try {
+    const pxCount=header.width*header.height;
+    const compositeBytes=pxCount*4*bytesPerChannel;
+    if(pxCount<=PSD_LIMITS.documentPixels && compositeBytes<=512*1024*1024){
+      const candidate=getCompositeImageData(psd);
+      if(candidate?.data?.length===candidate.width*candidate.height*4)
+        composite=candidate;
+    } else {
+      warnings.push('메모리 보호를 위해 PSD 원본 합성 미리보기를 생략했습니다.');
+    }
+  }catch(e){
+    warnings.push('PSD 원본 합성 미리보기를 읽지 못했습니다: '+(e?.message||e));
   }
   if(!decoded.length && !composite){
     throw Error('레이어 픽셀과 통합 미리보기를 모두 읽을 수 없습니다. '+(failed[0]||'PSD 저장 방식이 현재 엔진과 호환되지 않습니다.'));

@@ -17,6 +17,8 @@ interface Props {
   onDeleteMedia: (id: string) => void
   onGroupSelected: () => void
   onUngroupSelected: () => void
+  onRenameGroup: (id: string, name: string) => void
+  onToggleGroupLock: (id: string) => void
   onSelectAllMedia: () => void
   onClearSelection: () => void
   onBackgroundChange: (next: BackgroundSettings) => void
@@ -29,6 +31,8 @@ export default function MediaPanel(props: Props) {
   const [dragId, setDragId] = useState('')
   const selectedSet = new Set(props.selectedMediaIds)
   const selectedGroups = new Set(props.mediaLayers.filter(layer => selectedSet.has(layer.id) && layer.groupId).map(layer => layer.groupId))
+  const activeGroupId = selectedGroups.size === 1 ? [...selectedGroups][0] : ''
+  const activeGroup = activeGroupId ? props.groups.find(group => group.id === activeGroupId) : undefined
 
   const drop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -73,9 +77,14 @@ export default function MediaPanel(props: Props) {
       {props.selectedMediaIds.length > 1 && (
         <div className="multi-selection-bar">
           <strong>{props.selectedMediaIds.length}개 선택</strong>
-          <button type="button" onClick={props.onGroupSelected}>그룹 만들기</button>
+          {!activeGroup && <button type="button" onClick={props.onGroupSelected}>그룹 만들기</button>}
           {selectedGroups.size > 0 && <button type="button" onClick={props.onUngroupSelected}>그룹 해제</button>}
-          <small>Ctrl/⌘ 또는 Shift + 클릭으로 여러 개를 선택할 수 있습니다.</small>
+          {activeGroup ? (
+            <div className="active-group-controls">
+              <input value={activeGroup.name} onChange={event => props.onRenameGroup(activeGroup.id, event.target.value)} aria-label="그룹 이름" />
+              <button type="button" onClick={() => props.onToggleGroupLock(activeGroup.id)}>{activeGroup.locked ? '잠금 해제' : '그룹 잠금'}</button>
+            </div>
+          ) : <small>Ctrl/⌘ 또는 Shift + 클릭으로 여러 개를 선택할 수 있습니다.</small>}
         </div>
       )}
 

@@ -700,6 +700,7 @@ const stageCenter=()=>{const r=stage.getBoundingClientRect();return [r.left+r.wi
 $('zoomIn').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom*1.25);};
 $('zoomOut').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom/1.25);};
 $('zoomFit').onclick=fitZoom;
+$('zoomActual').onclick=()=>{if(!documentModel)return;setZoom(1);panX=panY=0;applyPan();stage.scrollLeft=0;stage.scrollTop=0;notify('100% 보기 · 이미지 1픽셀 = CSS 1픽셀 (모니터 배율과 별개)');};
 $('panReset').onclick=()=>{panX=panY=0;applyPan();stage.scrollLeft=0;stage.scrollTop=0;notify('캔버스 이동을 초기화했습니다. 휠 버튼으로 자유롭게 이동할 수 있습니다.');};
 stage.addEventListener('wheel',e=>{
   if(!documentModel)return;
@@ -1024,6 +1025,106 @@ $('applyColor').onclick=()=>{
       :total.toLocaleString()+'px 색상 변경 완료 · 원본 Photoshop 합성 효과는 현재 레이어 재구성에서 정확하게 재현되지 않습니다.');
   }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error('KIZE appearance paint:',e);}
 };
+
+function variantPaintOptions(color,part){
+  return {mode:$('colorMode').value,color,
+    stops:gradientStops.map(s=>({color:s.color,position:s.position})),
+    angle:Number($('gradientAngle').value),preserveShading:$('preserveShading').checked,
+    tintAsset:$('assetTint').checked&&part.mode==='asset',
+    protectWhite:$('protectWhite').checked,smartPalette:$('smartPalette').checked};
+}
+function variantIsolated(part,covered){
+  const mask=new Uint8Array(part.mask.length);
+  for(let i=0;i<mask.length;i++)if(part.mask[i]&&!covered[i]){
+    mask[i]=part.mask[i];covered[i]=1;
+  }
+  const bounds=maskBounds(mask,part.w,part.h).bounds;
+  return bounds?{...part,mask,bounds}:null;
+}
+function drawBatchAppearance(out,color){
+  const context=out.getContext('2d'),ref=originalComposite.getContext('2d',{willReadFrequently:true});
+  context.drawImage(originalComposite,0,0);
+  for(const patch of appearancePatches)
+    context.putImageData(new ImageData(patch.data,patch.w,patch.h),patch.x,patch.y);
+  const added=[];
+  for(const layer of layers){
+    const parts=selectionParts.filter(p=>p.id===layer.id&&p.count);
+    if(!parts.length)continue;
+    const covered=new Uint8Array(parts[0].w*parts[0].h);
+    for(const part of parts){
+      const isolated=variantIsolated(part,covered);
+      if(!isolated)continue;
+      const rect=transformedSelectionRect(layer,isolated,documentModel.width,documentModel.height);
+      if(!rect)continue;
+      const original=ref.getImageData(rect.x,rect.y,rect.w,rect.h).data;
+      const patch=makeAppearancePatch(layer,isolated,documentModel.width,documentModel.height,
+        original,[...appearancePatches,...added],variantPaintOptions(color,part));
+      if(patch)added.push(patch);
+    }
+  }
+  for(const patch of added)context.putImageData(new ImageData(patch.data,patch.w,patch.h),patch.x,patch.y);
+}
+function drawBatchLayers(out,color){
+  const context=out.getContext('2d');
+  for(const l of layers){
+    if(!l.visible||!l.canvas)continue;
+    const parts=selectionParts.filter(p=>p.id===l.id&&p.count);
+    let image=layerVisualForReconstruction(l);
+    if(parts.length){
+      const src=toImageData(layerImage(l));
+      const covered=new Uint8Array(src.width*src.height);
+      let modified=new Uint8ClampedArray(src.data);
+      for(const part of parts){
+        if(part.w!==src.width||part.h!==src.height)throw Error('시안 선택 레이어 크기가 변경되었습니다.');
+        const isolated=variantIsolated(part,covered);
+        if(isolated)modified=paintSelection(modified,src.width,src.height,
+          isolated,variantPaintOptions(color,part)).data;
+      }
+      try{
+        if(l.maskSpecs?.length||l.groupMaskSpecs?.length||l.clipBaseId!=null||
+           l.maskDecodeFailed||l.unsupportedGroupMask||l.unsupportedVectorMask||l.clippingUnresolved)
+          modified=maskedLayerRgba(modified,src.width,src.height,l,id=>layers.find(x=>x.id===id));
+        image=pixelCanvas({width:src.width,height:src.height,data:modified});
+      }catch{image=blankCanvas(src.width,src.height);}
+    }
+    context.save();context.globalAlpha=normOpacity(l.opacity);
+    context.globalCompositeOperation=l.blend;
+    context.translate(l.x+l.w/2,l.y+l.h/2);context.rotate(l.rotation*Math.PI/180);
+    context.scale(l.flipH?-1:1,l.flipV?-1:1);
+    context.drawImage(image,-l.w/2,-l.h/2,l.w,l.h);context.restore();
+  }
+}
+$('exportVariants').onclick=async()=>{
+  if(!documentModel||!selectionParts.length){notify('시안 추출 전 색상/에셋 영역을 선택해 주세요.');return;}
+  if(documentModel.width*documentModel.height>8_000_000){
+    notify('메모리 보호: 시안 일괄 생성은 800만 픽셀 이하에서만 지원합니다.');return;
+  }
+  let colors;try{colors=parseVariantColors($('variantColors').value);}
+  catch(e){notify(e.message);return;}
+  if(originalComposite&&!appearanceSafe&&!confirm(
+    '원본 외관 보존이 중단된 작업입니다. 레이어 재구성 방식으로 시안을 추출할까요?'))return;
+  const button=$('exportVariants');button.disabled=true;
+  try{
+    const entries={};
+    for(let index=0;index<colors.length;index++){
+      const color=colors[index];
+      notify('시안 '+(index+1)+'/'+colors.length+' · '+color+' PNG 만드는 중…');
+      const c=blankCanvas(documentModel.width,documentModel.height);
+      if(originalComposite&&appearanceSafe)drawBatchAppearance(c,color);
+      else drawBatchLayers(c,color);
+      entries[variantFileName(documentModel.name,color,index)]=[await canvasToPngBytes(c),{level:0}];
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    entries['palette.json']=[strToU8(JSON.stringify({format:'KIZE-COLOR-VARIANTS-1',
+      colors,source:documentModel.name,width:documentModel.width,height:documentModel.height,
+      appearancePreserved:!!(originalComposite&&appearanceSafe)},null,2)),{level:6}];
+    downloadBlob(new Blob([zipSync(entries,{level:0})],{type:'application/zip'}),
+      (documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'')+'-color-variants.zip');
+    notify(colors.length+'개 시안 PNG ZIP 완성 · 원본 레이어와 실행 취소 기록은 변경하지 않았습니다.');
+  }catch(e){notify('시안 생성 실패: '+(e?.message||e));console.error(e);}
+  finally{button.disabled=false;}
+};
+
 function restoreSnapshots(snapshots){
   for(const snapshot of snapshots){
     const l=layers.find(x=>x.id===snapshot.id);

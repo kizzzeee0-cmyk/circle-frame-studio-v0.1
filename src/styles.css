@@ -1339,3 +1339,76 @@ body { background: #F3F0F2; }
 .timeline-animation-handle.outro { background: #C883A7; }
 .timeline-animation-handle:hover,
 .timeline-track.active .timeline-animation-handle { opacity: 1; }
+
+
+/* v0.32 — portable project, group controls, export presets */
+.project-package-button {
+  background: linear-gradient(180deg,#FFFDF4,#FFF8D8) !important;
+  border-color: #E8D99A !important;
+}
+.toolbar-more {
+  position: relative;
+}
+.toolbar-more summary {
+  list-style: none;
+  border: 1px solid var(--line);
+  background: #FFF;
+  border-radius: 9px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.toolbar-more summary::-webkit-details-marker { display: none; }
+.toolbar-more > div {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 130px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #FFF;
+  box-shadow: 0 10px 30px rgba(45,36,70,.16);
+}
+.toolbar-more > div button {
+  width: 100%;
+  text-align: left;
+}
+.active-group-controls {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.active-group-controls input {
+  min-width: 90px;
+  width: 120px;
+  border: 1px solid #DED7E8;
+  border-radius: 7px;
+  padding: 5px 6px;
+  background: #FFF;
+  font-size: 8px;
+}
+.animated-export-preset-row {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 5px;
+  margin-bottom: 7px;
+}
+.animated-export-preset-row button {
+  border: 1px solid #DDD7E8;
+  border-radius: 9px;
+  padding: 8px 5px;
+  background: linear-gradient(180deg,#FFF,#FAF7FF);
+  color: #655B76;
+  font-size: 8.5px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.animated-export-preset-row button:nth-child(2) {
+  background: linear-gradient(180deg,#F6F2FF,#EEE8FF);
+  border-color: #D1C5F0;
+}

@@ -150,7 +150,6 @@ async function importPsd(file){
     textColor:rgbToHex(pl.psdText?.style?.fillColor?.r??50,pl.psdText?.style?.fillColor?.g??50,pl.psdText?.style?.fillColor?.b??50),
   }));
   built.reverse(); // Photoshop layer list is highest layer first.
-  psdGroupMasks=groupMasks;
   const groupMap=new Map(groupMasks.map(g=>[g.key,g]));
   for(const l of built){
     l.groupMaskSpecs=(l.ancestorGroupKeys||[]).flatMap(k=>groupMap.get(k)?.maskSpecs||[]);
@@ -180,7 +179,7 @@ async function importPsd(file){
   }
   openDoc(header.width,header.height,file.name,
     header.version===2?'PSB':'PSD');
-  layers=built;lastImportPsd=true;
+  layers=built;psdGroupMasks=groupMasks;lastImportPsd=true;
   // Prefer Photoshop's own merged pixels over a naive layer redraw.
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.

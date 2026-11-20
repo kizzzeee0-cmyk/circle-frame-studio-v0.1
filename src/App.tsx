@@ -657,6 +657,13 @@ export default function App() {
       alert('PNG/JPG/WebP 이미지 또는 MP4/WebM/MOV 영상을 선택해 주세요.')
       return
     }
+    if (video && file.type) {
+      const probe = document.createElement('video')
+      if (!probe.canPlayType(file.type)) {
+        alert('이 브라우저가 해당 영상 코덱을 직접 재생하지 못합니다. MP4(H.264) 또는 WebM으로 변환한 뒤 다시 불러와 주세요.')
+        return
+      }
+    }
     try {
       const stored = await storeMediaFile(file)
       const kind = video ? 'video' : 'image'

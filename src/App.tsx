@@ -1021,9 +1021,9 @@ export default function App() {
             mediaLayers={project.mediaLayers ?? []}
             selectedMediaIds={selectedMediaIds}
             primaryMediaId={selectedMediaId}
+            onBeginTimingEdit={beginMediaTransform}
             onTimingChange={(id, patch) => {
-              const layer = (project.mediaLayers ?? []).find(item => item.id === id)
-              if (layer) updateMedia({ ...layer, ...patch })
+              transformMediaTransient([{ id, ...patch }])
             }}
             onTimeChange={value => { setTimelinePlaying(false); setTimelineTime(value) }}
             onTogglePlay={() => setTimelinePlaying(value => !value)}

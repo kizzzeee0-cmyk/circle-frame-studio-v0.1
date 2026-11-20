@@ -1136,8 +1136,14 @@ function makeSurfaceGlitterGradient(
 ) {
   const g = design.glitter
   const colors = surfacePalette(design)
-  if (g.surfaceStyle !== 'gradient' && g.surfaceStyle !== 'holographic' && design.gradientMode !== 'solid') {
-    return makeGradient(ctx, design, cx, cy, r)
+  if (g.surfaceStyle !== 'gradient' && g.surfaceStyle !== 'holographic') {
+    if (design.gradientMode !== 'solid') return makeGradient(ctx, design, cx, cy, r)
+    if (colors.length === 1) return colors[0]
+    const subtle = ctx.createLinearGradient(cx, cy - r, cx, cy + r)
+    subtle.addColorStop(0, mixHex(colors[1] ?? colors[0], '#FFFFFF', .18))
+    subtle.addColorStop(.48, colors[0])
+    subtle.addColorStop(1, mixHex(colors[Math.min(colors.length - 1, 2)] ?? colors[0], design.color, .34))
+    return subtle
   }
   if (colors.length === 1) return colors[0]
 

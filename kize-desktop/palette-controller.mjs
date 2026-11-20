@@ -180,7 +180,7 @@ export function installPaletteController(api){
     'palettePreserveTone']){
     const el=$(id);
     const handler=e=>{
-      if(e.target.id==='variantPreset'&&api.pngSource()){
+      if(e.target.id==='variantPreset'&&api.canUse()){
         // A palette preset means a MULTI-SWATCH combination, regardless of a
         // last-used legacy "single color for each PNG" setting.
         if($('variantOutputMode').value!=='combo'){

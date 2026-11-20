@@ -279,6 +279,27 @@ function loadUserPresets(): FramePreset[] {
   }
 }
 
+async function readImageSize(file: File) {
+  if ('createImageBitmap' in window) {
+    const bitmap = await createImageBitmap(file)
+    const size = { width: bitmap.width, height: bitmap.height }
+    bitmap.close()
+    return size
+  }
+  const url = URL.createObjectURL(file)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const item = new Image()
+      item.onload = () => resolve(item)
+      item.onerror = reject
+      item.src = url
+    })
+    return { width: image.naturalWidth || image.width, height: image.naturalHeight || image.height }
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 async function optimizeAsset(file: File): Promise<string> {
   const url = URL.createObjectURL(file)
   try {
@@ -711,12 +732,16 @@ export default function App() {
     })
   }
 
-  const importMedia = async (file?: File) => {
+  const importMedia = async (file?: File, mode: 'media' | 'decoration' = 'media') => {
     if (!file) return
     const image = /^image\/(png|jpeg|webp)$/i.test(file.type) || /\.(png|jpe?g|webp)$/i.test(file.name)
     const video = /^video\/(mp4|webm|quicktime)$/i.test(file.type) || /\.(mp4|webm|mov)$/i.test(file.name)
     if (!image && !video) {
       alert('PNG/JPG/WebP 이미지 또는 MP4/WebM/MOV 영상을 선택해 주세요.')
+      return
+    }
+    if (mode === 'decoration' && !image) {
+      alert('PNG·글자·장식 레이어에는 PNG 또는 WebP 이미지를 사용해 주세요.')
       return
     }
     if (video && file.type) {
@@ -731,6 +756,28 @@ export default function App() {
       const kind = video ? 'video' : 'image'
       const layer = createMediaLayer(kind, stored.id, stored.url, stored.name, stored.type, project.timeline?.duration ?? 3)
       const frame = project.layers.find(item => item.id === project.selectedLayerId)
+
+      if (mode === 'decoration' && image) {
+        layer.placement = 'above'
+        layer.maskMode = 'none'
+        layer.fit = 'contain'
+        try {
+          const size = await readImageSize(file)
+          const ratio = Math.min(1, 1100 / Math.max(1, size.width, size.height))
+          layer.width = Math.max(40, Math.round(size.width * ratio))
+          layer.height = Math.max(40, Math.round(size.height * ratio))
+        } catch {
+          layer.width = 900
+          layer.height = 900
+        }
+      } else {
+        layer.placement = 'below'
+        layer.maskMode = 'circle'
+        layer.width = 1500
+        layer.height = 1500
+        layer.fit = 'cover'
+      }
+
       if (frame) {
         layer.maskFrameLayerId = frame.id
         layer.maskRadius = frame.design.radius

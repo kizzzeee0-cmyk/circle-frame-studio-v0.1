@@ -680,7 +680,12 @@ function pixelInLayer(l,x,y){
 function hit(l,x,y){
   const pt=pixelInLayer(l,x,y);
   if(!pt)return false;
-  return l.canvas.getContext('2d',{willReadFrequently:true}).getImageData(pt.x,pt.y,1,1).data[3]>7;
+  const raw=l.canvas.getContext('2d',{willReadFrequently:true}).getImageData(pt.x,pt.y,1,1).data[3];
+  if(raw<=7)return false;
+  // Hit testing must not grab a hidden portion of a masked/clipped upper
+  // layer when an underneath visible object is the one actually clicked.
+  try{return raw*layerConstraintAlpha(l,x,y,id=>layers.find(v=>v.id===id))/255>7;}
+  catch{return false;} // Unsupported masks cannot be selected as if visible.
 }
 function regionAt(l,px,py,mode){
   if(l.clippingUnresolved)throw Error('PSD 클리핑 기준 레이어를 확인하지 못했습니다. 안전한 색상 변경을 위해 선택을 차단했습니다.');

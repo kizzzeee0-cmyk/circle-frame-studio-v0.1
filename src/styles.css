@@ -1452,3 +1452,94 @@ body { background: #F3F0F2; }
 }
 .shortcut-menu-body span:last-child { border-bottom: 0; }
 .shortcut-menu-body b { color: #5D527A; font-size: 8px; }
+
+
+/* v0.33 — precision editing and selection */
+.selection-marquee {
+  position: absolute;
+  z-index: 18;
+  pointer-events: none;
+  border: 1px solid rgba(117,95,197,.82);
+  background: rgba(149,134,217,.12);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.72) inset;
+}
+.canvas-center-guide {
+  position: absolute;
+  pointer-events: none;
+  z-index: 4;
+  opacity: .42;
+}
+.canvas-center-guide.vertical {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: repeating-linear-gradient(to bottom, rgba(225,163,63,.7) 0 5px, transparent 5px 10px);
+}
+.canvas-center-guide.horizontal {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: repeating-linear-gradient(to right, rgba(225,163,63,.7) 0 5px, transparent 5px 10px);
+}
+.background-transform-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin: 7px 0 4px;
+}
+.background-transform-grid label {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+  color: #7F7788;
+}
+.background-transform-grid input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 6px;
+  background: #FFF;
+  font-size: 9px;
+}
+.alignment-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+.match-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+  margin-top: 6px;
+}
+.quick-animation-section {
+  background: linear-gradient(180deg, rgba(255,242,189,.28), rgba(220,210,250,.12), transparent);
+}
+.quick-animation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 5px;
+}
+.quick-animation-grid button {
+  border: 1px solid #E1DAEE;
+  border-radius: 8px;
+  background: #FFF;
+  padding: 7px 6px;
+  font-size: 8.5px;
+  cursor: pointer;
+  color: #625B6E;
+}
+.quick-animation-grid button:hover {
+  border-color: #C8B9E9;
+  background: #F9F6FF;
+}
+.timeline-fps-select {
+  border: 1px solid #E4DFE9;
+  border-radius: 6px;
+  background: #FFF;
+  padding: 4px 5px;
+  font-size: 8px;
+  color: #716A78;
+}

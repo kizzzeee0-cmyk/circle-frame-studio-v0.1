@@ -177,6 +177,37 @@ async function readPsdInBackground(file){
     }
   }
 }
+function canEditWholePalette(){
+  if(!documentModel||originalComposite||layers.length!==1)return false;
+  const l=layers[0];
+  return !!l?.visible&&!!l?.canvas&&
+    l.x===0&&l.y===0&&l.w===documentModel.width&&l.h===documentModel.height&&
+    !l.rotation&&!l.flipH&&!l.flipV&&!l.maskSpecs?.length&&!l.clipBaseId;
+}
+function setColorEditMode(mode){
+  const palette=mode==='palette';
+  $('singleEditor').hidden=palette;
+  $('paletteEditor').hidden=!palette;
+  $('modePalette').classList.toggle('selected',palette);
+  $('modeSingle').classList.toggle('selected',!palette);
+  $('modePalette').setAttribute('aria-pressed',String(palette));
+  $('modeSingle').setAttribute('aria-pressed',String(!palette));
+  if(palette){
+    $('variantDetails').open=true;
+    if(canEditWholePalette())$('variantOutputMode').value='combo';
+    else if(documentModel)$('variantOutputMode').value='single';
+    paletteController?.refresh();
+    if(documentModel&&!canEditWholePalette())
+      notify('여러 색 조합 자동 적용은 한 장짜리 PNG에서 사용할 수 있어요. PSD는 PNG로 출력 후 불러오거나 여기서 단색 시안 모드를 이용하세요.');
+  }else paletteController?.dismiss();
+}
+$('modePalette').onclick=()=>setColorEditMode('palette');
+$('modeSingle').onclick=()=>setColorEditMode('single');
+$('paletteSelectAll').onclick=()=>$('selectAllOpaque').click();
+$('paletteClearSelection').onclick=()=>$('clearSelection').click();
+$('paletteUndo').onclick=()=>$('undo').click();
+$('paletteRedo').onclick=()=>$('redo').click();
+
 async function importPsd(file){
   const start=performance.now();
   notify('PSD 파일 해석 중…');
@@ -235,7 +266,7 @@ async function importPsd(file){
   $('selectedLayerOnly').checked=false;
   $('variantOutputMode').value='single';
   $('variantDetails').open=false;
-  paletteController?.refresh();
+  setColorEditMode('single');
   // Prefer Photoshop's own merged pixels over a naive layer redraw.
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
@@ -270,7 +301,7 @@ async function importRaster(file){
   $('selectedLayerOnly').checked=false;
   $('variantOutputMode').value='combo';
   $('variantDetails').open=true;
-  selectedId=layers[0].id;refreshAll();fitZoom();paletteController?.refresh();
+  selectedId=layers[0].id;refreshAll();fitZoom();setColorEditMode('palette');
   notify('이미지를 레이어로 불러왔습니다. 클릭하여 색상 영역을 선택하세요.');
 }
 async function importProject(file){
@@ -282,7 +313,7 @@ async function importProject(file){
     const {data,...props}=l;
     loaded.push(newLayer({...props,canvas:c,photoSource:null,adjust:defaultAdjust()}));
   }
-  openDoc(obj.width,obj.height,file.name,'KIZE');layers=loaded;nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;selectedId=layers.at(-1)?.id||null;lastImportPsd=false;refreshAll();fitZoom();notify('이전 형식 프로젝트를 열었습니다. 새 형식으로 저장하면 사진 원본과 보정 설정을 별도 보관합니다.');
+  openDoc(obj.width,obj.height,file.name,'KIZE');layers=loaded;nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;selectedId=layers.at(-1)?.id||null;lastImportPsd=false;refreshAll();fitZoom();setColorEditMode(canEditWholePalette()?'palette':'single');notify('이전 형식 프로젝트를 열었습니다. 새 형식으로 저장하면 사진 원본과 보정 설정을 별도 보관합니다.');
 }
 async function canvasToPngBytes(source){
   if(!source||!source.width||!source.height)throw Error('저장할 이미지 데이터가 없습니다.');
@@ -371,6 +402,7 @@ async function importCompactProject(file){
   hasLayerEdits=Boolean(manifest.edited);
   previewMode=reference&&['composite','appearance'].includes(manifest.previewMode)?manifest.previewMode:'layers';
   refreshAll();fitZoom();
+  setColorEditMode(canEditWholePalette()?'palette':'single');
   // Camera Raw-like photo adjustment values stay editable, source images are
   // separate from rendered previews, and original Photoshop merged pixels remain.
   unsavedChanges=false;updateDirtyStatus();
@@ -1413,7 +1445,7 @@ $('exportVariants').onclick=async()=>{
 // single-swatch-per-file export. A palette preview does not modify the document.
 paletteController=installPaletteController({
   pngSource(){
-    if(!documentModel||documentModel.kind!=='IMAGE'||layers.length!==1)return null;
+    if(!canEditWholePalette())return null;
     const layer=layers[0];
     if(!layer.visible||!layer.canvas||layer.x!==0||layer.y!==0||
        layer.w!==documentModel.width||layer.h!==documentModel.height||
@@ -1439,7 +1471,7 @@ paletteController=installPaletteController({
   },
   commit(layerId,image,changed){
     const layer=layers.find(l=>l.id===layerId);
-    if(!layer||!documentModel||documentModel.kind!=='IMAGE')
+    if(!layer||!canEditWholePalette())
       throw Error('편집 대상 PNG가 바뀌었습니다. 다시 불러와 주세요.');
     checkpointBatch([layer]);
     layer.canvas=pixelCanvas(image);
@@ -1696,7 +1728,7 @@ window.addEventListener('beforeunload',e=>{
 window.addEventListener('keydown',e=>{
   if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
   const key=e.key.toLowerCase();
-  if(key==='a'&&!isTextInput(e.target)){
+  if(key==='a'&&(e.shiftKey||!isTextInput(e.target))){
     e.preventDefault();$('selectAllOpaque').click();
   }else if(key==='z'){
     e.preventDefault();(e.shiftKey?$('redo'):$('undo')).click();
@@ -1704,4 +1736,5 @@ window.addEventListener('keydown',e=>{
   else if(key==='s'){e.preventDefault();$('saveProject').click();}
 });
 window.addEventListener('resize',()=>{if(documentModel)syncGuides();});
+setColorEditMode('single');
 initUpdates($('updateStatus'),$('checkUpdate'),{hasUnsavedChanges:()=>unsavedChanges});

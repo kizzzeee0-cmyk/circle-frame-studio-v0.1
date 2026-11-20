@@ -76,13 +76,30 @@ export default function CanvasPanel({
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
+  const checkerRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const dragRef = useRef<
-    | { type: 'pan'; startX: number; startY: number; panX: number; panY: number }
-    | { type: 'media'; id: string; startX: number; startY: number; mediaX: number; mediaY: number }
-    | null
-  >(null)
+  const [guide, setGuide] = useState({ x: false, y: false })
+  const panRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null)
+  const transformRef = useRef<{
+    mode: 'move' | 'resize' | 'rotate'
+    startX: number
+    startY: number
+    centerX: number
+    centerY: number
+    startDistance: number
+    startAngle: number
+    layers: MediaLayer[]
+  } | null>(null)
+
+  const effectiveResolution = settings.performanceMode === 'performance'
+    ? 720
+    : settings.performanceMode === 'auto' && playing && (project.mediaLayers?.length ?? 0) > 4
+      ? 960
+      : settings.previewResolution
+  const selectedLayers = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id) && layer.visible)
+  const bounds = selectionBounds(selectedLayers)
+  const fitScale = getProjectFitScale(project)
 
   useEffect(() => {
     let cancelled = false

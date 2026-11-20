@@ -1,6 +1,8 @@
 name: KIZE DESIGN TOOL - Windows Build & Startup Check
 on:
   push:
+    branches: [kize-v0.9.0-group-vector-mask, kize-v0.10.0-fidelity-smart-edit]
+  pull_request:
     branches: [kize-v0.9.0-group-vector-mask]
     paths:
       - 'kize-desktop/**'
@@ -115,6 +117,12 @@ jobs:
         run: |
           node tests/browser-group-vector.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Group/vector PSD mask and KIZE project roundtrip regression failed' }
+      - name: Browser regression - real-size preview and color variants ZIP
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          node tests/browser-variants.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'PNG variation batch + 100% preview E2E test failed' }
       - name: Generate app icon
         shell: powershell
         run: |
@@ -201,7 +209,7 @@ jobs:
       - name: Upload Windows setup
         uses: actions/upload-artifact@v4
         with:
-          name: KIZE-DESIGN-TOOL-v0.9.0-Windows
+          name: KIZE-DESIGN-TOOL-v0.10.0-Windows
           path: kize-desktop/src-tauri/target/release/bundle/nsis/*setup.exe
           if-no-files-found: error
           retention-days: 30
@@ -219,7 +227,7 @@ jobs:
           $sigPath = "$($setup.FullName).sig"
           if (-not (Test-Path $sigPath)) { throw 'Update signature not generated' }
           $signature = (Get-Content $sigPath -Raw).Trim()
-          $version = '0.9.0'
+          $version = '0.10.0'
           $tag = "kize-v$version"
           $url = "https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/download/$tag/$($setup.Name)"
           $json = @{ version=$version; notes='KIZE PSD editor'; platforms=@{ 'windows-x86_64'=@{url=$url;signature=$signature} } } | ConvertTo-Json -Depth 10

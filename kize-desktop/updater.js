@@ -5,7 +5,7 @@ import {check} from '@tauri-apps/plugin-updater';
 import {relaunch} from '@tauri-apps/plugin-process';
 const installedInTauri=()=>Boolean(window.__TAURI_INTERNALS__);
 const signedUpdatesEnabled=import.meta.env.VITE_KIZE_SIGNED_UPDATES === 'true';
-export function initUpdates(label,button){
+export function initUpdates(label,button,{hasUnsavedChanges=()=>false}={}){
   let busy=false;
   if(!signedUpdatesEnabled) {
     label.textContent='자동 업데이트 연결 준비 중';
@@ -23,7 +23,12 @@ export function initUpdates(label,button){
       if(!update){label.textContent='최신 버전';return;}
       label.textContent='v'+update.version+' 업데이트 가능';
       // Windows may exit automatically during installation, so ask BEFORE starting.
-      if(!confirm('KIZE DESIGN TOOL v'+update.version+' 업데이트가 있습니다. 편집 중인 프로젝트를 저장한 뒤 계속하시겠습니까?')) {
+      if(hasUnsavedChanges()){
+        label.textContent='현재 프로젝트 저장 후 업데이트 가능';
+        if(manual)alert('저장하지 않은 변경사항이 있습니다. KIZE 프로젝트로 저장한 뒤 업데이트해 주세요.');
+        return;
+      }
+      if(!confirm('KIZE DESIGN TOOL v'+update.version+' 업데이트가 있습니다. 설치 전에 현재 프로젝트 저장을 확인하셨습니까?')) {
         label.textContent='업데이트 보류';
         return;
       }

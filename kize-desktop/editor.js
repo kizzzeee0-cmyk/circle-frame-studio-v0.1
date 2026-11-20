@@ -9,6 +9,9 @@ import {compareRgba,publicFidelityReport} from './fidelity-audit.mjs';
 import {layerConstraintAlpha,constrainSelection} from './psd-mask-core.mjs';
 import {maskedLayerRgba} from './masked-preview.mjs';
 import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
+import {protectOccludedPixels,pointIsOccluded,sourcePixelToDocument} from './visible-occlusion.mjs';
+import {parseVariantColors,variantFileName} from './palette-variants.mjs';
+import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
 const canvas=$('renderCanvas'),ctx=canvas.getContext('2d',{alpha:true});
@@ -99,32 +102,67 @@ function flatten(items,prefix='',hidden=false,out=[]){
   return out;
 }
 function psdMeta(arr){let total=0,count=0;for(const l of arr){count++;const w=Math.max(0,(l.right||0)-(l.left||0)),h=Math.max(0,(l.bottom||0)-(l.top||0));total+=w*h;if(w*h>maxDocPixels||total>maxLayerPixels||count>maxLayers)throw Error('레이어 크기 또는 개수가 안전 제한을 넘었습니다.');}return count;}
+let currentPsdOpen=null;
+$('cancelPsdImport').onclick=()=>{
+  const task=currentPsdOpen;
+  if(!task)return;
+  task.cancelled=true;
+  if(task.worker){task.worker.terminate();task.worker=null;}
+  task.reject?.(new Error('PSD 불러오기를 취소했습니다.'));
+  notify('PSD 불러오기를 취소했습니다. 기존 문서는 유지됩니다.');
+};
 async function readPsdInBackground(file){
-  if(file.size>maxPsdFileBytes)throw Error('현재 최대 파일 크기는 700MiB입니다. 600MB 파일은 크기만으로 차단하지 않습니다.');
-  if(typeof Worker==='undefined')throw Error('현재 Windows WebView2 환경이 대용량 PSD 작업 스레드를 지원하지 않습니다.');
+  if(file.size>maxPsdFileBytes)throw Error('현재 최대 파일 크기는 700MiB입니다.');
+  if(typeof Worker==='undefined')throw Error('현재 Windows WebView2 환경이 PSD 작업 스레드를 지원하지 않습니다.');
+  const task={cancelled:false,worker:null,reject:null};
+  currentPsdOpen=task;
+  $('cancelPsdImport').hidden=false;
   notify('PSD 읽기 준비 · '+Math.round(file.size/1024/1024)+'MiB…');
-  let raw;
-  try{raw=await file.arrayBuffer();}
-  catch(e){throw Error('파일 내용을 메모리에 읽지 못했습니다. 다른 프로그램을 종료해 RAM을 확보한 뒤 다시 시도해 주세요. '+(e?.message||''));}
-  return await new Promise((resolve,reject)=>{
-    let settled=false;
-    const worker=new Worker(new URL('./psd.worker.js',import.meta.url),{type:'module'});
-    const done=(error,result)=>{
-      if(settled)return;settled=true;
-      worker.terminate();
-      if(error)reject(error);else resolve(result);
-    };
-    worker.onmessage=e=>{
-      const msg=e.data;
-      if(msg?.type==='progress'){notify(msg.message);return;}
-      if(msg?.type==='complete')done(null,msg.result);
-      if(msg?.type==='failed')done(new Error(msg.message||'PSD 해석에 실패했습니다.'));
-    };
-    worker.onerror=e=>{e.preventDefault();done(new Error('PSD 작업 스레드 실행 오류: '+(e.message||'알 수 없는 오류')));};
-    worker.onmessageerror=()=>done(new Error('큰 PSD 레이어를 메모리에서 전송할 수 없습니다. 다른 프로그램을 종료하고 다시 시도해 주세요.'));
-    try{worker.postMessage({type:'open-psd',buffer:raw},[raw]);}
-    catch(e){done(new Error('PSD 데이터를 작업 스레드로 전달하지 못했습니다: '+(e?.message||e)));}
-  });
+  try{
+    // Only 26 header bytes are needed to reject incompatible or oversized
+    // canvases BEFORE allocating hundreds of MiB for a compressed PSD.
+    const headerBytes=await file.slice(0,26).arrayBuffer();
+    if(task.cancelled)throw Error('PSD 불러오기를 취소했습니다.');
+    if(headerBytes.byteLength<26)throw Error('PSD 헤더가 손상되었거나 너무 짧습니다.');
+    const header=new DataView(headerBytes);
+    if(header.getUint32(0)!==0x38425053||![1,2].includes(header.getUint16(4)))
+      throw Error('유효한 PSD/PSB 파일이 아닙니다.');
+    const pixels=header.getUint32(14)*header.getUint32(18);
+    if(pixels>maxDocPixels||!pixels)
+      throw Error('PSD 캔버스가 편집기 메모리 안전 한도(2,600만 픽셀)를 초과합니다. 파일 크기 제한과 별개의 보호 장치입니다.');
+    let raw;
+    try{raw=await file.arrayBuffer();}
+    catch(e){throw Error('파일 내용을 메모리에 읽지 못했습니다. RAM을 확인해 주세요. '+(e?.message||''));}
+    if(task.cancelled)throw Error('PSD 불러오기를 취소했습니다.');
+    return await new Promise((resolve,reject)=>{
+      let settled=false;
+      task.reject=reject;
+      const worker=new Worker(new URL('./psd.worker.js',import.meta.url),{type:'module'});
+      task.worker=worker;
+      const done=(error,result)=>{
+        if(settled)return;settled=true;
+        worker.terminate();task.worker=null;task.reject=null;
+        if(task.cancelled)reject(new Error('PSD 불러오기를 취소했습니다.'));
+        else if(error)reject(error);else resolve(result);
+      };
+      worker.onmessage=e=>{
+        if(task.cancelled)return;
+        const msg=e.data;
+        if(msg?.type==='progress'){notify(msg.message);return;}
+        if(msg?.type==='complete')done(null,msg.result);
+        if(msg?.type==='failed')done(new Error(msg.message||'PSD 해석에 실패했습니다.'));
+      };
+      worker.onerror=e=>{e.preventDefault();done(new Error('PSD 작업 스레드 실행 오류: '+(e.message||'알 수 없는 오류')));};
+      worker.onmessageerror=()=>done(new Error('큰 PSD 레이어를 메모리에서 전송할 수 없습니다.'));
+      try{worker.postMessage({type:'open-psd',buffer:raw},[raw]);}
+      catch(e){done(new Error('PSD 데이터를 작업 스레드로 전달하지 못했습니다: '+(e?.message||e)));}
+    });
+  }finally{
+    if(currentPsdOpen===task){
+      currentPsdOpen=null;
+      $('cancelPsdImport').hidden=true;
+    }
+  }
 }
 async function importPsd(file){
   const start=performance.now();
@@ -335,6 +373,22 @@ function sourceToCanvas(l){
   cx.drawImage(source,(output.width-dw)/2+l.offsetX,(output.height-dh)/2+l.offsetY,dw,dh);
   return output;
 }
+const alphaPreviewCache=new WeakMap();
+function sampleLayerAlpha(l,x,y){
+  if(!l?.canvas)return 0;
+  const signature=[l.canvas,l.photoSource,l.scale,l.offsetX,l.offsetY];
+  let cache=alphaPreviewCache.get(l);
+  if(!cache||signature.some((part,i)=>part!==cache.signature[i])){
+    const c=sourceToCanvas(l),rgba=toImageData(c).data;
+    const alpha=new Uint8Array(c.width*c.height);
+    for(let i=0;i<alpha.length;i++)alpha[i]=rgba[i*4+3];
+    cache={signature,alpha,w:c.width,h:c.height};
+    alphaPreviewCache.set(l,cache);
+    // Clipping bases read this stable bitmap alpha, never stale raw pixels.
+    l.alphaPixels=alpha;
+  }
+  return cache.alpha[y*cache.w+x]||0;
+}
 function layerImage(l){
   let image=sourceToCanvas(l);
   if(!Object.values(l.adjust||{}).some(v=>v!==0))return image;
@@ -345,15 +399,19 @@ const maskedRenderCache=new WeakMap();
 function layerVisualForReconstruction(l){
   const clipped=Boolean(l.clipBaseId||l.clipBaseKey);
   const bitmapMask=Boolean(l.maskSpecs?.length||l.groupMaskSpecs?.length);
+  if(l.maskDecodeFailed||l.unsupportedVectorMask||l.unsupportedGroupMask||l.clippingUnresolved)
+    return blankCanvas(l.canvas.width,l.canvas.height);
   if(!clipped&&!bitmapMask)return layerImage(l);
   const base=clipped?layers.find(v=>v.id===l.clipBaseId):null;
   const sourceKey=l.canvas,photoKey=l.photoSource;
   const colorKey=JSON.stringify(l.adjust||{})+'/'+l.offsetX+'/'+l.offsetY+'/'+l.scale;
   const geometryKey=[l.x,l.y,l.w,l.h,l.rotation,l.flipH,l.flipV,
-    base?.visible,base?.x,base?.y,base?.w,base?.h].join(',');
+    base?.visible,base?.x,base?.y,base?.w,base?.h,base?.rotation,
+    base?.flipH,base?.flipV,base?.scale,base?.offsetX,base?.offsetY].join(',');
   const cached=maskedRenderCache.get(l);
   if(cached&&cached.canvas===sourceKey&&cached.photo===photoKey&&cached.colorKey===colorKey&&
-    cached.geometryKey===geometryKey)return cached.preview;
+    cached.geometryKey===geometryKey&&cached.baseCanvas===base?.canvas&&
+    cached.basePhoto===base?.photoSource)return cached.preview;
   const original=layerImage(l);
   if(original.width*original.height>12_000_000){
     // Avoid freezing WebView by allocating multiple >48MB bitmaps for every
@@ -365,12 +423,12 @@ function layerVisualForReconstruction(l){
     const filtered=maskedLayerRgba(source.data,source.width,source.height,l,
       id=>layers.find(v=>v.id===id));
     const preview=pixelCanvas({width:source.width,height:source.height,data:filtered});
-    maskedRenderCache.set(l,{canvas:sourceKey,photo:photoKey,colorKey,geometryKey,preview});
+    maskedRenderCache.set(l,{canvas:sourceKey,photo:photoKey,colorKey,geometryKey,
+      baseCanvas:base?.canvas,basePhoto:base?.photoSource,preview});
     return preview;
   }catch(e){
-    // Unsupported mask cases are shown only in this *approximate* preview;
-    // selection and color editing remain fail-closed for these layers.
-    return original;
+    // Fail closed: never show raw Photoshop pixels as though unmasked.
+    return blankCanvas(original.width,original.height);
   }
 }
 function drawOriginalAndPatches(){
@@ -680,6 +738,7 @@ const stageCenter=()=>{const r=stage.getBoundingClientRect();return [r.left+r.wi
 $('zoomIn').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom*1.25);};
 $('zoomOut').onclick=()=>{panX=panY=0;applyPan();setZoom(zoom/1.25);};
 $('zoomFit').onclick=fitZoom;
+$('zoomActual').onclick=()=>{if(!documentModel)return;setZoom(1);panX=panY=0;applyPan();stage.scrollLeft=0;stage.scrollTop=0;notify('100% 보기 · 이미지 1픽셀 = CSS 1픽셀 (모니터 배율과 별개)');};
 $('panReset').onclick=()=>{panX=panY=0;applyPan();stage.scrollLeft=0;stage.scrollTop=0;notify('캔버스 이동을 초기화했습니다. 휠 버튼으로 자유롭게 이동할 수 있습니다.');};
 stage.addEventListener('wheel',e=>{
   if(!documentModel)return;
@@ -765,10 +824,9 @@ function regionAt(l,px,py,mode){
   const result=mode==='asset'
     ?selectAssetRegion(input,visual.width,visual.height,px,py,options)
     :colorSelection(input,visual.width,visual.height,px,py,options);
-  const mask=constrainSelection(result.mask,visual.width,visual.height,l,
-    id=>layers.find(x=>x.id===id));
-  const bounds=maskBounds(mask.mask,visual.width,visual.height);
-  return {...result,mask:mask.mask,count:mask.count,bounds:bounds.bounds,
+  // Keep the unconstrained selection as the immutable base. PSD mask alpha
+  // is applied ONCE after widening/shrinking, never squared by double masking.
+  return {...result,
     mode,id:l.id,w:visual.width,h:visual.height};
 }
 function reapplyMaskAmount(part){
@@ -778,11 +836,18 @@ function reapplyMaskAmount(part){
   const limited=layer?constrainSelection(adjusted,part.w,part.h,layer,
     id=>layers.find(x=>x.id===id)):null;
   part.mask=limited?.mask||adjusted;
+  if(layer)part.mask=protectOccludedPixels(part.mask,part.w,part.h,
+    layer,layers,sampleLayerAlpha);
   const stats=maskBounds(part.mask,part.w,part.h);
   part.count=stats.count;part.bounds=stats.bounds;
   part.preview=part.bounds?createMaskPreview(part):null;
 }
 function pickLayerColor(l,px,py,additive=false){
+  const point=sourcePixelToDocument(l,px,py,l.canvas.width,l.canvas.height);
+  if(pointIsOccluded(l,point.x,point.y,layers,sampleLayerAlpha)){
+    notify('다른 레이어에 가려진 부분입니다. 위쪽 레이어를 선택하거나 보이는 부분을 클릭해 주세요.');
+    return;
+  }
   const mode=$('selectionMode').value;
   let region;
   try{region=regionAt(l,px,py,mode);}
@@ -794,6 +859,7 @@ function pickLayerColor(l,px,py,additive=false){
   }
   region.baseMask=region.mask;
   reapplyMaskAmount(region);
+  if(!region.count){notify('가려짐 또는 PSD 마스크로 인해 실제 수정 가능한 픽셀이 없습니다.');return;}
   if(!additive)selectionParts=[];
   // Guard against duplicate Shift-click causing unintentionally stacked fill.
   const duplicate=selectionParts.find(p=>p.id===region.id&&p.seed?.x===region.seed?.x&&p.seed?.y===region.seed?.y);
@@ -951,6 +1017,7 @@ $('applyColor').onclick=()=>{
           preserveShading:$('preserveShading').checked,
           tintAsset:$('assetTint').checked&&part.mode==='asset',
           protectWhite:$('protectWhite').checked,
+          smartPalette:$('smartPalette').checked,
         };
         const effectivePart={...part,mask:isolated};
         if(appearanceEnabled){
@@ -996,6 +1063,107 @@ $('applyColor').onclick=()=>{
       :total.toLocaleString()+'px 색상 변경 완료 · 원본 Photoshop 합성 효과는 현재 레이어 재구성에서 정확하게 재현되지 않습니다.');
   }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error('KIZE appearance paint:',e);}
 };
+
+$('variantPreset').onchange=e=>{if(e.target.value)$('variantColors').value=e.target.value;};
+function variantPaintOptions(color,part){
+  return {mode:'solid',color,
+    stops:gradientStops.map(s=>({color:s.color,position:s.position})),
+    angle:Number($('gradientAngle').value),preserveShading:$('preserveShading').checked,
+    tintAsset:$('assetTint').checked&&part.mode==='asset',
+    protectWhite:$('protectWhite').checked,smartPalette:$('smartPalette').checked};
+}
+function variantIsolated(part,covered){
+  const mask=new Uint8Array(part.mask.length);
+  for(let i=0;i<mask.length;i++)if(part.mask[i]&&!covered[i]){
+    mask[i]=part.mask[i];covered[i]=1;
+  }
+  const bounds=maskBounds(mask,part.w,part.h).bounds;
+  return bounds?{...part,mask,bounds}:null;
+}
+function drawBatchAppearance(out,color){
+  const context=out.getContext('2d'),ref=originalComposite.getContext('2d',{willReadFrequently:true});
+  context.drawImage(originalComposite,0,0);
+  for(const patch of appearancePatches)
+    context.putImageData(new ImageData(patch.data,patch.w,patch.h),patch.x,patch.y);
+  const added=[];
+  for(const layer of layers){
+    const parts=selectionParts.filter(p=>p.id===layer.id&&p.count);
+    if(!parts.length)continue;
+    const covered=new Uint8Array(parts[0].w*parts[0].h);
+    for(const part of parts){
+      const isolated=variantIsolated(part,covered);
+      if(!isolated)continue;
+      const rect=transformedSelectionRect(layer,isolated,documentModel.width,documentModel.height);
+      if(!rect)continue;
+      const original=ref.getImageData(rect.x,rect.y,rect.w,rect.h).data;
+      const patch=makeAppearancePatch(layer,isolated,documentModel.width,documentModel.height,
+        original,[...appearancePatches,...added],variantPaintOptions(color,part));
+      if(patch)added.push(patch);
+    }
+  }
+  for(const patch of added)context.putImageData(new ImageData(patch.data,patch.w,patch.h),patch.x,patch.y);
+}
+function drawBatchLayers(out,color){
+  const context=out.getContext('2d');
+  for(const l of layers){
+    if(!l.visible||!l.canvas)continue;
+    const parts=selectionParts.filter(p=>p.id===l.id&&p.count);
+    let image=layerVisualForReconstruction(l);
+    if(parts.length){
+      const src=toImageData(layerImage(l));
+      const covered=new Uint8Array(src.width*src.height);
+      let modified=new Uint8ClampedArray(src.data);
+      for(const part of parts){
+        if(part.w!==src.width||part.h!==src.height)throw Error('시안 선택 레이어 크기가 변경되었습니다.');
+        const isolated=variantIsolated(part,covered);
+        if(isolated)modified=paintSelection(modified,src.width,src.height,
+          isolated,variantPaintOptions(color,part)).data;
+      }
+      try{
+        if(l.maskSpecs?.length||l.groupMaskSpecs?.length||l.clipBaseId!=null||
+           l.maskDecodeFailed||l.unsupportedGroupMask||l.unsupportedVectorMask||l.clippingUnresolved)
+          modified=maskedLayerRgba(modified,src.width,src.height,l,id=>layers.find(x=>x.id===id));
+        image=pixelCanvas({width:src.width,height:src.height,data:modified});
+      }catch{image=blankCanvas(src.width,src.height);}
+    }
+    context.save();context.globalAlpha=normOpacity(l.opacity);
+    context.globalCompositeOperation=l.blend;
+    context.translate(l.x+l.w/2,l.y+l.h/2);context.rotate(l.rotation*Math.PI/180);
+    context.scale(l.flipH?-1:1,l.flipV?-1:1);
+    context.drawImage(image,-l.w/2,-l.h/2,l.w,l.h);context.restore();
+  }
+}
+$('exportVariants').onclick=async()=>{
+  if(!documentModel||!selectionParts.length){notify('시안 추출 전 색상/에셋 영역을 선택해 주세요.');return;}
+  if(documentModel.width*documentModel.height>8_000_000){
+    notify('메모리 보호: 시안 일괄 생성은 800만 픽셀 이하에서만 지원합니다.');return;
+  }
+  let colors;try{colors=parseVariantColors($('variantColors').value);}
+  catch(e){notify(e.message);return;}
+  if(originalComposite&&!appearanceSafe&&!confirm(
+    '원본 외관 보존이 중단된 작업입니다. 레이어 재구성 방식으로 시안을 추출할까요?'))return;
+  const button=$('exportVariants');button.disabled=true;
+  try{
+    const entries={};
+    for(let index=0;index<colors.length;index++){
+      const color=colors[index];
+      notify('시안 '+(index+1)+'/'+colors.length+' · '+color+' PNG 만드는 중…');
+      const c=blankCanvas(documentModel.width,documentModel.height);
+      if(originalComposite&&appearanceSafe)drawBatchAppearance(c,color);
+      else drawBatchLayers(c,color);
+      entries[variantFileName(documentModel.name,color,index)]=[await canvasToPngBytes(c),{level:0}];
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    entries['palette.json']=[strToU8(JSON.stringify({format:'KIZE-COLOR-VARIANTS-1',
+      colors,source:documentModel.name,width:documentModel.width,height:documentModel.height,
+      appearancePreserved:!!(originalComposite&&appearanceSafe)},null,2)),{level:6}];
+    downloadBlob(new Blob([zipSync(entries,{level:0})],{type:'application/zip'}),
+      (documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'')+'-color-variants.zip');
+    notify(colors.length+'개 시안 PNG ZIP 완성 · 원본 레이어와 실행 취소 기록은 변경하지 않았습니다.');
+  }catch(e){notify('시안 생성 실패: '+(e?.message||e));console.error(e);}
+  finally{button.disabled=false;}
+};
+
 function restoreSnapshots(snapshots){
   for(const snapshot of snapshots){
     const l=layers.find(x=>x.id===snapshot.id);
@@ -1185,7 +1353,7 @@ $('saveProject').onclick=async()=>{
     }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.9.0',
+      appVersion:'0.10.0',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,
@@ -1217,4 +1385,4 @@ window.addEventListener('keydown',e=>{
   else if(key==='s'){e.preventDefault();$('saveProject').click();}
 });
 window.addEventListener('resize',()=>{if(documentModel)syncGuides();});
-initUpdates($('updateStatus'),$('checkUpdate'));
+initUpdates($('updateStatus'),$('checkUpdate'),{hasUnsavedChanges:()=>unsavedChanges});

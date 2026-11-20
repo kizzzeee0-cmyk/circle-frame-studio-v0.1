@@ -39,15 +39,23 @@ export function maskOpacity(spec,docX,docY){
 }
 function pixelAlpha(layer,docX,docY){
   if(!layer?.canvas||layer.w<=0||layer.h<=0)return 0;
-  const sx=Math.floor((docX-layer.x)*layer.canvas.width/layer.w);
-  const sy=Math.floor((docY-layer.y)*layer.canvas.height/layer.h);
+  // The clipping base is positioned in DOCUMENT space: honor transform,
+  // rotation and flips rather than sampling an unrotated bounding box.
+  const cx=layer.x+layer.w/2,cy=layer.y+layer.h/2;
+  const theta=(Number(layer.rotation)||0)*Math.PI/180;
+  const dx=docX-cx,dy=docY-cy;
+  let lx=dx*Math.cos(theta)+dy*Math.sin(theta);
+  let ly=-dx*Math.sin(theta)+dy*Math.cos(theta);
+  if(layer.flipH)lx=-lx;
+  if(layer.flipV)ly=-ly;
+  const sx=Math.floor((lx/layer.w+.5)*layer.canvas.width);
+  const sy=Math.floor((ly/layer.h+.5)*layer.canvas.height);
   if(sx<0||sy<0||sx>=layer.canvas.width||sy>=layer.canvas.height)return 0;
   if(layer.alphaPixels){
     const a=layer.alphaPixels[sy*layer.canvas.width+sx];
     return a??0;
   }
-  // Browser editor can provide its cached bitmap alpha. No Canvas operations
-  // are performed within this pure module.
+  // Without decoded alpha, fail closed rather than guessing opacity.
   return 0;
 }
 export function layerConstraintAlpha(layer,docX,docY,byId){

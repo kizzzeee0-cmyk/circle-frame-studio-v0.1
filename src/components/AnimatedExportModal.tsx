@@ -6,6 +6,7 @@ import {
   estimateAnimatedRawMemory,
   exportAnimatedFrame,
   getAnimatedFrameCount,
+  isVideoFormatSupported,
   type AnimatedExportFormat,
   type AnimatedExportOptions,
   type AnimatedExportProgress,
@@ -26,6 +27,7 @@ const DEFAULT_OPTIONS: AnimatedExportOptions = {
   duration: 2,
   loopCount: 0,
   webpQuality: 88,
+  videoBitrateMbps: 12,
 }
 
 function mb(bytes: number) {
@@ -48,7 +50,13 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
 
   const frames = getAnimatedFrameCount(options)
   const rawMb = mb(estimateAnimatedRawMemory(options))
-  const memoryHeavy = options.format !== 'gif' && rawMb > 320
+  const videoFormat = options.format === 'webm' || options.format === 'mp4'
+  const memoryHeavy = !['gif','webm','mp4'].includes(options.format) && rawMb > 320
+  const videoSupported = options.format === 'webm'
+    ? isVideoFormatSupported('webm')
+    : options.format === 'mp4'
+      ? isVideoFormatSupported('mp4')
+      : true
   const animated = hasAnimatedLayer(project)
 
   useEffect(() => {
@@ -106,7 +114,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
   }
 
   const startExport = async () => {
-    if (memoryHeavy) return
+    if (memoryHeavy || !videoSupported) return
     setBusy(true)
     setError('')
     setProgress({ stage: 'render', current: 0, total: frames, message: '내보내기 준비 중' })
@@ -126,7 +134,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
       : Math.round((progress.current / Math.max(1, progress.total)) * (progress.stage === 'encode' ? 90 : 82))
     : 0
 
-  const formatName = options.format === 'webp' ? 'Animated WebP' : options.format === 'apng' ? 'APNG' : 'GIF'
+  const formatName = options.format === 'webp' ? 'Animated WebP' : options.format === 'apng' ? 'APNG' : options.format === 'gif' ? 'GIF' : options.format === 'webm' ? 'WebM' : 'MP4'
 
   return (
     <div className="animated-export-backdrop" onMouseDown={event => {
@@ -159,6 +167,8 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
               {options.format === 'gif' && <>GIF는 호환성이 가장 좋지만 <b>256색 + 1bit 투명도</b>라 반투명 글로우가 단순화될 수 있습니다.</>}
               {options.format === 'webp' && <>Animated WebP는 <b>투명 배경과 부드러운 색상</b>을 유지하면서 용량도 비교적 작아 기본 추천입니다.</>}
               {options.format === 'apng' && <>APNG는 <b>반투명 글로우를 무손실</b>로 가장 잘 보존하지만 파일 용량이 커질 수 있습니다.</>}
+              {options.format === 'webm' && <>WebM은 영상 레이어·프레임 회전·PNG 애니메이션까지 합성합니다. <b>투명 알파는 브라우저 VP9 인코더에 따라 보존되지 않을 수 있어</b> 투명 결과가 필수라면 APNG/WebP를 권장합니다.</>}
+              {options.format === 'mp4' && <>MP4는 브라우저가 H.264 MediaRecorder를 지원할 때만 활성화됩니다. MP4는 알파 투명을 지원하지 않으므로 투명 배경은 검정/불투명으로 변환될 수 있습니다.</>}
             </div>
           </div>
 
@@ -174,6 +184,8 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
                 <option value="webp">Animated WebP · 추천</option>
                 <option value="apng">APNG · 고화질 투명</option>
                 <option value="gif">GIF · 호환성</option>
+                <option value="webm">WebM · 영상 합성</option>
+                <option value="mp4">MP4 · 브라우저 지원 시</option>
               </select>
             </label>
 
@@ -187,7 +199,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
 
             <label className="control"><span><b>FPS</b></span>
               <select disabled={busy} value={options.fps} onChange={e => set('fps', Number(e.target.value) as AnimatedExportOptions['fps'])}>
-                {[12,15,20,24,30].map(value => <option key={value} value={value}>{value} fps</option>)}
+                {[12,15,20,24,30,60].map(value => <option key={value} value={value}>{value} fps</option>)}
               </select>
             </label>
 
@@ -215,6 +227,15 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
               <input disabled={busy} type="range" min={50} max={100} value={options.webpQuality} onChange={e => set('webpQuality', Number(e.target.value))} />
             </label>}
 
+            {videoFormat && <label className="control">
+              <span><b>영상 비트레이트</b><em>{options.videoBitrateMbps ?? 12} Mbps</em></span>
+              <input disabled={busy} type="range" min={2} max={50} step={1} value={options.videoBitrateMbps ?? 12} onChange={e => set('videoBitrateMbps', Number(e.target.value))} />
+            </label>}
+
+            {videoFormat && !videoSupported && <div className="animated-error">
+              현재 브라우저에서 이 영상 코덱을 지원하지 않습니다. WebM/MP4 중 지원되는 형식을 선택하거나 APNG/Animated WebP를 사용해 주세요.
+            </div>}
+
             <div className={'animated-memory ' + (memoryHeavy ? 'danger' : '')}>
               <span>프레임 원본 메모리 예상</span>
               <strong>약 {rawMb.toFixed(0)} MB</strong>
@@ -227,7 +248,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
             </div>}
             {error && <div className="animated-error">{error}</div>}
 
-            <button className="primary-button animated-export-submit" type="button" disabled={busy || memoryHeavy} onClick={() => void startExport()}>
+            <button className="primary-button animated-export-submit" type="button" disabled={busy || memoryHeavy || !videoSupported} onClick={() => void startExport()}>
               {busy ? '파일 생성 중…' : formatName + '로 저장'}
             </button>
 

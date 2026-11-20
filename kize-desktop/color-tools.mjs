@@ -1,6 +1,7 @@
 // Color editing core, independent of DOM and PSD parsing. This module edits
 // only the selected layer and keeps the original canvas size / alpha intact.
 import {clamp,hexToRGB} from './engine.js';
+import {rotateAssetPalette} from './smart-palette.mjs';
 const dist = (data,p,ref)=>Math.hypot(data[p]-ref[0],data[p+1]-ref[1],data[p+2]-ref[2]);
 const at=(a,i)=>a[i*4+3];
 export function findColorSeed(data,w,h,x,y,radius=5) {
@@ -122,8 +123,12 @@ export function paintSelection(src,w,h,selection,opt={}) {
     const adjustedStrength=strength*(tintAsset?strengthSetting:1);
     const neutralWhite=tintAsset&&protectWhite&&saturation<.16&&luminosity>215
       ?clamp((236-luminosity)/21,0,1):1;
+    const paletteColor=tintAsset&&opt.smartPalette===true
+      ?rotateAssetPalette([src[p],src[p+1],src[p+2]],sample,target,
+        {preserveShading:preserve,protectNeutrals:protectWhite})
+      :null;
     for(let ch=0;ch<3;ch++){
-      const next=clamp(target[ch]+shade,0,255);
+      const next=paletteColor?paletteColor[ch]:clamp(target[ch]+shade,0,255);
       const mix=adjustedStrength*neutralWhite;
       out[p+ch]=Math.round(src[p+ch]*(1-mix)+next*mix);
     }

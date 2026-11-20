@@ -156,3 +156,8 @@
 .photo-sliders .photo-adjust-row input[type=number]{width:51px!important;min-width:0!important;height:29px;padding:5px!important;text-align:center;font-variant-numeric:tabular-nums;border:1px solid #e7e2eb;border-radius:6px}
 .photo-sliders .photo-adjust-row span{font-size:10px}
 #colorPanel .selection-mode-label{margin-top:9px}
+
+.target-color-row{display:flex;align-items:center;gap:8px;margin:7px 0 13px}
+.target-color-row input[type=color]{width:46px!important;height:38px!important;flex:none;margin:0!important;cursor:pointer}
+.target-color-row input[type=text]{flex:1;min-width:0!important;width:auto!important;box-sizing:border-box;border:1px solid #e8e2ec;border-radius:7px;padding:9px;font-size:12px;font-variant-numeric:tabular-nums}
+#colorFinishHint{color:#8b8297;margin:7px 0 13px;line-height:1.55}

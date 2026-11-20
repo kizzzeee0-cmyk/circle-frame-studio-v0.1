@@ -10,7 +10,7 @@ test('PSD raster mask removes hidden upper-layer pixels only in reconstruction, 
   assert.deepEqual([rgba[3],rgba[7],rgba[11]],[255,255,255]);
 });
 test('reconstructed clipped layer uses base shape alpha and its mask',()=>{
-  const rgba=new Uint8ClampedArray(4*4);
+  const rgba=new Uint8ClampedArray(4*4*4);
   for(let i=0;i<rgba.length;i+=4)rgba.set([130,60,230,255],i);
   const base={id:1,x:0,y:0,w:4,h:4,visible:true,canvas:{width:4,height:4},
     alphaPixels:new Uint8Array(16).fill(255),

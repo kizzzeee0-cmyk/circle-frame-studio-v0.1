@@ -328,7 +328,7 @@ $('undo').onclick=()=>{
 for(const [id,key] of [['propX','x'],['propY','y'],['propW','w'],['propH','h']]){
   $(id).onchange=e=>{const l=sel();if(!l)return;checkpoint(l);const v=Number(e.target.value);if(Number.isFinite(v)){l[key]=key==='w'||key==='h'?clamp(Math.round(v),1,20000):Math.round(v);}refreshAll();syncGuides();};
 }
-$('opacityLayer').oninput=e=>{const l=sel();if(l){l.opacity=Number(e.target.value)/100;render();}};
+$('opacityLayer').oninput=e=>{const l=sel();if(l){if(previewMode==='composite')setPreviewMode('layers');hasLayerEdits=true;l.opacity=Number(e.target.value)/100;render();}};
 $('visibleLayer').onchange=e=>{const l=sel();if(l){checkpoint(l);l.visible=e.target.checked;refreshAll();}};
 $('centerH').onclick=()=>align(true);$('centerV').onclick=()=>align(false);
 function align(horizontal){const l=sel();if(!l)return;checkpoint(l);if(horizontal)l.x=Math.round((documentModel.width-l.w)/2);else l.y=Math.round((documentModel.height-l.h)/2);refreshAll();syncGuides();}
@@ -343,16 +343,17 @@ async function replaceImage(file){
   let l=sel();
   if(l){checkpoint(l);l.type='photo';l.name=file.name+' (교체됨)';l.photoSource=src;l.adjust=defaultAdjust();l.offsetX=l.offsetY=0;l.scale=100;}
   else {const w=Math.min(documentModel.width,src.width),h=Math.min(documentModel.height,src.height);l=newLayer({name:file.name,type:'photo',canvas:blankCanvas(w,h),photoSource:src,w,h,x:Math.round((documentModel.width-w)/2),y:Math.round((documentModel.height-h)/2)});layers.push(l);selectedId=l.id;}
-  selection=null;refreshAll();notify('사진을 기존 레이어 영역에 맞춰 교체했습니다. 내부 이동/크기와 톤을 조정할 수 있습니다.');
+  hasLayerEdits=true;setPreviewMode('layers');selection=null;refreshAll();notify('사진을 기존 레이어 영역에 맞춰 교체했습니다. 내부 이동/크기와 톤을 조정할 수 있습니다.');
 }
 $('replaceFile').onchange=async e=>{const f=e.target.files?.[0];e.target.value='';if(f)try{await replaceImage(f);}catch(err){notify('사진 교체 실패: '+err.message);}};
 for(const input of document.querySelectorAll('[data-adjust]'))input.oninput=e=>{
   const l=sel();if(!l)return;
   if(!l.photoSource){l.photoSource=cloneCanvas(l.canvas);}
+  if(previewMode==='composite')setPreviewMode('layers');hasLayerEdits=true;
   const k=e.target.dataset.adjust;l.adjust[k]=Number(e.target.value);const out=$('out'+k[0].toUpperCase()+k.slice(1));if(out)out.textContent=e.target.value;render();
 };
 $('resetAdjust').onclick=()=>{const l=sel();if(!l)return;checkpoint(l);l.adjust=defaultAdjust();refreshAll();};
-for(const [id,key] of [['photoScale','scale'],['photoOffsetX','offsetX'],['photoOffsetY','offsetY']])$(id).onchange=e=>{const l=sel();if(!l||!l.photoSource)return;l[key]=id==='photoScale'?clamp(Number(e.target.value),10,500):Math.round(Number(e.target.value));render();};
+for(const [id,key] of [['photoScale','scale'],['photoOffsetX','offsetX'],['photoOffsetY','offsetY']])$(id).onchange=e=>{const l=sel();if(!l||!l.photoSource)return;checkpoint(l);l[key]=id==='photoScale'?clamp(Number(e.target.value),10,500):Math.round(Number(e.target.value));render();};
 $('applyText').onclick=()=>{
   const l=sel();if(!l||l.type!=='text'||!l.psdText){notify('PSD에서 가져온 텍스트 레이어를 선택해 주세요.');return;}
   checkpoint(l);l.textValue=$('textValue').value;l.fontFamily=$('fontFamily').value||'Arial';l.fontSize=clamp(Number($('fontSize').value)||32,1,999);l.textColor=$('textColor').value;
@@ -365,6 +366,11 @@ $('applyText').onclick=()=>{
 function downloadBlob(blob,filename){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2500);}
 $('exportPng').onclick=()=>{
   if(!documentModel){notify('먼저 디자인 파일을 불러와 주세요.');return;}
+  if(hasLayerEdits&&previewMode==='composite'){
+    setPreviewMode('layers');
+    notify('PSD 원본 보기에는 수정 내용이 표시되지 않습니다. 레이어 편집 모습으로 전환했습니다. 확인 후 다시 PNG 저장을 눌러 주세요.');
+    return;
+  }
   render();
   canvas.toBlob(blob=>{if(blob)downloadBlob(blob,(documentModel.name.replace(/\.[^.]+$/,'')||'KIZE-design')+'-edited.png');else notify('PNG 저장에 실패했습니다.');},'image/png');
 };

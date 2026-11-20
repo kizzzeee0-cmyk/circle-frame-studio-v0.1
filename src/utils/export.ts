@@ -60,6 +60,7 @@ export function estimateAnimatedRawMemory(options: AnimatedExportOptions) {
 }
 
 export function isVideoFormatSupported(format: 'webm' | 'mp4') {
+  if (typeof VideoEncoder !== 'undefined') return true
   if (typeof MediaRecorder === 'undefined') return false
   const mime = format === 'mp4'
     ? 'video/mp4;codecs=avc1.42E01E'
@@ -242,6 +243,58 @@ async function exportAlphaMov(
   return encodePngMov(frames, options.resolution, options.resolution, options.fps)
 }
 
+async function exportDeterministicVideo(
+  project: FrameProject,
+  options: AnimatedExportOptions,
+  format: 'mp4' | 'webm',
+  onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
+) {
+  if (typeof VideoEncoder === 'undefined') throw new Error('이 브라우저는 WebCodecs VideoEncoder를 지원하지 않습니다.')
+  const mod = await import('mediabunny')
+  const canvas = makeAnimationCanvas(options.resolution)
+  const fps = Math.max(1, options.fps)
+  const frameCount = Math.max(2, Math.round(options.duration * fps))
+  const bitrate = Math.max(2, Math.min(80, options.videoBitrateMbps ?? (options.resolution >= 2000 ? 28 : 12))) * 1_000_000
+  const target = new mod.BufferTarget()
+  const output = new mod.Output({
+    format: format === 'mp4'
+      ? new mod.Mp4OutputFormat({ fastStart: 'in-memory' })
+      : new mod.WebMOutputFormat(),
+    target,
+  })
+  const source = new mod.CanvasSource(canvas, format === 'mp4'
+    ? { codec: 'avc', quality: new mod.Quality({ bitrate }) }
+    : { codec: 'vp9', quality: new mod.Quality({ bitrate }), alpha: 'keep' })
+  output.addVideoTrack(source, { frameRate: fps })
+  await output.start()
+
+  try {
+    for (let i = 0; i < frameCount; i++) {
+      throwIfAborted(signal)
+      const timestamp = i / fps
+      const progress = i / frameCount
+      await renderTimedFrame(canvas, project, progress, options.duration)
+      await source.add(timestamp, 1 / fps, { keyFrame: i === 0 || i % Math.max(1, Math.round(fps * 2)) === 0 })
+      onProgress?.({
+        stage: 'render',
+        current: i + 1,
+        total: frameCount,
+        message: (format === 'mp4' ? 'MP4' : 'WebM') + ' 정확한 프레임 ' + (i + 1) + ' / ' + frameCount + ' 인코딩 중',
+      })
+    }
+    throwIfAborted(signal)
+    onProgress?.({ stage: 'encode', current: 0, total: 1, message: '영상 컨테이너 최종 정리 중' })
+    await output.finalize()
+  } catch (error) {
+    await output.cancel().catch(() => {})
+    throw error
+  }
+
+  if (!target.buffer) throw new Error('영상 파일 버퍼를 생성하지 못했습니다.')
+  return new Blob([target.buffer], { type: format === 'mp4' ? 'video/mp4' : 'video/webm' })
+}
+
 async function exportCanvasVideo(
   project: FrameProject,
   options: AnimatedExportOptions,
@@ -328,7 +381,16 @@ export async function exportAnimatedFrame(
   else if (options.format === 'apng') blob = await exportApng(project, options, onProgress, signal)
   else if (options.format === 'webp') blob = await exportAnimatedWebp(project, options, onProgress, signal)
   else if (options.format === 'mov') blob = await exportAlphaMov(project, options, onProgress, signal)
-  else blob = await exportCanvasVideo(project, options, onProgress, signal)
+  else {
+    const hasEnabledAudio = options.includeAudio !== false && (project.mediaLayers ?? []).some(layer =>
+      layer.visible && layer.kind === 'video' && layer.audioEnabled && layer.audioVolume > 0
+    )
+    if (!hasEnabledAudio && typeof VideoEncoder !== 'undefined') {
+      blob = await exportDeterministicVideo(project, options, options.format as 'mp4' | 'webm', onProgress, signal)
+    } else {
+      blob = await exportCanvasVideo(project, options, onProgress, signal)
+    }
+  }
 
   throwIfAborted(signal)
   const ext = options.format === 'apng' ? 'png' : options.format

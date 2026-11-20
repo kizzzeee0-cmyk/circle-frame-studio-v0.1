@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react'
 import type { ComposerSettings, FrameProject, MediaLayer } from '../types'
 import { getProjectFitScale, renderProject } from '../render/renderer'
+import { canUseGpuCompositor, presentCanvasWithGpu } from '../render/gpuCompositor'
 import { preloadProjectAssets } from '../utils/assets'
 import { preloadProjectMedia, syncProjectMediaPreview } from '../utils/media'
 
@@ -75,6 +76,8 @@ export default function CanvasPanel({
   onSettingsChange,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
+  const gpuRef = useRef<HTMLCanvasElement>(null)
+  const renderSurfaceRef = useRef<HTMLCanvasElement | null>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const checkerRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState(1)
@@ -92,6 +95,8 @@ export default function CanvasPanel({
     layers: MediaLayer[]
   } | null>(null)
 
+  const gpuAvailable = canUseGpuCompositor()
+  const useGpu = gpuAvailable && settings.performanceMode !== 'quality'
   const effectiveResolution = settings.performanceMode === 'performance'
     ? 720
     : settings.performanceMode === 'auto' && playing && (project.mediaLayers?.length ?? 0) > 4
@@ -107,9 +112,17 @@ export default function CanvasPanel({
       await Promise.all([preloadProjectAssets(project), preloadProjectMedia(project)])
       if (cancelled) return
       syncProjectMediaPreview(project, timeSec, playing)
-      if (ref.current) {
-        const duration = Math.max(.5, project.timeline?.duration ?? 3)
-        renderProject(ref.current, project, undefined, timeSec * 1000, (timeSec % duration) / duration)
+      const duration = Math.max(.5, project.timeline?.duration ?? 3)
+      const progress = (timeSec % duration) / duration
+      if (useGpu && gpuRef.current) {
+        const surface = renderSurfaceRef.current ?? document.createElement('canvas')
+        renderSurfaceRef.current = surface
+        surface.width = effectiveResolution
+        surface.height = effectiveResolution
+        renderProject(surface, project, undefined, timeSec * 1000, progress)
+        presentCanvasWithGpu(gpuRef.current, surface)
+      } else if (ref.current) {
+        renderProject(ref.current, project, undefined, timeSec * 1000, progress)
       }
     }
     void load()
@@ -118,17 +131,29 @@ export default function CanvasPanel({
 
   useEffect(() => {
     syncProjectMediaPreview(project, timeSec, playing)
-    if (!ref.current) return
     const duration = Math.max(.5, project.timeline?.duration ?? 3)
-    renderProject(ref.current, project, undefined, timeSec * 1000, (timeSec % duration) / duration)
+    const progress = (timeSec % duration) / duration
+    if (useGpu && gpuRef.current) {
+      const surface = renderSurfaceRef.current ?? document.createElement('canvas')
+      renderSurfaceRef.current = surface
+      if (surface.width !== effectiveResolution) surface.width = effectiveResolution
+      if (surface.height !== effectiveResolution) surface.height = effectiveResolution
+      renderProject(surface, project, undefined, timeSec * 1000, progress)
+      presentCanvasWithGpu(gpuRef.current, surface)
+    } else if (ref.current) {
+      renderProject(ref.current, project, undefined, timeSec * 1000, progress)
+    }
   }, [project, timeSec, playing, effectiveResolution])
 
   const sample = (event: MouseEvent<HTMLCanvasElement>) => {
-    if (!event.altKey || !onSampleColor || !ref.current) return
-    const rect = ref.current.getBoundingClientRect()
-    const x = Math.floor((event.clientX - rect.left) * (ref.current.width / rect.width))
-    const y = Math.floor((event.clientY - rect.top) * (ref.current.height / rect.height))
-    const data = ref.current.getContext('2d')?.getImageData(x, y, 1, 1).data
+    if (!event.altKey || !onSampleColor) return
+    const display = useGpu ? gpuRef.current : ref.current
+    const source = useGpu ? renderSurfaceRef.current : ref.current
+    if (!display || !source) return
+    const rect = display.getBoundingClientRect()
+    const x = Math.floor((event.clientX - rect.left) * (source.width / rect.width))
+    const y = Math.floor((event.clientY - rect.top) * (source.height / rect.height))
+    const data = source.getContext('2d')?.getImageData(x, y, 1, 1).data
     if (data && data[3] > 0) onSampleColor(rgbToHex(data[0], data[1], data[2]))
   }
 
@@ -301,6 +326,7 @@ export default function CanvasPanel({
           <option value="quality">고품질</option>
           <option value="performance">성능 우선</option>
         </select>
+        <span className={useGpu ? 'gpu-status active' : 'gpu-status'}>{useGpu ? 'GPU' : '2D'}</span>
       </div>
 
       <div
@@ -314,7 +340,8 @@ export default function CanvasPanel({
         onAuxClick={event => event.preventDefault()}
       >
         <div ref={checkerRef} className="checkerboard" style={{ transform: 'translate(' + pan.x + 'px,' + pan.y + 'px) scale(' + zoom + ')' }}>
-          <canvas ref={ref} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
+          <canvas ref={ref} className={useGpu ? 'preview-canvas hidden' : 'preview-canvas'} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
+          <canvas ref={gpuRef} className={useGpu ? 'preview-canvas gpu' : 'preview-canvas gpu hidden'} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
 
           {settings.showGuides && guide.x && <div className="smart-guide vertical" />}
           {settings.showGuides && guide.y && <div className="smart-guide horizontal" />}

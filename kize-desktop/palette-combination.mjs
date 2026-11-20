@@ -29,8 +29,14 @@ const hueDistance=(a,b)=>{
   return Math.min(d,360-d);
 };
 function stats(rgb){
-  return {h:hue(...rgb),s:saturation(...rgb),l:luminance(...rgb)};
+  return {
+    h:hue(...rgb),
+    s:saturation(...rgb),
+    l:luminance(...rgb),
+    c:Math.max(...rgb)-Math.min(...rgb),
+  };
 }
+const neutralLike=st=>st.s<.105||st.c<18;
 function protectedNeutral(r,g,b){
   const hi=Math.max(r,g,b),lo=Math.min(r,g,b);
   return hi-lo<15&&(hi>=247||hi<=24);
@@ -46,15 +52,15 @@ function paletteRgb(hex){
 }
 function familyDistance(a,b){
   const A=stats(a),B=stats(b);
-  const aNeutral=A.s<.105,bNeutral=B.s<.105;
+  const aNeutral=neutralLike(A),bNeutral=neutralLike(B);
   if(aNeutral&&bNeutral)return Math.abs(A.l-B.l)*1.35;
   if(aNeutral!==bNeutral)return 235+Math.abs(A.l-B.l)*.22;
   return hueDistance(A.h,B.h)*3.5+Math.abs(A.s-B.s)*115+Math.abs(A.l-B.l)*.10;
 }
 function sameShadeFamily(a,b){
   const A=stats(a),B=stats(b);
-  if(A.s<.105&&B.s<.105)return Math.abs(A.l-B.l)<=34;
-  if(A.s<.105||B.s<.105)return false;
+  if(neutralLike(A)&&neutralLike(B))return Math.abs(A.l-B.l)<=34;
+  if(neutralLike(A)||neutralLike(B))return false;
   return hueDistance(A.h,B.h)<=19&&Math.abs(A.s-B.s)<=.42;
 }
 function buildEntries(rgba,w,h,{preserveWhiteBlack=true,mask=null}={}){
@@ -92,7 +98,7 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
   // First choose independent chromatic families. A darker pink shadow and
   // brighter pink fill share one family because hue is the semantic identity.
   for(const entry of entries){
-    if(entry.s<.105)continue;
+    if(neutralLike(entry))continue;
     if(centers.some(c=>sameShadeFamily(entry.rgb,c)))continue;
     centers.push(entry.rgb.slice());
     if(centers.length>=desired)break;
@@ -103,7 +109,7 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
   // when chromatic families already exist; they inherit the nearby fill later.
   for(const entry of entries){
     if(centers.length>=desired)break;
-    if(entry.s>=.105||entry.l<=105||entry.l>=239)continue;
+    if(!neutralLike(entry)||entry.l<=105||entry.l>=239)continue;
     const significant=centers.length===0||entry.weight>=total*.18;
     if(!significant)continue;
     if(centers.some(c=>sameShadeFamily(entry.rgb,c)))continue;
@@ -114,7 +120,7 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
   // chromatic family exists so outline pixels cannot steal a target swatch.
   for(const entry of entries){
     if(centers.length>=desired)break;
-    if(entry.s<.105&&entry.l<=105&&centers.length>0)continue;
+    if(neutralLike(entry)&&entry.l<=105&&centers.length>0)continue;
     if(centers.some(c=>sameShadeFamily(entry.rgb,c)))continue;
     const nearest=Math.min(...centers.map(c=>familyDistance(entry.rgb,c)),Infinity);
     if(nearest<38)continue;
@@ -127,7 +133,7 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
     for(const entry of entries){
       // Deep neutral outline/shadow samples should not pull a chromatic family
       // center away from the actual fill hue/value.
-      if(entry.s<.105&&entry.l<=105&&centers.some(c=>stats(c).s>=.105))continue;
+      if(neutralLike(entry)&&entry.l<=105&&centers.some(c=>!neutralLike(stats(c))))continue;
       let best=0,score=Infinity;
       for(let j=0;j<centers.length;j++){
         const d=familyDistance(entry.rgb,centers[j]);
@@ -145,7 +151,7 @@ function discoverSourceFamilies(rgba,w,h,count,options={}){
 
   const groups=centers.map(()=>[]);
   for(const entry of entries){
-    if(entry.s<.105&&entry.l<=105&&centers.some(c=>stats(c).s>=.105))continue;
+    if(neutralLike(entry)&&entry.l<=105&&centers.some(c=>!neutralLike(stats(c))))continue;
     let best=0,score=Infinity;
     for(let j=0;j<centers.length;j++){
       const d=familyDistance(entry.rgb,centers[j]);
@@ -226,12 +232,13 @@ export function applyPaletteMap(rgba,w,h,map,{mask=null}={}){
     const p=i*4,r=rgba[p],g=rgba[p+1],b=rgba[p+2],a=rgba[p+3];
     if(!paletteEligible(a,r,g,b,map.options))continue;
     const s=saturation(r,g,b);
-    if(s>=.105){
+    const pixelStats=stats([r,g,b]);
+    if(!neutralLike(pixelStats)){
       owner[i]=nearestFamily([r,g,b],families);
       continue;
     }
     const neutralFamilies=families
-      .map((f,k)=>({f,k})).filter(x=>x.f.s<.105);
+      .map((f,k)=>({f,k})).filter(x=>neutralLike(x.f));
     if(neutralFamilies.length){
       let best=neutralFamilies[0].k,score=Infinity;
       for(const item of neutralFamilies){
@@ -251,11 +258,13 @@ export function applyPaletteMap(rgba,w,h,map,{mask=null}={}){
     eligible++;
 
     const pixelRgb=[r,g,b];
-    const pixelSat=saturation(r,g,b);
-    const pixelLum=luminance(r,g,b);
+    const pixelStats=stats([r,g,b]);
+    const pixelSat=pixelStats.s;
+    const pixelLum=pixelStats.l;
+    const pixelNeutral=neutralLike(pixelStats);
     let best=owner[i];
 
-    if(best<0&&pixelSat<.105&&pixelLum<218)best=nearbyFamily(owner,w,h,i,4);
+    if(best<0&&pixelNeutral&&pixelLum<218)best=nearbyFamily(owner,w,h,i,4);
     if(best<0)best=nearestFamily(pixelRgb,families);
 
     const family=families[best]||families[0];
@@ -271,7 +280,7 @@ export function applyPaletteMap(rgba,w,h,map,{mask=null}={}){
       }else if(delta>18){
         drift=clamp(delta*.52,0,62);
       }
-      if(pixelSat<.105&&pixelLum<family.l-18)
+      if(pixelNeutral&&pixelLum<family.l-18)
         drift=Math.min(drift,-Math.max(16,(family.l-pixelLum)*.78));
     }
 

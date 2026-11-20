@@ -31,16 +31,18 @@ function easeValue(value: number, mode: 'linear' | 'ease-in' | 'ease-out' | 'eas
   return t
 }
 
-function animatedFrameRotation(design: FrameDesign, sceneTimeSec: number) {
+function animatedFrameRotation(design: FrameDesign, sceneTimeSec: number, loopDurationSec?: number) {
   const motion = design.rotationAnimation
-  if (design.kind === 'glitter' && design.glitter.surfaceStyle !== 'legacy') {
-    const mode = design.glitter.animationMode
-    if (mode !== 'rotate' && mode !== 'rotate-twinkle') return 0
-  }
+  const surface = design.kind === 'glitter' && design.glitter.surfaceStyle !== 'legacy'
+  if (surface && !['rotate', 'rotate-twinkle'].includes(design.glitter.animationMode)) return 0
   if (!motion?.enabled || sceneTimeSec < motion.startTime) return motion?.startAngle ?? 0
   const end = Math.max(motion.startTime, motion.endTime)
-  const activeTime = Math.min(sceneTimeSec, end) - motion.startTime
   const seconds = Math.max(.1, motion.secondsPerTurn)
+  if (surface && loopDurationSec && motion.startTime <= 0 && end >= loopDurationSec) {
+    const wholeTurns = Math.max(1, Math.round(loopDurationSec / seconds))
+    return motion.startAngle + motion.direction * 360 * wholeTurns * sceneTimeSec / loopDurationSec
+  }
+  const activeTime = Math.min(sceneTimeSec, end) - motion.startTime
   const turn = activeTime / seconds
   const whole = Math.floor(turn)
   const fractional = easeValue(turn - whole, motion.easing)
@@ -1316,9 +1318,16 @@ function getSurfaceGlitterTexture(design: FrameDesign, r: number, scale: number)
   return canvas
 }
 
-function surfaceAnimationCycle(glitter: FrameDesign['glitter'], animationTimeMs: number, animationProgress?: number) {
-  if (animationProgress != null) return ((animationProgress % 1) + 1) % 1
-  return (((animationTimeMs / 1000) * Math.max(.05, glitter.animationSpeed || 1)) % 1 + 1) % 1
+function surfaceAnimationCycle(
+  glitter: FrameDesign['glitter'], animationTimeMs: number,
+  animationProgress?: number, loopDurationSec?: number,
+) {
+  const speed = Math.max(.05, glitter.animationSpeed || 1)
+  if (animationProgress != null && loopDurationSec) {
+    const cycles = Math.max(1, Math.round(speed * loopDurationSec))
+    return ((animationProgress * cycles) % 1 + 1) % 1
+  }
+  return (((animationTimeMs / 1000) * speed) % 1 + 1) % 1
 }
 
 function drawSurfaceGlitterOverlay(
@@ -1331,12 +1340,13 @@ function drawSurfaceGlitterOverlay(
   scale: number,
   animationTimeMs: number,
   animationProgress?: number,
+  loopDurationSec?: number,
 ) {
   const g = design.glitter
   const mode = g.animationMode
   if (!g.animated || mode === 'none' || mode === 'rotate') return
 
-  const cycle = surfaceAnimationCycle(g, animationTimeMs, animationProgress)
+  const cycle = surfaceAnimationCycle(g, animationTimeMs, animationProgress, loopDurationSec)
   const thickness = Math.max(1, design.thickness * scale)
   const direction = g.flowDirection === -1 ? -1 : 1
 
@@ -1406,6 +1416,7 @@ function drawSurfaceGlitter(
   scale: number,
   animationTimeMs = 0,
   animationProgress?: number,
+  loopDurationSec?: number,
 ) {
   const texture = getSurfaceGlitterTexture(design, r, scale)
   ctx.save()
@@ -1413,7 +1424,7 @@ function drawSurfaceGlitter(
   ctx.rotate(rotation)
   ctx.drawImage(texture, -texture.width / 2, -texture.height / 2)
   ctx.restore()
-  drawSurfaceGlitterOverlay(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
+  drawSurfaceGlitterOverlay(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress, loopDurationSec)
 }
 
 function drawGlitter(
@@ -1426,12 +1437,13 @@ function drawGlitter(
   scale: number,
   animationTimeMs = 0,
   animationProgress?: number,
+  loopDurationSec?: number,
 ) {
   if (design.glitter.surfaceStyle === 'legacy') {
     drawLegacyGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
     return
   }
-  drawSurfaceGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
+  drawSurfaceGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress, loopDurationSec)
 }
 
 function drawAttachedTriple(
@@ -1481,11 +1493,11 @@ function drawAttachedTriple(
   ctx.restore()
 }
 
-function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number, sceneTimeSec = 0) {
+function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number, sceneTimeSec = 0, loopDurationSec?: number) {
   const cx = canvasWidth / 2 + design.offsetX * scale
   const cy = canvasHeight / 2 + design.offsetY * scale
   const r = design.radius * scale
-  const motionRotation = animatedFrameRotation(design, sceneTimeSec)
+  const motionRotation = animatedFrameRotation(design, sceneTimeSec, loopDurationSec)
   const rot = ((design.rotation + motionRotation) * Math.PI) / 180
 
   ctx.lineWidth = Math.max(1, design.thickness * scale)
@@ -1558,12 +1570,12 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
     case 'asset': drawAssetDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'glossy': drawGlossy(ctx, cx, cy, r, design, rot, scale); break
     case 'jelly': drawJellyRing(ctx, cx, cy, r, design, rot, scale); break
-    case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale, animationTimeMs, animationProgress); break
+    case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale, animationTimeMs, animationProgress, loopDurationSec); break
     default: strokeCircle(ctx, cx, cy, r, rot)
   }
 }
 
-function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number, sceneTimeSec = 0) {
+function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number, sceneTimeSec = 0, loopDurationSec?: number) {
   if (design.opacity <= 0) return
   ctx.save()
   ctx.globalAlpha = design.opacity
@@ -1571,7 +1583,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
   if (design.effects.outlineEnabled && design.effects.outlineWidth > 0) {
     ctx.save()
     const outlined = makeOutlineDesign(design)
-    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
+    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec, loopDurationSec)
     ctx.restore()
   }
 
@@ -1582,7 +1594,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.shadowOffsetX = design.effects.shadowOffsetX * scale
     ctx.shadowOffsetY = design.effects.shadowOffsetY * scale
     ctx.globalAlpha *= .7
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec, loopDurationSec)
     ctx.restore()
   }
 
@@ -1594,7 +1606,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
       ctx.shadowBlur = Math.max(1, blur * multi)
       ctx.shadowColor = validColor(design.effects.glowColor, validColor(design.color))
       ctx.globalAlpha *= intensity * (.48 + multi * .42)
-      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
+      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec, loopDurationSec)
       ctx.restore()
     }
   }
@@ -1603,17 +1615,17 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.save()
     ctx.filter = `blur(${(design.effects.bloom * .12) * scale}px)`
     ctx.globalAlpha *= .28
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec, loopDurationSec)
     ctx.restore()
   }
 
   if (design.effects.softBlur > 0) {
     ctx.save()
     ctx.filter = `blur(${design.effects.softBlur * scale}px)`
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec, loopDurationSec)
     ctx.restore()
   } else {
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec, loopDurationSec)
   }
 
   if (design.twoToneFlow.enabled) {
@@ -1953,7 +1965,7 @@ function drawMediaLayer(
     ? project.layers.find(item => item.id === (layer.followFrameLayerId || layer.maskFrameLayerId))
     : undefined
   const followRotation = followTarget
-    ? followTarget.design.rotation + animatedFrameRotation(followTarget.design, sceneTimeSec)
+    ? followTarget.design.rotation + animatedFrameRotation(followTarget.design, sceneTimeSec, Math.max(.1, project.timeline?.duration ?? 2))
     : 0
   const rotation = ((layer.rotation + motion.rotation + followRotation) * Math.PI) / 180
 
@@ -2103,14 +2115,14 @@ export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, 
   }
 
   for (const design of projectLayers(project)) {
-    drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress, sceneTimeSec)
+    drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress, sceneTimeSec, duration)
   }
 
   for (const layer of media.filter(item => item.placement === 'above').slice().reverse()) {
     drawMediaLayer(ctx, project, layer, scale, animationTimeMs, animationProgress, sceneTimeSec)
     if (layer.keepFrameAbove && layer.maskFrameLayerId) {
       const target = project.layers.find(item => item.id === layer.maskFrameLayerId)
-      if (target?.visible) drawDesign(ctx, target.design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress, sceneTimeSec)
+      if (target?.visible) drawDesign(ctx, target.design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress, sceneTimeSec, duration)
     }
   }
 }

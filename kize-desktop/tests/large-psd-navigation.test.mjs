@@ -27,5 +27,6 @@ test('mouse wheel zoom and middle-button drag panning are both registered',()=>{
   assert.match(editor,/stage\.scrollLeft-=e\.clientX-middlePan\.lastX/);
   assert.match(editor,/stage\.scrollTop-=e\.clientY-middlePan\.lastY/);
   assert.match(editor,/if\(!documentModel\|\|e\.button!==0\)return/);
-  assert.match(css,/justify-content:safe center/);
+  assert.match(css,/\.stage\{[^}]*display:block/);
+  assert.match(css,/\.stage-sizer\{[^}]*width:max-content/);
 });

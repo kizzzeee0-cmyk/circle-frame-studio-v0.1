@@ -1,6 +1,7 @@
 import type { FrameProject } from '../types'
 import { preloadProjectAssets } from './assets'
 import { renderProject } from '../render/renderer'
+import { preloadProjectMedia, seekProjectMedia } from './media'
 
 const DB_NAME = 'circle-frame-studio-local'
 const DB_VERSION = 1
@@ -62,8 +63,9 @@ async function createPreview(project: FrameProject) {
   const canvas = document.createElement('canvas')
   canvas.width = 320
   canvas.height = 320
-  await preloadProjectAssets(project)
-  renderProject(canvas, project)
+  await Promise.all([preloadProjectAssets(project), preloadProjectMedia(project)])
+  await seekProjectMedia(project, 0)
+  renderProject(canvas, project, undefined, 0, 0)
   // WebP keeps the thumbnail compact while preserving transparency in modern browsers.
   const webp = canvas.toDataURL('image/webp', .78)
   return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png')

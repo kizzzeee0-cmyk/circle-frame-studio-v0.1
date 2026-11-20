@@ -94,7 +94,7 @@ export function analyzeCharacterPixels(data,w,h,{limit=7}={}){
 export const PHOTO_CATEGORIES=[
   '캐릭터 원본색','부드러운 파스텔','밝고 포근한','귀엽고 통통 튀는',
   '깔끔하고 심플한','화이트 비중 높게','명확한 색상 대비','차분하고 은은하게',
-  '포인트 강조','밝은 배경 중심','머리색 중심 (수동 지정 가능)',
+  '눈동자색 중심 (수동 지정 가능)','밝은 배경 중심','머리색 중심 (수동 지정 가능)',
   '의상색 중심 (수동 지정 가능)'
 ];
 export function generateCharacterPalettes(swatches,{
@@ -111,7 +111,7 @@ export function generateCharacterPalettes(swatches,{
   const whiten=clamp((whiteRatio-25)/100,.05,.69);
   const soften=clamp(pastel/100,0,.85);
   const tint=(color,amount=0)=>mix(color,'#FFFFFF',clamp(soften*.55+brightness/220+amount,0,.9));
-  const sat=c=>tuneColor(c,{saturation:saturation/330});
+  const sat=c=>tuneColor(c,{saturation:saturation/330,lightness:brightness/350});
   const bright=c=>mix(c,'#FFFFFF',whiten);
   const outline=()=>mix(dark,'#344553',.5);
   const opts=[
@@ -123,13 +123,15 @@ export function generateCharacterPalettes(swatches,{
     [bright(base),tint(sub,.12),'#FFFDFB',point,outline()],
     [tint(base,-.08),tint(sub,-.08),bright(light),sat(point),mix(dark,'#17202A',contrast/150)],
     [tint(base,.24),tint(sub,.24),bright(light),tint(point,.18),outline()],
-    [base,sub,bright(light),sat(point),mix(dark,'#17202A',.3)],
+    [base,sub,bright(light),role('eyes',point),mix(dark,'#17202A',.3)],
     [bright(base),bright(sub),bright(light),point,outline()],
     [role('hair',light),tint(base),bright(sub),point,outline()],
     [role('clothes',sub),tint(base),bright(light),point,outline()]
   ];
   return opts.map((arr,i)=>{
-    let colors=arr.map((c,j)=>j===3?mix(c,point,accent/350):sat(c));
+    let colors=arr.map((c,j)=>j===3
+      ?tuneColor(c,{saturation:accent/420+ saturation/450,lightness:-accent/950+brightness/350})
+      :sat(c));
     const roles=['main','sub','light','point','outline'];
     // Locked colors are exact constants across every generated category,
     // unlike auto-generated tints. User-provided color remains editable

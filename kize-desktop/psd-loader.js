@@ -1,5 +1,6 @@
 import { readPsd, getLayerImageData, getCompositeImageData, getLayerMaskImageData, getLayerRealMaskImageData } from 'ag-psd';
 import {normalizeMaskData} from './psd-mask-core.mjs';
+import {rasterizeVectorMask} from './psd-vector-mask.mjs';
 import {inspectPhotoshopLayer,summarizePsdCompatibility} from './psd-compatibility.mjs';
 
 // PSD parsing is isolated from the interface, so real PSD fixtures can be tested
@@ -41,21 +42,25 @@ function enumerate(children,prefix='',ancestorHidden=false,output=[],groups=[],p
     const layer=children[index],name=layer.name||'이름 없는 레이어';
     const fullName=prefix?prefix+' / '+name:name,key=parentKey+'/'+index;
     if(Array.isArray(layer.children)){
-      const group={name,key,blendMode:layer.blendMode||'pass through',
-        masked:Boolean(layer.mask||layer.vectorMask),effects:Boolean(layer.effects)};
-      enumerate(layer.children,fullName,ancestorHidden||!!layer.hidden,output,[...groups,group],key);
+      const group={name,key,layer,blendMode:layer.blendMode||'pass through',
+        masked:Boolean((layer.mask&&!layer.mask.disabled)||
+          (layer.vectorMask&&!layer.vectorMask.disable&&!layer.vectorMask.disabled)),
+        effects:Boolean(layer.effects)};
+      enumerate(layer.children,fullName,ancestorHidden||!!layer.hidden,output,
+        [...groups,group],key);
     }else{
       let clippingBaseKey=null;
       if(layer.clipping){
-        // Photoshop clips to first non-clipped layer below in SAME group.
-        // A group as a clipping base is more complex; mark as unsupported.
         const base=(children||[]).slice(index+1).find(entry=>!entry.clipping);
         if(base&&!Array.isArray(base.children))
           clippingBaseKey=parentKey+'/'+children.indexOf(base);
       }
       output.push({layer,name:fullName,hidden:ancestorHidden||!!layer.hidden,
         compatibility:inspectPhotoshopLayer(layer,groups),
-        sourceKey:key,clippingBaseKey,clippingUnresolved:Boolean(layer.clipping&&!clippingBaseKey)});
+        sourceKey:key,clippingBaseKey,clippingUnresolved:Boolean(layer.clipping&&!clippingBaseKey),
+        ancestorGroups:groups,
+        ancestorGroupKeys:groups.map(g=>g.key),
+      });
     }
   }
   return output;

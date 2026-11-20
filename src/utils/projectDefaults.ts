@@ -4,11 +4,22 @@ import type {
   MediaLayer,
   MediaLayerKind,
   TimelineSettings,
+  ComposerSettings,
 } from '../types'
 import { uid } from './id'
 
 export function defaultTimeline(): TimelineSettings {
   return { duration: 3, loop: true }
+}
+
+export function defaultComposerSettings(): ComposerSettings {
+  return {
+    snapEnabled: true,
+    snapSize: 10,
+    showGuides: true,
+    performanceMode: 'auto',
+    previewResolution: 1200,
+  }
 }
 
 export function defaultBackground(): BackgroundSettings {
@@ -20,6 +31,7 @@ export function defaultBackground(): BackgroundSettings {
     fileName: '',
     mimeType: '',
     opacity: 1,
+    blendMode: 'normal',
     fit: 'cover',
   }
 }
@@ -76,6 +88,15 @@ export function createMediaLayer(
     maskY: 0,
     ringThickness: 120,
     maskFrameLayerId: '',
+    customMaskAssetId: '',
+    customMaskSourceUrl: '',
+    customMaskFileName: '',
+    customMaskInvert: false,
+    customMaskFit: 'cover',
+    customMaskScale: 1,
+    customMaskRotation: 0,
+    customMaskX: 0,
+    customMaskY: 0,
     maskSyncRotation: true,
     keepFrameAbove: true,
     startTime: 0,
@@ -84,6 +105,9 @@ export function createMediaLayer(
     trimEnd: 0,
     followFrameRotation: false,
     followFrameLayerId: '',
+    audioEnabled: true,
+    audioVolume: 1,
+    groupId: '',
     animation: {
       ...defaultMediaAnimation(),
       outroStart: Math.max(0, projectDuration - .45),
@@ -109,6 +133,7 @@ export function normalizeMediaLayer(source: Partial<MediaLayer>, index: number, 
     height: Math.max(1, Number(source.height ?? base.height)),
     scale: Math.max(.02, Number(source.scale ?? base.scale)),
     opacity: Math.max(0, Math.min(1, Number(source.opacity ?? base.opacity))),
+    blendMode: ['normal','multiply','screen','overlay','soft-light'].includes(String(source.blendMode)) ? source.blendMode! : 'normal',
     maskRadius: Math.max(1, Number(source.maskRadius ?? base.maskRadius)),
     ringThickness: Math.max(1, Number(source.ringThickness ?? base.ringThickness)),
     startTime: Math.max(0, Number(source.startTime ?? 0)),
@@ -117,6 +142,13 @@ export function normalizeMediaLayer(source: Partial<MediaLayer>, index: number, 
     trimEnd: Math.max(0, Number(source.trimEnd ?? 0)),
     followFrameRotation: source.followFrameRotation === true,
     followFrameLayerId: source.followFrameLayerId ?? '',
+    customMaskScale: Math.max(.02, Number(source.customMaskScale ?? base.customMaskScale)),
+    customMaskRotation: Number(source.customMaskRotation ?? 0),
+    customMaskX: Number(source.customMaskX ?? 0),
+    customMaskY: Number(source.customMaskY ?? 0),
+    audioEnabled: source.audioEnabled !== false,
+    audioVolume: Math.max(0, Math.min(2, Number(source.audioVolume ?? 1))),
+    groupId: source.groupId ?? '',
     animation: {
       ...base.animation,
       ...(source.animation ?? {}),
@@ -136,5 +168,19 @@ export function normalizeTimeline(source?: Partial<TimelineSettings>): TimelineS
   return {
     duration: Math.max(.5, Math.min(60, Number(source?.duration ?? 3))),
     loop: source?.loop !== false,
+  }
+}
+
+
+export function normalizeComposerSettings(source?: Partial<ComposerSettings>): ComposerSettings {
+  const base = defaultComposerSettings()
+  return {
+    ...base,
+    ...(source ?? {}),
+    snapEnabled: source?.snapEnabled !== false,
+    snapSize: Math.max(1, Math.min(100, Number(source?.snapSize ?? base.snapSize))),
+    showGuides: source?.showGuides !== false,
+    performanceMode: ['auto','quality','performance'].includes(String(source?.performanceMode)) ? source!.performanceMode! : 'auto',
+    previewResolution: [720,960,1200].includes(Number(source?.previewResolution)) ? source!.previewResolution! : 1200,
   }
 }

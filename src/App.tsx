@@ -297,6 +297,7 @@ export default function App() {
   const [selectedMediaId, setSelectedMediaId] = useState('')
   const [timelineTime, setTimelineTime] = useState(0)
   const [timelinePlaying, setTimelinePlaying] = useState(true)
+  const [pngResolution, setPngResolution] = useState(2000)
   const undoRef = useRef<FrameProject[]>([])
   const redoRef = useRef<FrameProject[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
@@ -440,10 +441,22 @@ export default function App() {
 
   const handlePngExport = async () => {
     try {
-      await exportPng(project, timelineTime)
+      await exportPng(project, timelineTime, pngResolution)
       await recordRecentSave('png')
     } catch {
       alert('PNG 파일을 저장하지 못했습니다.')
+    }
+  }
+
+  const handleFramePngExport = async () => {
+    try {
+      const frameOnly = structuredClone(project)
+      frameOnly.mediaLayers = []
+      frameOnly.background = defaultBackground()
+      await exportPng(frameOnly, timelineTime, pngResolution)
+      await recordRecentSave('png')
+    } catch {
+      alert('프레임 PNG 파일을 저장하지 못했습니다.')
     }
   }
 
@@ -770,8 +783,16 @@ export default function App() {
           <button onClick={() => setRecentOpen(true)}>최근 저장 내역</button>
           <input ref={fileInput} hidden type="file" accept="application/json,.json" onChange={e => importProject(e.target.files?.[0])} />
           <label className="autofit"><input type="checkbox" checked={project.autoFit} onChange={e => commit(d => ({ ...d, autoFit: e.target.checked }))} /> Auto Fit</label>
+          <select className="top-export-resolution" value={pngResolution} onChange={e => setPngResolution(Number(e.target.value))} title="PNG 해상도">
+            <option value={500}>500px</option>
+            <option value={1000}>1000px</option>
+            <option value={2000}>2000px</option>
+            <option value={3000}>3000px</option>
+            <option value={4000}>4000px</option>
+          </select>
+          <button onClick={() => void handleFramePngExport()}>프레임 PNG</button>
           <button onClick={() => setAnimatedExportOpen(true)}>움직이는 파일</button>
-          <button className="primary-button" onClick={() => void handlePngExport()}>PNG 내보내기</button>
+          <button className="primary-button" onClick={() => void handlePngExport()}>전체 PNG</button>
         </div>
       </header>
 

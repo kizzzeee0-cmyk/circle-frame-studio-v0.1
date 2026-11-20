@@ -1,4 +1,5 @@
-import { readPsd, getLayerImageData, getCompositeImageData } from 'ag-psd';
+import { readPsd, getLayerImageData, getCompositeImageData, getLayerMaskImageData, getLayerRealMaskImageData } from 'ag-psd';
+import {normalizeMaskData} from './psd-mask-core.mjs';
 import {inspectPhotoshopLayer,summarizePsdCompatibility} from './psd-compatibility.mjs';
 
 // PSD parsing is isolated from the interface, so real PSD fixtures can be tested
@@ -35,19 +36,26 @@ export function inspectPsdHeader(buffer) {
     throw Error('현재 색상 모드는 지원하지 않습니다 (모드 ' + colorMode + '). Photoshop에서 RGB로 변환해 저장해 주세요.');
   return { version, width, height, bits, colorMode };
 }
-function enumerate(children, prefix='', ancestorHidden=false, output=[],groups=[],parentKey='root') {
+function enumerate(children,prefix='',ancestorHidden=false,output=[],groups=[],parentKey='root'){
   for(let index=0;index<(children||[]).length;index++){
-    const layer=children[index];
-    const name=layer.name||'이름 없는 레이어';
-    const fullName=prefix?prefix+' / '+name:name;
+    const layer=children[index],name=layer.name||'이름 없는 레이어';
+    const fullName=prefix?prefix+' / '+name:name,key=parentKey+'/'+index;
     if(Array.isArray(layer.children)){
-      const group={name,key:parentKey+'/'+index,blendMode:layer.blendMode||'pass through',
-        masked:Boolean(layer.mask||layer.vectorMask),
-        effects:Boolean(layer.effects)};
-      enumerate(layer.children,fullName,ancestorHidden||!!layer.hidden,output,[...groups,group],group.key);
-    } else {
+      const group={name,key,blendMode:layer.blendMode||'pass through',
+        masked:Boolean(layer.mask||layer.vectorMask),effects:Boolean(layer.effects)};
+      enumerate(layer.children,fullName,ancestorHidden||!!layer.hidden,output,[...groups,group],key);
+    }else{
+      let clippingBaseKey=null;
+      if(layer.clipping){
+        // Photoshop clips to first non-clipped layer below in SAME group.
+        // A group as a clipping base is more complex; mark as unsupported.
+        const base=(children||[]).slice(index+1).find(entry=>!entry.clipping);
+        if(base&&!Array.isArray(base.children))
+          clippingBaseKey=parentKey+'/'+children.indexOf(base);
+      }
       output.push({layer,name:fullName,hidden:ancestorHidden||!!layer.hidden,
-        compatibility:inspectPhotoshopLayer(layer,groups)});
+        compatibility:inspectPhotoshopLayer(layer,groups),
+        sourceKey:key,clippingBaseKey,clippingUnresolved:Boolean(layer.clipping&&!clippingBaseKey)});
     }
   }
   return output;
@@ -85,7 +93,7 @@ export function importPsdPixels(buffer, options={}) {
   let decodedBytes=0,decodedPixels=0, skippedCount=0;
   const cap=Math.min(sourceLayers.length, PSD_LIMITS.layerCount);
   for(let i=0;i<cap;i++){
-    const {layer,name,hidden,compatibility}=sourceLayers[i];
+    const {layer,name,hidden,compatibility,sourceKey,clippingBaseKey,clippingUnresolved}=sourceLayers[i];
     const x=Number(layer.left??0),y=Number(layer.top??0);
     const w=Math.max(0,Math.round(Number(layer.right??0)-x)),h=Math.max(0,Math.round(Number(layer.bottom??0)-y));
     if(w===0||h===0){skippedCount++;continue;}
@@ -107,6 +115,32 @@ export function importPsdPixels(buffer, options={}) {
       skippedCount++;failed.push(name+' ('+(e?.message||'디코딩 실패')+')');
       continue;
     }
+    // Only decode masks of layers which were successfully decoded. Mask
+    // channels may be independently positioned and are NOT always the same
+    // dimensions as the raw layer bitmap.
+    const maskSpecs=[];
+    let maskDecodeFailed=false;
+    if(layer.mask&&!layer.mask.disabled){
+      try{
+        const image=getLayerMaskImageData(layer);
+        const spec=normalizeMaskData(image,layer.mask,layer);
+        if(spec)maskSpecs.push(spec);
+      }catch(e){
+        maskDecodeFailed=true;
+        failed.push(name+' (마스크 별도 해석 불가: '+(e?.message||e)+')');
+      }
+    }
+    if(layer.realMask&&!layer.realMask.disabled){
+      try{
+        const image=getLayerRealMaskImageData(layer);
+        const spec=normalizeMaskData(image,layer.realMask,layer);
+        if(spec)maskSpecs.push(spec);
+      }catch(e){
+        maskDecodeFailed=true;
+        failed.push(name+' (보조 마스크 해석 불가: '+(e?.message||e)+')');
+      }
+    }
+    if(maskSpecs.some(m=>m.feather>0))warnings.push(name+' (PSD 마스크 Feather는 색상 선택의 정확한 재현을 지원하지 않습니다.)');
     decodedPixels+=bitmap.width*bitmap.height;
     decodedBytes+=bitmap.width*bitmap.height*4*bytesPerChannel;
     decoded.push({
@@ -114,7 +148,9 @@ export function importPsdPixels(buffer, options={}) {
       blendMode:layer.blendMode||'normal',
       type:layer.text?'text':(layer.placedLayer?'smart-object':'image'),
       psdText:layer.text||null,
-      compatibility,
+      compatibility,sourceKey,clippingBaseKey,clippingUnresolved,
+      maskSpecs,maskDecodeFailed,
+      unsupportedVectorMask:Boolean(layer.vectorMask&&!layer.vectorMask.disabled&&!layer.mask?.fromVectorData),
     });
     if(i%12===0)progress('PSD 레이어 해석 '+(i+1)+'/'+cap);
   }

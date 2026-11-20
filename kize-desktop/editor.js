@@ -6,6 +6,7 @@ import {initUpdates} from './updater.js';
 import {createArchive,readArchive} from './project-archive.mjs';
 import {summarizePsdCompatibility} from './psd-compatibility.mjs';
 import {compareRgba,publicFidelityReport} from './fidelity-audit.mjs';
+import {layerConstraintAlpha,constrainSelection} from './psd-mask-core.mjs';
 import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
 
 const $=id=>document.getElementById(id);
@@ -135,12 +136,30 @@ async function importPsd(file){
     visible:!pl.hidden,opacity:normOpacity(pl.opacity),
     blend:mappedBlend(pl.blendMode),canvas:pixelCanvas(pl.bitmap),
     compatibility:pl.compatibility||null,
+    maskSpecs:pl.maskSpecs||[],maskDecodeFailed:Boolean(pl.maskDecodeFailed),
+    unsupportedVectorMask:Boolean(pl.unsupportedVectorMask),
+    clipBaseKey:pl.clippingBaseKey||null,clippingUnresolved:Boolean(pl.clippingUnresolved),
+    sourceKey:pl.sourceKey||null,
     psdText:pl.psdText||null,textValue:pl.psdText?.text||'',
     fontFamily:pl.psdText?.style?.font?.name||'Arial',
     fontSize:Math.max(1,Math.round(pl.psdText?.style?.fontSize||32)),
     textColor:rgbToHex(pl.psdText?.style?.fillColor?.r??50,pl.psdText?.style?.fillColor?.g??50,pl.psdText?.style?.fillColor?.b??50),
   }));
   built.reverse(); // Photoshop layer list is highest layer first.
+  const bySource=new Map(built.map(l=>[l.sourceKey,l]));
+  for(const l of built){
+    if(l.clipBaseKey){
+      const base=bySource.get(l.clipBaseKey);
+      if(base){
+        l.clipBaseId=base.id;
+        if(!base.alphaPixels){
+          const data=toImageData(base.canvas).data;
+          base.alphaPixels=new Uint8Array(base.canvas.width*base.canvas.height);
+          for(let i=0;i<base.alphaPixels.length;i++)base.alphaPixels[i]=data[i*4+3];
+        }
+      }else l.clippingUnresolved=true;
+    }
+  }
   if(!built.length && composite){
     built.push(newLayer({
       name:'통합 미리보기 (레이어 복구 필요)',type:'composite',
@@ -533,9 +552,13 @@ function refreshProperties(){
   if(l?.compatibility){
     const c=l.compatibility;
     note.hidden=false;
+    const maskMsg=l.maskDecodeFailed?' · 마스크 디코딩 실패(선택 제한)':
+      l.unsupportedVectorMask?' · 별도 벡터 마스크 정확한 재현 불가(선택 제한)':
+      l.clippingUnresolved?' · 클리핑 기준 누락(선택 제한)':
+      l.maskSpecs?.length?' · 실제 PSD 마스크 '+l.maskSpecs.length+'개 선택에 반영':
+      l.clipBaseId?' · 클리핑 기준 레이어 알파 선택에 반영':'';
     note.textContent=c.issues?.length
-      ?'PSD 원본 정보 · '+c.issues.join(' / ')+' — 색상 편집은 원본 보존 방식 권장. 레이어 재구성 시 효과가 달라질 수 있습니다.'
-      :'PSD 원본 정보 · 일반 픽셀 레이어. 정확한 표시 여부는 품질 검사로 확인할 수 있습니다.';
+      ?'PSD 원본 정보 · '+c.issues.join(' / ')+maskMsg+' — 원본 외관 보존 색상 편집 권장.': 'PSD 원본 정보 · 일반 픽셀 레이어'+maskMsg;
   }else{note.hidden=true;note.textContent='';}
   updateSelectionUi();
 }
@@ -640,23 +663,34 @@ function hit(l,x,y){
   return l.canvas.getContext('2d',{willReadFrequently:true}).getImageData(pt.x,pt.y,1,1).data[3]>7;
 }
 function regionAt(l,px,py,mode){
+  if(l.clippingUnresolved)throw Error('PSD 클리핑 기준 레이어를 확인하지 못했습니다. 안전한 색상 변경을 위해 선택을 차단했습니다.');
   const visual=layerImage(l),image=toImageData(visual);
   const options={tolerance:Number($('colorTolerance').value),connected:$('connectedOnly').checked};
   const result=mode==='asset'
     ?selectAssetRegion(image.data,visual.width,visual.height,px,py,options)
     :colorSelection(image.data,visual.width,visual.height,px,py,options);
-  return {...result,mode,id:l.id,w:visual.width,h:visual.height};
+  const mask=constrainSelection(result.mask,visual.width,visual.height,l,
+    id=>layers.find(x=>x.id===id));
+  const bounds=maskBounds(mask.mask,visual.width,visual.height);
+  return {...result,mask:mask.mask,count:mask.count,bounds:bounds.bounds,
+    mode,id:l.id,w:visual.width,h:visual.height};
 }
 function reapplyMaskAmount(part){
   const amount=Number($('maskAdjust').value)||0;
-  part.mask=growShrinkMask(part.baseMask,part.w,part.h,amount);
+  const adjusted=growShrinkMask(part.baseMask,part.w,part.h,amount);
+  const layer=layers.find(l=>l.id===part.id);
+  const limited=layer?constrainSelection(adjusted,part.w,part.h,layer,
+    id=>layers.find(x=>x.id===id)):null;
+  part.mask=limited?.mask||adjusted;
   const stats=maskBounds(part.mask,part.w,part.h);
   part.count=stats.count;part.bounds=stats.bounds;
   part.preview=part.bounds?createMaskPreview(part):null;
 }
 function pickLayerColor(l,px,py,additive=false){
   const mode=$('selectionMode').value;
-  const region=regionAt(l,px,py,mode);
+  let region;
+  try{region=regionAt(l,px,py,mode);}
+  catch(e){notify('PSD 마스크/클리핑 분석: '+(e?.message||e));return;}
   if(!region.count){
     if(!additive)clearSelections();
     render();notify('이 부분에서 선택 가능한 색상 영역을 찾지 못했습니다. 다른 영역이나 색상 선택 방식을 사용해 주세요.');

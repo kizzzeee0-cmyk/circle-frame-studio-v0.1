@@ -1,6 +1,6 @@
 [package]
 name = "kize_design_tool"
-version = "0.4.2"
+version = "0.4.3"
 description = "KIZE DESIGN TOOL Desktop"
 authors = ["KIZE"]
 edition = "2021"

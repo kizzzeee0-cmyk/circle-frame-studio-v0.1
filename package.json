@@ -1,7 +1,7 @@
 {
   "name": "circle-frame-studio",
   "private": true,
-  "version": "0.31.0",
+  "version": "0.32.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -17,7 +17,8 @@
     "gifenc": "1.0.3",
     "react": "latest",
     "react-dom": "latest",
-    "wasm-webp": "0.1.0"
+    "wasm-webp": "0.1.0",
+    "mediabunny": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",

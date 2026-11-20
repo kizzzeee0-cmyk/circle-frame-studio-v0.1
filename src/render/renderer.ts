@@ -1302,9 +1302,16 @@ function getSurfaceGlitterTexture(design: FrameDesign, r: number, scale: number)
   if (cached) return cached
   const canvas = createSurfaceGlitterTexture(design, r, scale)
   glitterSurfaceCache.set(key, canvas)
-  if (glitterSurfaceCache.size > 14) {
+  // Count-only eviction retained 14 very large RGBA textures (hundreds of MB).
+  // Keep newest texture and evict older ones by estimated pixel memory.
+  const budgetBytes = 96 * 1024 * 1024
+  const cacheBytes = () => [...glitterSurfaceCache.values()]
+    .reduce((total, item) => total + item.width * item.height * 4, 0)
+  while (glitterSurfaceCache.size > 1 &&
+    (glitterSurfaceCache.size > 14 || cacheBytes() > budgetBytes)) {
     const oldest = glitterSurfaceCache.keys().next().value
-    if (oldest) glitterSurfaceCache.delete(oldest)
+    if (oldest == null) break
+    glitterSurfaceCache.delete(oldest)
   }
   return canvas
 }
@@ -1799,7 +1806,47 @@ function drawSourceIntoBox(
     dw = width
     dh = dw / sourceRatio
   }
+  // A cover-fitted source is larger than its layer box. Clip it before applying
+  // circle/ring/custom masks so it cannot spill into neighboring elements.
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(-width / 2, -height / 2, width, height)
+  ctx.clip()
   ctx.drawImage(source, -dw / 2, -dh / 2, dw, dh)
+  ctx.restore()
+}
+
+// Surface glitter is a filled annulus, not an alpha cloud of particles.
+ // Masking against the visual texture caused photo/video opacity holes in the ring.
+function surfaceRingMask(target: FrameDesign, scale: number, width: number, height: number) {
+  const key = JSON.stringify(['surface-ring', width, height, scale, target.radius,
+    target.thickness, target.offsetX, target.offsetY])
+  const cached = embossMaskCache.get(key)
+  if (cached) return cached
+
+  const mask = document.createElement('canvas')
+  mask.width = width
+  mask.height = height
+  const ctx = mask.getContext('2d')
+  if (!ctx) return mask
+  const cx = width / 2 + target.offsetX * scale
+  const cy = height / 2 + target.offsetY * scale
+  const r = Math.max(0, target.radius * scale)
+  const half = Math.max(.5, target.thickness * scale / 2)
+  ctx.beginPath()
+  ctx.arc(cx, cy, r + half, 0, TAU)
+  const inner = Math.max(0, r - half)
+  if (inner > 0) ctx.arc(cx, cy, inner, 0, TAU, true)
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fill('evenodd')
+
+  embossMaskCache.set(key, mask)
+  while (embossMaskCache.size > 12) {
+    const oldest = embossMaskCache.keys().next().value
+    if (oldest == null) break
+    embossMaskCache.delete(oldest)
+  }
+  return mask
 }
 
 function frameMaskCanvas(
@@ -1812,6 +1859,10 @@ function frameMaskCanvas(
   sceneTimeSec: number,
   syncRotation: boolean,
 ) {
+  if (target.kind === 'glitter' && target.glitter.surfaceStyle !== 'legacy') {
+    // A perfect annulus is rotationally symmetric: rotation cannot change its mask.
+    return surfaceRingMask(target, scale, width, height)
+  }
   if (!syncRotation || !target.rotationAnimation.enabled) return getEmbossMask(target, scale, width, height)
   const mask = document.createElement('canvas')
   mask.width = width
@@ -1906,12 +1957,12 @@ function drawMediaLayer(
     : 0
   const rotation = ((layer.rotation + motion.rotation + followRotation) * Math.PI) / 180
 
-  const paint = (target: CanvasRenderingContext2D) => {
+  const paint = (target: CanvasRenderingContext2D, composite: GlobalCompositeOperation = mediaBlendMode(layer.blendMode)) => {
     target.save()
     target.translate(x, y)
     target.rotate(rotation)
     target.globalAlpha *= layer.opacity * motion.opacity
-    target.globalCompositeOperation = mediaBlendMode(layer.blendMode)
+    target.globalCompositeOperation = composite
     target.filter = motion.brightness !== 1 ? 'brightness(' + motion.brightness + ')' : 'none'
     drawSourceIntoBox(target, source, w, h, layer.fit)
     target.restore()
@@ -1940,7 +1991,9 @@ function drawMediaLayer(
   const sctx = scratch.getContext('2d')
   if (!sctx) return
   sctx.clearRect(0, 0, scratch.width, scratch.height)
-  paint(sctx)
+  // Apply the selected blend mode only when compositing onto the destination.
+  // Blending into an empty scratch canvas first can corrupt alpha and colors.
+  paint(sctx, 'source-over')
 
   if (layer.maskMode === 'custom') {
     drawCustomMask(sctx, layer, scale)

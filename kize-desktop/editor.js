@@ -221,7 +221,7 @@ async function replaceImage(file){
 $('replaceFile').onchange=async e=>{const f=e.target.files?.[0];e.target.value='';if(f)try{await replaceImage(f);}catch(err){notify('사진 교체 실패: '+err.message);}};
 for(const input of document.querySelectorAll('[data-adjust]'))input.oninput=e=>{
   const l=sel();if(!l)return;
-  if(!l.photoSource){notify('먼저 사진 교체/추가로 사진 레이어를 선택해 주세요.');e.target.value=0;return;}
+  if(!l.photoSource){l.photoSource=cloneCanvas(l.canvas);}
   const k=e.target.dataset.adjust;l.adjust[k]=Number(e.target.value);const out=$('out'+k[0].toUpperCase()+k.slice(1));if(out)out.textContent=e.target.value;render();
 };
 $('resetAdjust').onclick=()=>{const l=sel();if(!l)return;checkpoint(l);l.adjust=defaultAdjust();refreshAll();};

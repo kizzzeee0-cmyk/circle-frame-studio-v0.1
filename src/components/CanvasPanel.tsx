@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react'
-import type { FrameProject } from '../types'
-import { renderProject } from '../render/renderer'
+import type { ComposerSettings, FrameProject, MediaLayer } from '../types'
+import { getProjectFitScale, renderProject } from '../render/renderer'
 import { preloadProjectAssets } from '../utils/assets'
 import { preloadProjectMedia, syncProjectMediaPreview } from '../utils/media'
 
@@ -8,8 +8,14 @@ interface Props {
   project: FrameProject
   timeSec?: number
   playing?: boolean
-  selectedMediaId?: string
+  selectedMediaIds?: string[]
+  primaryMediaId?: string
+  settings: ComposerSettings
   onSampleColor?: (hex: string) => void
+  onSelectMedia?: (id: string, additive: boolean) => void
+  onBeginTransform?: () => void
+  onTransformMedia?: (updates: Array<Partial<MediaLayer> & { id: string }>) => void
+  onSettingsChange?: (next: ComposerSettings) => void
   onMoveMedia?: (id: string, x: number, y: number) => void
 }
 
@@ -17,13 +23,56 @@ function rgbToHex(r: number, g: number, b: number) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase()
 }
 
+function rotatedBounds(layer: MediaLayer) {
+  const width = Math.max(1, layer.width * layer.scale)
+  const height = Math.max(1, layer.height * layer.scale)
+  const hw = width / 2
+  const hh = height / 2
+  const angle = layer.rotation * Math.PI / 180
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const corners = [[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].map(([x,y]) => ({
+    x: layer.x + x * cos - y * sin,
+    y: layer.y + x * sin + y * cos,
+  }))
+  return {
+    left: Math.min(...corners.map(p => p.x)),
+    right: Math.max(...corners.map(p => p.x)),
+    top: Math.min(...corners.map(p => p.y)),
+    bottom: Math.max(...corners.map(p => p.y)),
+  }
+}
+
+function selectionBounds(layers: MediaLayer[]) {
+  if (!layers.length) return null
+  const all = layers.map(rotatedBounds)
+  const left = Math.min(...all.map(v => v.left))
+  const right = Math.max(...all.map(v => v.right))
+  const top = Math.min(...all.map(v => v.top))
+  const bottom = Math.max(...all.map(v => v.bottom))
+  return { left, right, top, bottom, x: (left + right) / 2, y: (top + bottom) / 2, width: right - left, height: bottom - top }
+}
+
+function rotatePoint(x: number, y: number, cx: number, cy: number, angle: number) {
+  const dx = x - cx
+  const dy = y - cy
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos }
+}
+
 export default function CanvasPanel({
   project,
   timeSec = 0,
   playing = false,
-  selectedMediaId = '',
+  selectedMediaIds = [],
+  primaryMediaId = '',
+  settings,
   onSampleColor,
-  onMoveMedia,
+  onSelectMedia,
+  onBeginTransform,
+  onTransformMedia,
+  onSettingsChange,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)

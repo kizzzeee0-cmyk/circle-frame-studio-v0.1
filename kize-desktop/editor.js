@@ -170,11 +170,51 @@ async function importProject(file){
     const {data,...props}=l;
     loaded.push(newLayer({...props,canvas:c,photoSource:null,adjust:defaultAdjust()}));
   }
-  openDoc(obj.width,obj.height,file.name,'KIZE');layers=loaded;selectedId=layers.at(-1)?.id||null;lastImportPsd=false;refreshAll();fitZoom();notify('KIZE 프로젝트를 열었습니다.');
+  openDoc(obj.width,obj.height,file.name,'KIZE');layers=loaded;nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;selectedId=layers.at(-1)?.id||null;lastImportPsd=false;refreshAll();fitZoom();notify('이전 형식 프로젝트를 열었습니다. 새 형식으로 저장하면 사진 원본과 보정 설정을 별도 보관합니다.');
+}
+async function canvasToPngBytes(source){
+  if(!source||!source.width||!source.height)throw Error('저장할 이미지 데이터가 없습니다.');
+  const blob=await new Promise((resolve,reject)=>source.toBlob(b=>b?resolve(b):reject(Error('PNG 인코딩에 실패했습니다.')),'image/png'));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+async function pngBytesToCanvas(data){
+  const blob=new Blob([data],{type:'image/png'});
+  const image=await createImageBitmap(blob);
+  const target=blankCanvas(image.width,image.height);
+  target.getContext('2d').drawImage(image,0,0);
+  image.close();
+  return target;
+}
+async function importCompactProject(file){
+  if(file.size>300*1024*1024)throw Error('현재 KIZE 프로젝트 압축파일은 최대 300MiB까지 지원합니다. PSD 원본의 700MiB 제한과는 별개입니다.');
+  notify('프로젝트 압축 파일을 읽는 중…');
+  const {manifest,images}=readArchive(new Uint8Array(await file.arrayBuffer()));
+  const loaded=[];
+  for(const saved of manifest.layers){
+    const {bitmap,photoBitmap,...props}=saved;
+    const base=await pngBytesToCanvas(images[bitmap]);
+    const photo=photoBitmap?await pngBytesToCanvas(images[photoBitmap]):null;
+    loaded.push(newLayer({...props,canvas:base,photoSource:photo,
+      adjust:{...defaultAdjust(),...(props.adjust||{})}}));
+  }
+  const reference=manifest.composite?await pngBytesToCanvas(images[manifest.composite]):null;
+  openDoc(manifest.width,manifest.height,manifest.name||file.name,'KIZE');
+  layers=loaded;
+  nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;
+  originalComposite=reference;
+  selectedId=layers.at(-1)?.id||null;
+  lastImportPsd=Boolean(reference);
+  hasLayerEdits=Boolean(manifest.edited);
+  previewMode=(manifest.previewMode==='composite'&&reference)?'composite':'layers';
+  refreshAll();fitZoom();
+  // Camera Raw-like photo adjustment values stay editable, source images are
+  // separate from rendered previews, and original Photoshop merged pixels remain.
+  unsavedChanges=false;updateDirtyStatus();
+  notify('KIZE 프로젝트를 불러왔습니다 · 레이어 '+layers.length+'개 · 사진 원본과 편집 설정 복구');
 }
 $('importFile').addEventListener('change',async e=>{
   const file=e.target.files?.[0];e.target.value='';if(!file)return;
-  try{if(/\.(psd|psb)$/i.test(file.name))await importPsd(file);else if(/\.kize\.json$/i.test(file.name))await importProject(file);else await importRaster(file);}
+  try{if(/\.(psd|psb)$/i.test(file.name))await importPsd(file);else if(/\.kize$/i.test(file.name))await importCompactProject(file);else if(/\.kize\.json$/i.test(file.name))await importProject(file);else await importRaster(file);}
   catch(err){
     const reason=err?.message||String(err);
     notify('불러오기 실패: '+reason);

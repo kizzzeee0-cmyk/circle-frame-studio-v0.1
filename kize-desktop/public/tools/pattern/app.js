@@ -1128,7 +1128,7 @@ function renderCirclePreview(){if(!circleCtx||!circleCanvas)return;let w=circleC
 function randomizeAll(){
 let palette=palettePresets[Math.floor(Math.random()*palettePresets.length)];state.bg.colors=[palette[0],palette[1]];state.bg.gradientStops=buildGradientStopsFromColors([palette[0],palette[1]]);state.layers.forEach((layer,i)=>{let candidates=PE.presets.filter(p=>(!$('#favoriteOnly').checked||favorites.has(p.id))&&(!$('#checkOnly')?.checked||checkPresetOnly(p)));let pool=candidates.length?candidates:PE.presets;let p=pool[Math.floor(Math.random()*Math.max(1,pool.length))];layer.sourceType='builtin';layer.presetId=p.id;let d=PE.defaults[p.id]||{};Object.assign(layer,d);layer.colors=normalizeColors(shuffle(palette.concat()).slice(0,4));layer.colors[4]=suggestLineColor(layer.colors);layer.size=clamp((d.size??layer.size)+(i*10),12,220);layer.gap=clamp((d.gap??layer.gap)+Math.floor(Math.random()*30),0,140);layer.jitter=clamp((d.jitter??20)+Math.floor(Math.random()*40),0,100);layer.rotation=Math.floor(-18+Math.random()*36);layer.opacity=clamp(100-i*18,20,100);layer.detail=Math.floor(25+Math.random()*70);layer.enabled=i===0?true:(Math.random()>.25);layer.randomSize=isUniformShapePresetId(p.id)?false:true;layer.randomAngle=isUniformShapePresetId(p.id)?false:true;layer.randomPosition=isUniformShapePresetId(p.id)?false:true;layer.offsetX=0;layer.offsetY=0;layer.row1OffsetX=0;layer.row1OffsetY=0;layer.row1Angle=0;layer.row2OffsetX=0;layer.row2OffsetY=0;layer.row2Angle=0;if(p.type==='graphic-composition'){layer.graphicSafeArea=d.graphicSafeArea??60;layer.graphicBarScale=d.graphicBarScale??100;layer.graphicCircleScale=d.graphicCircleScale??100;layer.graphicMotifMode=d.graphicMotifMode||'auto'}layer.checkerToneMode=false;layer.checkerToneBase=layer.colors[1];layer.seed=Math.floor(Math.random()*1e9)});persistAll();syncAll();toast('배경과 레이어 패턴을 랜덤으로 조합했어.')
 }
-async function exportPNG(seamless=false){
+async function exportPNG(seamless=false,handoff=false){
   let w=clampInt($('#exportW')?.value,16,8000,state.exportW||2000),
       h=clampInt($('#exportH')?.value,16,8000,state.exportH||2000);
   if(seamless){
@@ -1175,6 +1175,15 @@ async function exportPNG(seamless=false){
   let blob=await new Promise(r=>out.toBlob(r,'image/png'));
   if(!blob){toast('PNG 생성에 실패했어.');return}
   blob=await attachPatternStudioMetadata(blob,{schema:2,version:'2.9.1',savedAt:Date.now(),state:stripStateForSave(state),export:{w,h,seamless:!!seamless}});
+  if(handoff){
+    if(!window.KIZEBridge){toast('공통 작업 공간에 연결할 수 없어.');return;}
+    try{
+      await window.KIZEBridge.putAsset(blob,'cute-pattern-'+w+'x'+h+'.png');
+      toast('원본 크기 '+w+'×'+h+' PNG를 색상 편집기로 전달해요.');
+      window.KIZEBridge.openTool('editor');
+    }catch(e){toast('색상 편집기 전송 실패: '+(e?.message||e));}
+    return;
+  }
   let link=document.createElement('a');link.href=URL.createObjectURL(blob);
   link.download=seamless?('cute-pattern-seamless-'+w+'x'+h+'.png'):('cute-pattern-'+w+'x'+h+'.png');
   link.click();
@@ -2569,6 +2578,7 @@ function bindGlobalControls(){
   $('#resetBtn').onclick=()=>{if(!confirm('현재 설정을 초기화할까?'))return;state=makeInitialState();activeLayerIndex=0;persistAll();syncAll();toast('초기 상태로 되돌렸어.')};
   $('#savePresetBtn').onclick=saveCurrentPreset;
   $('#duplicateLayerBtn').onclick=()=>addLayer(true);
+  $('#sendKizeEditor').onclick=()=>exportPNG(false,true);
   $('#exportBtn').onclick=()=>exportPNG(false);
   $('#exportBtn2').onclick=()=>exportPNG(false);
   $('#exportTileBtn').onclick=()=>exportPNG(true);

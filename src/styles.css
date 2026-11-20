@@ -1834,3 +1834,46 @@ body { background: #F3F0F2; }
   .toolbar .autosave-status { display: none; }
   .toolbar .autofit { display: none; }
 }
+
+/* v0.35 — surface glitter controls */
+.glitter-engine-note {
+  display: grid;
+  gap: 2px;
+  margin: 7px 0;
+  padding: 7px 8px;
+  border: 1px solid #E8E0F2;
+  border-radius: 8px;
+  background: linear-gradient(90deg,#FFF9E8,#F7F3FF);
+}
+.glitter-engine-note b { font-size: 9px; color: #71618F; }
+.glitter-engine-note span { font-size: 8px; line-height: 1.45; color: #91899B; }
+.glitter-advanced {
+  margin: 7px 0;
+  border: 1px solid #E8E3EC;
+  border-radius: 9px;
+  background: #FCFBFD;
+  overflow: hidden;
+}
+.glitter-advanced > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 750;
+  color: #6F677A;
+}
+.glitter-advanced > summary::-webkit-details-marker { display: none; }
+.glitter-advanced > summary::after { content: '▸'; color: #9D95A7; }
+.glitter-advanced[open] > summary::after { content: '▾'; }
+.glitter-advanced-body { padding: 0 8px 8px; border-top: 1px solid #F0EDF3; }
+.glitter-ring-section .control > span em {
+  color: #9A7C2E;
+  background: #FFF3C6;
+  border-radius: 999px;
+  padding: 1px 5px;
+  font-size: 7px;
+}

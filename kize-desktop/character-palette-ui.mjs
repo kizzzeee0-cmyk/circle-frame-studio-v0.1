@@ -24,6 +24,7 @@ export function installCharacterPalette({applyPalette,notify,download}){
     return {pastel:Number($('charPastel').value),
       brightness:Number($('charBrightness').value),
       saturation:Number($('charSaturation').value),
+      contrast:Number($('charContrast').value),
       whiteRatio:Number($('charWhite').value),
       accent:Number($('charAccent').value)};
   }

@@ -322,6 +322,81 @@ function setPreviewMode(mode){
 $('viewComposite').onclick=()=>setPreviewMode('composite');
 $('viewAppearance').onclick=()=>setPreviewMode('appearance');
 $('viewLayers').onclick=()=>setPreviewMode('layers');
+function initializePsdFidelityPanel(){
+  const panel=$('psdFidelityPanel'),c=psdCompatibilityReport?.counts;
+  panel.hidden=false;
+  const parts=c?[
+    c.total+'개 레이어',c.groups?c.groups+'개 그룹':null,
+    c.caution?c.caution+'개 효과/마스크 확인 필요':null,
+    c.skipped?c.skipped+'개 건너뜀':null
+  ].filter(Boolean):[];
+  $('psdCompatSummary').textContent=parts.join(' · ');
+  const observations=psdCompatibilityReport?.observations||[];
+  $('psdCompatText').textContent=
+    (originalComposite?'Photoshop 원본 합성 미리보기 있음. ':'원본 합성 미리보기 없음. ')+
+    (observations.length?observations.join(' '):'원본과 레이어 재구성의 차이를 검사할 수 있습니다.');
+  $('runFidelityAudit').disabled=!originalComposite;
+  $('fidelityMetrics').textContent=originalComposite
+    ?'「원본과 레이어 비교」를 누르면 차이 픽셀 비율과 위치를 확인할 수 있습니다.'
+    :'원본 합성 이미지가 없어 비교할 수 없습니다.';
+  $('fidelityHeatmap').hidden=true;
+  $('downloadFidelityReport').disabled=true;
+}
+function renderReconstructedQualityPreview(sampleWidth,sampleHeight){
+  const preview=blankCanvas(sampleWidth,sampleHeight),pc=preview.getContext('2d');
+  pc.save();pc.scale(sampleWidth/documentModel.width,sampleHeight/documentModel.height);
+  for(const l of layers){
+    if(!l.visible||!l.canvas)continue;
+    pc.save();pc.globalAlpha=normOpacity(l.opacity);pc.globalCompositeOperation=l.blend;
+    pc.translate(l.x+l.w/2,l.y+l.h/2);
+    pc.rotate(l.rotation*Math.PI/180);pc.scale(l.flipH?-1:1,l.flipV?-1:1);
+    pc.drawImage(layerImage(l),-l.w/2,-l.h/2,l.w,l.h);
+    pc.restore();
+  }
+  pc.restore();
+  return pc.getImageData(0,0,sampleWidth,sampleHeight).data;
+}
+$('runFidelityAudit').onclick=()=>{
+  if(!originalComposite||!documentModel){
+    notify('Photoshop 원본 합성 미리보기가 없어 재현 차이를 계산할 수 없습니다.');return;
+  }
+  const btn=$('runFidelityAudit');btn.disabled=true;
+  try{
+    const scale=Math.min(1,640/Math.max(documentModel.width,documentModel.height));
+    const sw=Math.max(1,Math.round(documentModel.width*scale));
+    const sh=Math.max(1,Math.round(documentModel.height*scale));
+    const ref=blankCanvas(sw,sh),rc=ref.getContext('2d');
+    rc.drawImage(originalComposite,0,0,sw,sh);
+    const original=rc.getImageData(0,0,sw,sh).data;
+    const reconstructed=renderReconstructedQualityPreview(sw,sh);
+    const quality=compareRgba(original,reconstructed,sw,sh,{threshold:12});
+    lastFidelityAudit=publicFidelityReport(quality,{
+      name:documentModel.name,width:documentModel.width,height:documentModel.height,
+      compatibility:psdCompatibilityReport,layers,
+    });
+    const map=$('fidelityHeatmap');
+    map.width=sw;map.height=sh;
+    const pc=map.getContext('2d');pc.putImageData(new ImageData(quality.heatmap,sw,sh),0,0);
+    map.hidden=false;
+    $('fidelityMetrics').textContent='원본과 동일한 샘플 픽셀 '+quality.matchPercent.toFixed(2)+
+      '% · 다른 픽셀 '+quality.changedPercent.toFixed(2)+'% · 투명도 차이 '+quality.alphaMismatch.toLocaleString()+
+      'px · 검사 '+sw+'×'+sh+'px'+
+      (quality.verdict==='different'?' · 레이어 재구성 결과를 최종 출력에 사용하지 않는 것을 권장합니다.':'');
+    $('downloadFidelityReport').disabled=false;
+    $('psdFidelityPanel').open=true;
+    notify(quality.verdict==='identical'
+      ?'PSD 원본과 레이어 재구성 표본 픽셀이 일치합니다. (축소 검사이며 전체 해상도 일치 증명은 아닙니다.)'
+      :'PSD 레이어 재구성에서 원본과 다른 부분이 발견되었습니다. 왼쪽 진단에서 차이 영역을 확인하세요.');
+  }catch(e){
+    notify('PSD 재현 품질 검사 실패: '+(e?.message||String(e)));
+    console.error('KIZE fidelity audit error',e);
+  }finally{btn.disabled=false;}
+};
+$('downloadFidelityReport').onclick=()=>{
+  if(!lastFidelityAudit){notify('먼저 PSD 품질 검사를 실행해 주세요.');return;}
+  downloadBlob(new Blob([JSON.stringify(lastFidelityAudit,null,2)],{type:'application/json;charset=utf-8'}),
+    (documentModel?.name||'KIZE').replace(/\.[^.]+$/,'')+'-psd-quality.json');
+};
 function createMaskPreview(s){
   const b=s.bounds;if(!b)return null;
   const downsample=Math.min(1,1400/Math.max(b.w,b.h));

@@ -61,3 +61,19 @@
 .stage{user-select:none}
 .stage.hand-ready,.stage.hand-ready *{cursor:grab!important}
 .stage.panning,.stage.panning *{cursor:grabbing!important}
+
+/* v0.5.1: Photoshop-style area refinement and whole-asset tone controls. */
+.selection-mode-label{display:block;margin:10px 0 8px;color:#66576f;font-weight:700;font-size:11px}
+#selectionMode{margin-top:7px}
+#maskAdjust{width:100%;accent-color:#8e7ad4}
+#maskAdjustOut{font-variant-numeric:tabular-nums;color:#8c78bf}
+#clearSelection{flex:1;max-width:150px}
+#selectionPartsCount{align-self:center;flex:1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+#colorPanel .micro{line-height:1.55}
+#colorPanel .shading-check{margin:10px 0!important;gap:7px}
+#colorPanel .shading-check input{flex-shrink:0}
+#colorPanel .buttonrow{align-items:center}
+#panReset{font-size:10px;color:#8069ab}
+.stage{background-color:#eeedf2;cursor:crosshair}
+.stage.panning,.stage.panning *{cursor:grabbing!important}
+.stage .canvas-holder{will-change:transform}

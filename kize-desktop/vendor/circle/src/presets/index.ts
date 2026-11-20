@@ -1,0 +1,1104 @@
+import type { FramePreset, RingKind, FrameDesign } from '../types'
+
+const baseEffects = () => ({
+  embossEnabled: false,
+  // Photoshop-style bevel defaults: visible enough to read immediately when enabled.
+  embossSize: 20,
+  embossDepth: 1.20,
+  embossSoftness: 4,
+  embossLightAngle: 120,
+  embossLightAltitude: 35,
+  embossHighlightColor: '#FFF9C5',
+  embossHighlightOpacity: 0.65,
+  embossShadowColor: '#E94802',
+  embossShadowOpacity: 0.40,
+  embossMode: 'convex' as const,
+  embossStyle: 'inner-bevel' as const,
+  embossTechnique: 'smooth' as const,
+  embossDirection: 'up' as const,
+  embossHighlightBlend: 'screen' as const,
+  embossShadowBlend: 'multiply' as const,
+  embossBaseRetention: 0.36,
+  embossHighlightSharpness: 0.78,
+  embossAutoShadowColor: false,
+  embossAutoShadowDarkness: 0.34,
+  embossMidtoneStrength: 0.46,
+  glowEnabled: false,
+  glowColor: '#9389DE',
+  glowBlur: 36,
+  glowIntensity: 0.55,
+  bloom: 0,
+  softBlur: 0,
+  shadowEnabled: false,
+  shadowColor: '#5B547D',
+  shadowBlur: 24,
+  shadowOffsetX: 0,
+  shadowOffsetY: 18,
+  outlineEnabled: false,
+  outlineColor: '#FFFFFF',
+  outlineWidth: 8,
+})
+
+const basePattern = () => ({
+  dash: 105,
+  gap: 50,
+  roughness: 12,
+  strokeCount: 4,
+  waveAmplitude: 18,
+  waveCount: 20,
+  bulgeAmplitude: 12,
+  bulgeCount: 16,
+  decorationLayout: 'count' as const,
+  decorationCount: 18,
+  decorationSpacing: 120,
+  decorationSize: 28,
+  decorationOffset: 0,
+  decorationRotation: 0,
+  keepUpright: false,
+  colorCount: 1 as 1 | 2 | 3 | 4,
+  paletteColors: ['#9389DE', '#E9B6D2', '#8DC5FF', '#F4D87A'] as [string, string, string, string],
+  customAssetUrl: '',
+  customAssetName: '',
+  assetTintMode: 'original' as const,
+  seed: 3701,
+})
+
+export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): FrameDesign {
+  return {
+    id: `design-${Math.random().toString(36).slice(2, 9)}`,
+    name,
+    kind,
+    radius: 720,
+    thickness: 28,
+    rotation: 0,
+    offsetX: 0,
+    offsetY: 0,
+    opacity: 1,
+    color: '#9389DE',
+    secondaryColor: '#E9B6D2',
+    gradientMode: 'solid',
+    gradientAngle: 0,
+    gradientStops: [
+      { id: 's1', position: 0, color: '#9389DE' },
+      { id: 's2', position: 0.38, color: '#C7B8F1' },
+      { id: 's3', position: 0.72, color: '#F0BDD7' },
+      { id: 's4', position: 1, color: '#8DC5FF' },
+    ],
+    twoToneFlow: {
+      enabled: false,
+      repeatCount: 1,
+      colorA: '#9389DE',
+      colorB: '#FFFFFF',
+      whiteCenter: 0.53,
+      whiteWidth: 0.24,
+      blendWidth: 0.12,
+      rotation: 0,
+      glossStrength: 0.14,
+      innerHighlight: 0.10,
+      outerHighlight: 0.08,
+    },
+    tripleRing: {
+      attached: false,
+      colors: ['#8F84E8', '#A89CF1', '#C5BEF7'],
+      widths: [12, 12, 12],
+    },
+    glitter: {
+      surfaceStyle: 'legacy',
+      animationMode: 'twinkle',
+      density: 180,
+      particleSize: 5,
+      particleSizeVariation: .55,
+      sparkleSize: 14,
+      accentSparkleCount: 5,
+      accentSparkleDuration: .24,
+      textureContrast: .62,
+      surfaceHighlight: .42,
+      rimStrength: .68,
+      ringVisible: true,
+      orbitSpread: 18,
+      orbitDensity: 320,
+      orbitTrail: .22,
+      loopDuration: 3,
+      orbitEnabled: false,
+      twinkleEnabled: true,
+      highlightSweepEnabled: false,
+      sparkleRatio: .18,
+      spread: 34,
+      glow: 6,
+      baseOpacity: .48,
+      edgeHighlight: .62,
+      colorCount: 4,
+      colors: ['#FFFFFF', '#FFE6B5', '#FFD08A', '#FFF7DD'],
+      animated: true,
+      animationStyle: 'mixed',
+      animationSpeed: .78,
+      animationStrength: .84,
+      animationSmoothness: .86,
+      sweepWidth: .18,
+      particleStyle: 'soft',
+      highlightColor: '#FFFFFF',
+      glowColor: '#FFE6B5',
+      flowEnabled: true,
+      flowDirection: 1,
+    },
+    jelly: {
+      highlightColor: '#FFFFFF',
+      highlightOpacity: .92,
+      highlightWidth: .13,
+      highlightLength: .28,
+      highlightCount: 4,
+      shadowColor: '#8A1740',
+      shadowOpacity: .26,
+      volume: .72,
+    },
+    rotationAnimation: {
+      enabled: false,
+      direction: 1,
+      secondsPerTurn: 4,
+      startAngle: 0,
+      easing: 'linear',
+      startTime: 0,
+      endTime: 999,
+    },
+    effects: baseEffects(),
+    pattern: basePattern(),
+  }
+}
+
+type FrameDesignPatch = Omit<Partial<FrameDesign>, 'glitter' | 'jelly' | 'rotationAnimation'> & {
+  glitter?: Partial<FrameDesign['glitter']>
+  jelly?: Partial<FrameDesign['jelly']>
+  rotationAnimation?: Partial<FrameDesign['rotationAnimation']>
+}
+
+function p(id: string, category: string, name: string, kind: RingKind, patch: FrameDesignPatch = {}, pattern = {}, effects = {}): FramePreset {
+  const design = createDesign(kind, name)
+  const baseGlitter = { ...design.glitter }
+  const baseJelly = { ...design.jelly }
+  const baseRotation = { ...design.rotationAnimation }
+  Object.assign(design, patch)
+  if (patch.glitter) design.glitter = { ...baseGlitter, ...patch.glitter }
+  if (patch.jelly) design.jelly = { ...baseJelly, ...patch.jelly }
+  if (patch.rotationAnimation) design.rotationAnimation = { ...baseRotation, ...patch.rotationAnimation }
+  Object.assign(design.pattern, pattern)
+  if (!(pattern as { paletteColors?: unknown }).paletteColors) {
+    design.pattern.paletteColors = [design.color, design.secondaryColor, '#F7A8CF', '#B9D1FF']
+  }
+  Object.assign(design.effects, effects)
+  design.id = `preset-${id}`
+  return { id, category, name, design }
+}
+
+export const PRESETS: FramePreset[] = [
+  p('basic-thin', 'Basic', 'Thin Ring', 'basic', { thickness: 12 }),
+  p('basic-medium', 'Basic', 'Clean Ring', 'basic', { thickness: 26 }),
+  p('basic-thick', 'Basic', 'Thick Ring', 'basic', { thickness: 62 }),
+
+  // v0.31 — distinct glitter textures, not color-only variations.
+  p('glitter-soft-v031', 'Glitter', 'Soft Glitter', 'glitter', {
+    thickness: 54,
+    color: '#F6C8DB',
+    secondaryColor: '#FFF4F9',
+    glitter: {
+      density: 430, particleSize: 1.5, sparkleSize: 7.5, sparkleRatio: .08,
+      spread: 18, glow: 2.2, baseOpacity: .34, edgeHighlight: .66,
+      colorCount: 3, colors: ['#FFFFFF','#FFD7E8','#F3AAC8','#FFFFFF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .62, animationStrength: .76,
+      animationSmoothness: .95, sweepWidth: .18, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#F7B9D4', flowEnabled: false, flowDirection: 1,
+    },
+  }, { seed: 3101 }),
+
+  p('glitter-twinkle-v031', 'Glitter', 'Twinkle Glitter', 'glitter', {
+    thickness: 58,
+    color: '#B9A5F2',
+    secondaryColor: '#F4EFFF',
+    glitter: {
+      density: 290, particleSize: 1.8, sparkleSize: 13, sparkleRatio: .31,
+      spread: 22, glow: 4.5, baseOpacity: .31, edgeHighlight: .75,
+      colorCount: 4, colors: ['#FFFFFF','#D9CBFF','#B9A5F2','#FFF0FA'],
+      animated: true, animationStyle: 'mixed', animationSpeed: .72, animationStrength: .92,
+      animationSmoothness: .92, sweepWidth: .20, particleStyle: 'twinkle',
+      highlightColor: '#FFFFFF', glowColor: '#B9A5F2', flowEnabled: true, flowDirection: 1,
+    },
+  }, { seed: 3102 }),
+
+  p('glitter-sugar-v031', 'Glitter', 'Sugar Glitter', 'glitter', {
+    thickness: 62,
+    color: '#F1B56D',
+    secondaryColor: '#FFF0CE',
+    glitter: {
+      density: 360, particleSize: 2.4, sparkleSize: 8, sparkleRatio: .10,
+      spread: 20, glow: 2.4, baseOpacity: .38, edgeHighlight: .62,
+      colorCount: 4, colors: ['#FFFFFF','#FFE7AE','#F6C66D','#FFF8DF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .78, animationStrength: .78,
+      animationSmoothness: .90, sweepWidth: .17, particleStyle: 'sugar',
+      highlightColor: '#FFFFFF', glowColor: '#FFD592', flowEnabled: false, flowDirection: 1,
+    },
+  }, { seed: 3103 }),
+
+  p('glitter-luminous-v031', 'Glitter', 'Luminous Glitter', 'glitter', {
+    thickness: 66,
+    color: '#7DD7C5',
+    secondaryColor: '#E9FFF9',
+    glitter: {
+      density: 300, particleSize: 1.8, sparkleSize: 11, sparkleRatio: .18,
+      spread: 21, glow: 5.5, baseOpacity: .48, edgeHighlight: .86,
+      colorCount: 3, colors: ['#FFFFFF','#CFFFF2','#7DD7C5','#FFFFFF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .58, animationStrength: .86,
+      animationSmoothness: .96, sweepWidth: .26, particleStyle: 'luminous',
+      highlightColor: '#FFFFFF', glowColor: '#8FE8D6', flowEnabled: true, flowDirection: 1,
+    },
+  }, { seed: 3104 }, { glowEnabled: true, glowColor: '#8FE8D6', glowBlur: 18, glowIntensity: .16 }),
+
+  // v0.35 — surface glitter engine. Existing legacy glitter presets remain unchanged.
+  p('glitter-surface-gradient-v035', 'Glitter', 'Gradient Surface Glitter', 'glitter', {
+    thickness: 74,
+    color: '#F3A9CA',
+    secondaryColor: '#FFF2D9',
+    glitter: {
+      surfaceStyle: 'gradient', animationMode: 'twinkle',
+      density: 620, particleSize: 1.25, particleSizeVariation: .72,
+      sparkleSize: 10.5, accentSparkleCount: 5, accentSparkleDuration: .23,
+      textureContrast: .72, surfaceHighlight: .45, rimStrength: .78,
+      sparkleRatio: .05, spread: 16, glow: 3.2, baseOpacity: .94, edgeHighlight: .82,
+      colorCount: 4, colors: ['#FFF4D6','#F7C5B0','#F4A0C9','#B7A2F2'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .56, animationStrength: .72,
+      animationSmoothness: .96, sweepWidth: .12, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#FFD7EB', flowEnabled: false, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 6, easing: 'linear' },
+  }, { seed: 35011 }, { glowEnabled: true, glowColor: '#F2B5D8', glowBlur: 7, glowIntensity: .055 }),
+
+  p('glitter-surface-fine-v035', 'Glitter', 'Fine Pearl Glitter', 'glitter', {
+    thickness: 64,
+    color: '#B9A8EF',
+    secondaryColor: '#F6F2FF',
+    glitter: {
+      surfaceStyle: 'fine', animationMode: 'twinkle',
+      density: 780, particleSize: .82, particleSizeVariation: .48,
+      sparkleSize: 7.5, accentSparkleCount: 2, accentSparkleDuration: .20,
+      textureContrast: .54, surfaceHighlight: .30, rimStrength: .82,
+      sparkleRatio: .02, spread: 12, glow: 1.8, baseOpacity: .92, edgeHighlight: .82,
+      colorCount: 3, colors: ['#FFFFFF','#D9D0FA','#A996E6','#FFFFFF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .45, animationStrength: .46,
+      animationSmoothness: .98, sweepWidth: .10, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#D8CEFA', flowEnabled: false, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 7, easing: 'linear' },
+  }, { seed: 35012 }),
+
+  p('glitter-surface-twinkle-v035', 'Glitter', 'Elegant Twinkle Surface', 'glitter', {
+    thickness: 70,
+    color: '#F5ABC9',
+    secondaryColor: '#FDE8F2',
+    glitter: {
+      surfaceStyle: 'twinkle', animationMode: 'twinkle',
+      density: 650, particleSize: 1.05, particleSizeVariation: .62,
+      sparkleSize: 11, accentSparkleCount: 6, accentSparkleDuration: .18,
+      textureContrast: .66, surfaceHighlight: .38, rimStrength: .76,
+      sparkleRatio: .06, spread: 15, glow: 3, baseOpacity: .93, edgeHighlight: .80,
+      colorCount: 4, colors: ['#FFFFFF','#FFD8E7','#F3A3C5','#DCC8FF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .52, animationStrength: .68,
+      animationSmoothness: .97, sweepWidth: .12, particleStyle: 'twinkle',
+      highlightColor: '#FFFFFF', glowColor: '#F4B6D4', flowEnabled: false, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 6.5, easing: 'linear' },
+  }, { seed: 35013 }, { glowEnabled: true, glowColor: '#F0B0D1', glowBlur: 6, glowIntensity: .045 }),
+
+  p('glitter-surface-holo-v035', 'Glitter', 'Pastel Holographic Glitter', 'glitter', {
+    thickness: 72,
+    color: '#BBAAF3',
+    secondaryColor: '#F7E9FF',
+    glitter: {
+      surfaceStyle: 'holographic', animationMode: 'sweep',
+      density: 590, particleSize: 1.08, particleSizeVariation: .76,
+      sparkleSize: 9, accentSparkleCount: 3, accentSparkleDuration: .18,
+      textureContrast: .62, surfaceHighlight: .34, rimStrength: .74,
+      sparkleRatio: .03, spread: 14, glow: 2.6, baseOpacity: .94, edgeHighlight: .78,
+      colorCount: 4, colors: ['#FFD8E8','#D8C9FF','#C8F0EA','#FFF0BF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .34, animationStrength: .52,
+      animationSmoothness: .98, sweepWidth: .10, particleStyle: 'luminous',
+      highlightColor: '#FFFFFF', glowColor: '#DDD3FF', flowEnabled: true, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 8, easing: 'linear' },
+  }, { seed: 35014 }, { glowEnabled: true, glowColor: '#D9D0FF', glowBlur: 5, glowIntensity: .035 }),
+
+
+  // v0.36 — ringless orbital glitter + independent motion controls.
+  p('glitter-orbit-flow-v036', 'Glitter', 'Orbit Glitter Flow', 'glitter', {
+    thickness: 58, color: '#E9D7FF', secondaryColor: '#FFFFFF',
+    glitter: {
+      surfaceStyle: 'orbit', animationMode: 'orbit',
+      ringVisible: false, orbitEnabled: true, twinkleEnabled: true, highlightSweepEnabled: false,
+      orbitSpread: 17, orbitDensity: 360, orbitTrail: .24, loopDuration: 3,
+      density: 360, particleSize: 1.45, particleSizeVariation: .68,
+      sparkleSize: 8.5, accentSparkleCount: 3, accentSparkleDuration: .18,
+      textureContrast: .58, surfaceHighlight: .18, rimStrength: .18,
+      sparkleRatio: .025, spread: 14, glow: 1.8, baseOpacity: .90, edgeHighlight: .18,
+      colorCount: 4, colors: ['#FFFFFF','#F6E9FF','#E7CEFF','#D8ECFF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .72, animationStrength: .62,
+      animationSmoothness: .98, sweepWidth: .11, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#E5D5FF', flowEnabled: true, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 7, easing: 'linear' },
+  }, { seed: 36011 }),
+
+  p('glitter-reflection-flow-v036', 'Glitter', 'Flowing Reflection Ring', 'glitter', {
+    thickness: 62, color: '#E7DDF9', secondaryColor: '#FFFFFF',
+    glitter: {
+      surfaceStyle: 'reflection', animationMode: 'sweep',
+      ringVisible: true, orbitEnabled: false, twinkleEnabled: false, highlightSweepEnabled: true,
+      orbitSpread: 10, orbitDensity: 220, orbitTrail: .16, loopDuration: 3.4,
+      density: 520, particleSize: .95, particleSizeVariation: .42,
+      sparkleSize: 7, accentSparkleCount: 1, accentSparkleDuration: .16,
+      textureContrast: .34, surfaceHighlight: .28, rimStrength: .48,
+      sparkleRatio: .01, spread: 10, glow: 1.4, baseOpacity: .82, edgeHighlight: .42,
+      colorCount: 3, colors: ['#FFFFFF','#E8DDF8','#CFC2EC','#FFFFFF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .45, animationStrength: .58,
+      animationSmoothness: .99, sweepWidth: .14, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#E8DEFA', flowEnabled: true, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 8, easing: 'linear' },
+  }, { seed: 36012 }),
+
+  p('jelly-balloon-pink-v031', '3D', 'Jelly Balloon Pink', 'jelly', {
+    radius: 720,
+    thickness: 138,
+    color: '#FF2760',
+    secondaryColor: '#FF6F91',
+    jelly: {
+      highlightColor: '#FFFFFF',
+      highlightOpacity: .96,
+      highlightWidth: .12,
+      highlightLength: .26,
+      highlightCount: 4,
+      shadowColor: '#9A1238',
+      shadowOpacity: .30,
+      volume: .84,
+    },
+  }),
+  p('tube-rounded', 'Basic', '도톰한 둥근 링', 'basic', {
+    thickness: 94,
+    color: '#A98AE9',
+    secondaryColor: '#F3EEFF',
+    gradientMode: 'linear',
+    gradientAngle: 90,
+    gradientStops: [
+      { id: 'tube1', position: 0, color: '#CDBAF7' },
+      { id: 'tube2', position: 0.22, color: '#AE93EB' },
+      { id: 'tube3', position: 0.58, color: '#F6F3FF' },
+      { id: 'tube4', position: 1, color: '#9B7CE2' },
+    ],
+  }, {}, {
+    embossEnabled: true,
+    embossSize: 20,
+    embossDepth: 1.20,
+    embossSoftness: 4,
+    embossLightAngle: 120,
+    embossLightAltitude: 35,
+    embossHighlightColor: '#FFF9C5',
+    embossHighlightOpacity: 0.65,
+    embossShadowColor: '#E94802',
+    embossShadowOpacity: 0.40,
+    embossMode: 'convex',
+    embossStyle: 'inner-bevel',
+    embossTechnique: 'smooth',
+    embossDirection: 'up',
+    embossHighlightBlend: 'screen',
+    embossShadowBlend: 'multiply',
+    embossBaseRetention: 0.36,
+    embossHighlightSharpness: 0.78,
+    embossAutoShadowColor: false,
+    embossAutoShadowDarkness: 0.34,
+    embossMidtoneStrength: 0.46,
+  }),
+
+  p('tube-rounded-soft', 'Emboss', '도톰한 둥근 링 — Soft', 'basic', {
+    thickness: 96,
+    color: '#B8A2EE',
+    gradientMode: 'solid',
+  }, {}, {
+    embossEnabled: true,
+    embossSize: 25,
+    embossDepth: 0.66,
+    embossSoftness: 18,
+    embossLightAngle: -42,
+    embossLightAltitude: 66,
+    embossHighlightColor: '#FFFFFF',
+    embossHighlightOpacity: 0.67,
+    embossShadowOpacity: 0.20,
+    embossMode: 'convex',
+    embossHighlightBlend: 'soft-light',
+    embossBaseRetention: 0.76,
+    embossHighlightSharpness: 0.46,
+    embossAutoShadowColor: true,
+    embossAutoShadowDarkness: 0.24,
+    embossMidtoneStrength: 0.30,
+  }),
+
+  p('tube-rounded-glossy', 'Emboss', '도톰한 둥근 링 — Glossy', 'basic', {
+    thickness: 104,
+    color: '#A583E7',
+    gradientMode: 'solid',
+  }, {}, {
+    embossEnabled: true,
+    embossSize: 27,
+    embossDepth: 0.94,
+    embossSoftness: 10,
+    embossLightAngle: -48,
+    embossLightAltitude: 54,
+    embossHighlightColor: '#FFFFFF',
+    embossHighlightOpacity: 0.92,
+    embossShadowOpacity: 0.28,
+    embossMode: 'convex',
+    embossHighlightBlend: 'screen',
+    embossBaseRetention: 0.58,
+    embossHighlightSharpness: 0.91,
+    embossAutoShadowColor: true,
+    embossAutoShadowDarkness: 0.34,
+    embossMidtoneStrength: 0.22,
+  }),
+
+  p('jelly-ring', 'Emboss', '젤리 링', 'basic', {
+    thickness: 112,
+    color: '#F1A7CD',
+    secondaryColor: '#FFD9EC',
+    gradientMode: 'linear',
+    gradientAngle: 70,
+    gradientStops: [
+      { id: 'jelly1', position: 0, color: '#E58AB9' },
+      { id: 'jelly2', position: .42, color: '#F5B5D5' },
+      { id: 'jelly3', position: .72, color: '#FFE8F4' },
+      { id: 'jelly4', position: 1, color: '#D97FAC' },
+    ],
+  }, {}, {
+    embossEnabled: true,
+    embossSize: 30,
+    embossDepth: 1.02,
+    embossSoftness: 14,
+    embossLightAngle: -38,
+    embossLightAltitude: 58,
+    embossHighlightColor: '#FFFFFF',
+    embossHighlightOpacity: 0.90,
+    embossShadowOpacity: 0.22,
+    embossMode: 'convex',
+    embossHighlightBlend: 'screen',
+    embossBaseRetention: 0.55,
+    embossHighlightSharpness: 0.82,
+    embossAutoShadowColor: true,
+    embossAutoShadowDarkness: 0.28,
+    embossMidtoneStrength: 0.34,
+  }),
+
+  p('soft-plastic-ring', 'Emboss', '소프트 플라스틱 링', 'basic', {
+    thickness: 104,
+    color: '#9DCFEA',
+    gradientMode: 'solid',
+  }, {}, {
+    embossEnabled: true,
+    embossSize: 28,
+    embossDepth: 0.76,
+    embossSoftness: 19,
+    embossLightAngle: -50,
+    embossLightAltitude: 68,
+    embossHighlightColor: '#FFFFFF',
+    embossHighlightOpacity: 0.62,
+    embossShadowOpacity: 0.19,
+    embossMode: 'convex',
+    embossHighlightBlend: 'soft-light',
+    embossBaseRetention: 0.78,
+    embossHighlightSharpness: 0.38,
+    embossAutoShadowColor: true,
+    embossAutoShadowDarkness: 0.22,
+    embossMidtoneStrength: 0.29,
+  }),
+
+  p('glass-volume-ring', 'Emboss', '유리 느낌 링', 'basic', {
+    thickness: 92,
+    color: '#B8DDF6',
+    secondaryColor: '#F8FDFF',
+    gradientMode: 'linear',
+    gradientAngle: 85,
+    opacity: .88,
+    gradientStops: [
+      { id: 'glass1', position: 0, color: '#86C8EE' },
+      { id: 'glass2', position: .32, color: '#DDF4FF' },
+      { id: 'glass3', position: .58, color: '#FFFFFF' },
+      { id: 'glass4', position: 1, color: '#8EC9ED' },
+    ],
+  }, {}, {
+    embossEnabled: true,
+    embossSize: 22,
+    embossDepth: 0.72,
+    embossSoftness: 8,
+    embossLightAngle: -45,
+    embossLightAltitude: 64,
+    embossHighlightColor: '#FFFFFF',
+    embossHighlightOpacity: 0.95,
+    embossShadowOpacity: 0.13,
+    embossMode: 'convex',
+    embossHighlightBlend: 'screen',
+    embossBaseRetention: 0.74,
+    embossHighlightSharpness: 0.95,
+    embossAutoShadowColor: true,
+    embossAutoShadowDarkness: 0.18,
+    embossMidtoneStrength: 0.16,
+  }),
+
+  p('matte-volume-ring', 'Emboss', '매트 볼륨 링', 'basic', {
+    thickness: 100,
+    color: '#B59CDF',
+    gradientMode: 'solid',
+  }, {}, {
+    embossEnabled: true,
+    embossSize: 26,
+    embossDepth: 0.62,
+    embossSoftness: 23,
+    embossLightAngle: -46,
+    embossLightAltitude: 70,
+    embossHighlightColor: '#F8F5FF',
+    embossHighlightOpacity: 0.48,
+    embossShadowOpacity: 0.22,
+    embossMode: 'convex',
+    embossHighlightBlend: 'soft-light',
+    embossBaseRetention: 0.84,
+    embossHighlightSharpness: 0.24,
+    embossAutoShadowColor: true,
+    embossAutoShadowDarkness: 0.24,
+    embossMidtoneStrength: 0.24,
+  }),
+  p('double-clean', 'Basic', 'Double Ring', 'double', { thickness: 18 }),
+  p('double-bold', 'Basic', 'Bold Double', 'double', { thickness: 30 }),
+  p('triple-line', 'Basic', 'Triple Ring', 'triple', { thickness: 12 }),
+  p('triple-soft', 'Basic', 'Soft Triple', 'triple', { thickness: 18, opacity: .82 }),
+  p('triple-attached-lavender', 'Triple', '붙어있는 트리플 · Lavender', 'triple', {
+    thickness: 12,
+    color: '#8F84E8',
+    tripleRing: {
+      attached: true,
+      colors: ['#8F84E8', '#A89CF1', '#C5BEF7'],
+      widths: [12, 10, 8],
+    },
+  }),
+  p('triple-attached-pastel', 'Triple', '붙어있는 트리플 · Pastel', 'triple', {
+    thickness: 12,
+    color: '#E995B9',
+    tripleRing: {
+      attached: true,
+      colors: ['#E995B9', '#A9C9F5', '#C1A9ED'],
+      widths: [11, 9, 11],
+    },
+  }),
+  p('triple-attached-mono', 'Triple', '붙어있는 트리플 · Mono', 'triple', {
+    thickness: 12,
+    color: '#27242D',
+    tripleRing: {
+      attached: true,
+      colors: ['#27242D', '#8F8999', '#F7F5FA'],
+      widths: [10, 8, 10],
+    },
+  }),
+  p('minimal-fine', 'Minimal', 'Fine Minimal', 'basic', { thickness: 7, radius: 760 }),
+  p('minimal-inner', 'Minimal', 'Inner Minimal', 'double', { thickness: 8, radius: 690 }),
+  p('minimal-wide', 'Minimal', 'Wide Space Double', 'double', { thickness: 9 }, { gap: 90 }),
+
+  p('broken-soft', 'Broken', 'Broken Circle', 'segmented', { thickness: 24 }, { dash: 150, gap: 52 }),
+  p('broken-wide', 'Broken', 'Wide Broken', 'segmented', { thickness: 34 }, { dash: 215, gap: 105 }),
+  p('broken-mini', 'Broken', 'Mini Segments', 'segmented', { thickness: 18 }, { dash: 70, gap: 32 }),
+  p('broken-round', 'Broken', 'Rounded Segments', 'segmented', { thickness: 48 }, { dash: 135, gap: 65 }),
+  p('broken-three-long', 'Broken', 'Long 3-Cut Segments', 'segmented', { thickness: 26 }, { dash: 1120, gap: 360 }),
+  p('arc-single', 'Broken', 'Open Arc', 'arc', { thickness: 30 }, { dash: 900, gap: 600 }),
+  p('arc-multi', 'Broken', 'Multiple Arcs', 'arc', { thickness: 24 }, { dash: 390, gap: 145 }),
+  p('arc-fine', 'Broken', 'Fine Arcs', 'arc', { thickness: 13 }, { dash: 280, gap: 120 }),
+
+  p('dot-mini', 'Dot', 'Mini Dot Ring', 'dotted', { thickness: 8 }, { decorationCount: 84, decorationSize: 9 }),
+  p('dot-soft', 'Dot', 'Soft Dot Ring', 'dotted', { thickness: 8 }, { decorationCount: 52, decorationSize: 14 }),
+  p('dot-bold', 'Dot', 'Bold Dot Ring', 'dotted', { thickness: 8 }, { decorationCount: 32, decorationSize: 24 }),
+  p('dot-double', 'Dot', 'Dense Dot Ring', 'dotted', { thickness: 8 }, { decorationCount: 100, decorationSize: 7 }),
+  p('dot-fourcolor', 'Dot', 'Four Color Dots', 'dotted', { color: '#F2B3CD', secondaryColor: '#95C8F0' }, { decorationLayout: 'spacing', decorationSpacing: 68, decorationSize: 13, colorCount: 4, paletteColors: ['#F2B3CD','#95C8F0','#F2D272','#B79AF6'] }),
+
+  p('wave-small', 'Wavy', 'Soft Wave', 'wavy', { thickness: 18 }, { waveAmplitude: 10, waveCount: 28 }),
+  p('wave-cute', 'Wavy', 'Cute Wavy', 'wavy', { thickness: 24 }, { waveAmplitude: 24, waveCount: 22 }),
+  p('wave-large', 'Wavy', 'Large Wave', 'wavy', { thickness: 28 }, { waveAmplitude: 42, waveCount: 14 }),
+  p('scallop-mini', 'Wavy', 'Mini Scallop', 'scallop', { thickness: 15 }, { waveAmplitude: 18, waveCount: 34 }),
+  p('scallop-lace', 'Wavy', 'Lace Scallop', 'scallop', { thickness: 20 }, { waveAmplitude: 30, waveCount: 26 }),
+
+  p('scribble-3', 'Scribble', 'Triple Scribble', 'scribble', { thickness: 9 }, { roughness: 13, strokeCount: 3 }),
+  p('scribble-5', 'Scribble', 'Messy Scribble', 'scribble', { thickness: 8 }, { roughness: 25, strokeCount: 5 }),
+  p('scribble-soft', 'Scribble', 'Soft Scribble', 'scribble', { thickness: 7, opacity: .72 }, { roughness: 15, strokeCount: 6 }),
+  p('rough-pencil', 'Scribble', 'Rough Pencil', 'rough', { thickness: 10 }, { roughness: 18, strokeCount: 2 }),
+  p('rough-bold', 'Scribble', 'Rough Bold', 'rough', { thickness: 18 }, { roughness: 24, strokeCount: 3 }),
+  p('doodle-broken', 'Scribble', 'Doodle Broken', 'segmented', { thickness: 16 }, { dash: 110, gap: 26 }, { glowEnabled: false }),
+  p('doodle-outline', 'Scribble', 'Loose Doodle Outline', 'rough', { thickness: 7, color: '#A48CE9' }, { roughness: 9, strokeCount: 4 }),
+  p('clean-double-sketch', 'Scribble', 'Clean Double Sketch', 'scribble', { thickness: 8, color: '#EE88AF', opacity: .96 }, { roughness: 2, strokeCount: 2 }),
+  p('soft-twin-sketch', 'Scribble', 'Soft Twin Sketch', 'scribble', { thickness: 10, color: '#F09BB9', opacity: .9 }, { roughness: 3, strokeCount: 2 }),
+  p('pastel-double-ring', 'Scribble', 'Pastel Double Ring', 'scribble', { thickness: 9, color: '#F4A4C2', opacity: .94 }, { roughness: 2.4, strokeCount: 2 }),
+  p('clean-twin-outline', 'Scribble', 'Clean Twin Outline', 'scribble', { thickness: 7, color: '#C08CCF', opacity: .98 }, { roughness: 1.2, strokeCount: 2 }),
+
+  p('brush-dry', 'Brush', 'Dry Brush Circle', 'brush', { thickness: 34 }, { dash: 85, gap: 15, roughness: 25 }),
+  p('brush-ink', 'Brush', 'Ink Brush Ring', 'brush', { thickness: 52 }, { dash: 115, gap: 10, roughness: 18 }),
+  p('brush-soft', 'Brush', 'Soft Brush Ring', 'brush', { thickness: 42, opacity: .78 }, { dash: 75, gap: 10, roughness: 12 }),
+  p('brush-water', 'Brush', 'Watercolor Ring', 'brush', { thickness: 58, opacity: .58 }, { dash: 60, gap: 8, roughness: 30 }),
+
+  // v0.27 — 작은 글리터 입자 + 4갈래 반짝이가 링 폭 안팎에 흩어지는 전용 프레임
+  p('glitter-champagne', 'Glitter', 'Champagne Glitter', 'glitter', {
+    thickness: 72,
+    color: '#F3C79B',
+    secondaryColor: '#FFF1D7',
+    gradientMode: 'linear',
+    gradientAngle: 90,
+    gradientStops: [
+      { id: 'gc1', position: 0, color: '#F5C793' },
+      { id: 'gc2', position: .42, color: '#FFE7C1' },
+      { id: 'gc3', position: .70, color: '#FFF8E7' },
+      { id: 'gc4', position: 1, color: '#E9B27E' },
+    ],
+    glitter: {
+      density: 330, particleSize: 2.4, sparkleSize: 11, sparkleRatio: .16,
+      spread: 24, glow: 3.5, baseOpacity: .42, edgeHighlight: .72,
+      colorCount: 4, colors: ['#FFFFFF','#FFE7B0','#FFC978','#FFF6DB'],
+      animated: true, animationStyle: 'mixed', animationSpeed: .86, animationStrength: .92, sweepWidth: .15,
+    },
+  }, { seed: 7421 }, { glowEnabled: true, glowColor: '#FFD8A8', glowBlur: 10, glowIntensity: .10 }),
+
+  p('glitter-pink-sugar', 'Glitter', 'Pink Sugar Glitter', 'glitter', {
+    thickness: 70,
+    color: '#F2A9C4',
+    secondaryColor: '#FFD8E7',
+    gradientMode: 'linear',
+    gradientAngle: 85,
+    gradientStops: [
+      { id: 'gp1', position: 0, color: '#EFA0BE' },
+      { id: 'gp2', position: .40, color: '#FFCFE0' },
+      { id: 'gp3', position: .72, color: '#FFF5FA' },
+      { id: 'gp4', position: 1, color: '#E991B2' },
+    ],
+    glitter: {
+      density: 350, particleSize: 2.2, sparkleSize: 10.5, sparkleRatio: .19,
+      spread: 22, glow: 3.2, baseOpacity: .40, edgeHighlight: .66,
+      colorCount: 4, colors: ['#FFFFFF','#FFD8E8','#FFB7D2','#FFF0F7'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .86, animationStrength: .90, animationSmoothness: .90, sweepWidth: .16,
+    },
+  }, { seed: 3817 }, { glowEnabled: true, glowColor: '#F6A9C8', glowBlur: 11, glowIntensity: .10 }),
+
+  p('glitter-lavender-fairy', 'Glitter', 'Lavender Fairy Glitter', 'glitter', {
+    thickness: 68,
+    color: '#AE96E6',
+    secondaryColor: '#DDD1FF',
+    gradientMode: 'linear',
+    gradientAngle: 92,
+    gradientStops: [
+      { id: 'gl1', position: 0, color: '#9D83DC' },
+      { id: 'gl2', position: .40, color: '#C8B7F5' },
+      { id: 'gl3', position: .73, color: '#F3EEFF' },
+      { id: 'gl4', position: 1, color: '#9077D0' },
+    ],
+    glitter: {
+      density: 310, particleSize: 2.1, sparkleSize: 12, sparkleRatio: .25,
+      spread: 25, glow: 4, baseOpacity: .38, edgeHighlight: .72,
+      colorCount: 4, colors: ['#FFFFFF','#D9CAFF','#B79CF1','#F5EEFF'],
+      animated: true, animationStyle: 'flash', animationSpeed: .74, animationStrength: .90, animationSmoothness: .88, sweepWidth: .17,
+    },
+  }, { seed: 5911 }, { glowEnabled: true, glowColor: '#B39AE8', glowBlur: 12, glowIntensity: .11 }),
+
+  p('glitter-mint-pearl', 'Glitter', 'Mint Pearl Glitter', 'glitter', {
+    thickness: 68,
+    color: '#9EDBCB',
+    secondaryColor: '#D9F5EC',
+    gradientMode: 'linear',
+    gradientAngle: 90,
+    gradientStops: [
+      { id: 'gm1', position: 0, color: '#82CFBB' },
+      { id: 'gm2', position: .43, color: '#BDE9DD' },
+      { id: 'gm3', position: .72, color: '#F2FFFB' },
+      { id: 'gm4', position: 1, color: '#77C5B0' },
+    ],
+    glitter: {
+      density: 300, particleSize: 2.3, sparkleSize: 10, sparkleRatio: .13,
+      spread: 20, glow: 3.2, baseOpacity: .44, edgeHighlight: .64,
+      colorCount: 4, colors: ['#FFFFFF','#DFFFF5','#B2E7D8','#FFF8DA'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .62, animationStrength: .86, animationSmoothness: .92, sweepWidth: .26,
+    },
+  }, { seed: 8153 }, { glowEnabled: true, glowColor: '#A7E1D2', glowBlur: 10, glowIntensity: .09 }),
+
+  p('glitter-ice-diamond', 'Glitter', 'Ice Diamond Glitter', 'glitter', {
+    thickness: 62,
+    color: '#B9D7EF',
+    secondaryColor: '#F2FAFF',
+    gradientMode: 'linear',
+    gradientAngle: 88,
+    gradientStops: [
+      { id: 'gi1', position: 0, color: '#9FC7E7' },
+      { id: 'gi2', position: .38, color: '#D9EEFA' },
+      { id: 'gi3', position: .70, color: '#FFFFFF' },
+      { id: 'gi4', position: 1, color: '#91BDDE' },
+    ],
+    glitter: {
+      density: 275, particleSize: 1.9, sparkleSize: 13.5, sparkleRatio: .34,
+      spread: 21, glow: 4.5, baseOpacity: .34, edgeHighlight: .86,
+      colorCount: 4, colors: ['#FFFFFF','#D8EEFF','#EDE5FF','#FFF8D9'],
+      animated: true, animationStyle: 'flash', animationSpeed: .92, animationStrength: .92, animationSmoothness: .86, sweepWidth: .16,
+    },
+  }, { seed: 2147 }, { glowEnabled: true, glowColor: '#C4E7FF', glowBlur: 13, glowIntensity: .12 }),
+
+  p('glitter-rose-gold', 'Glitter', 'Rose Gold Glitter', 'glitter', {
+    thickness: 74,
+    color: '#D89C8E',
+    secondaryColor: '#F4C9BD',
+    gradientMode: 'linear',
+    gradientAngle: 90,
+    gradientStops: [
+      { id: 'gr1', position: 0, color: '#C98275' },
+      { id: 'gr2', position: .38, color: '#EAB3A5' },
+      { id: 'gr3', position: .70, color: '#FFE5D8' },
+      { id: 'gr4', position: 1, color: '#BF776C' },
+    ],
+    glitter: {
+      density: 325, particleSize: 2.5, sparkleSize: 11.5, sparkleRatio: .17,
+      spread: 26, glow: 3.8, baseOpacity: .44, edgeHighlight: .68,
+      colorCount: 4, colors: ['#FFF8EC','#F6D1B9','#EAA48E','#FFFFFF'],
+      animated: true, animationStyle: 'orbit', animationSpeed: .66, animationStrength: .88, animationSmoothness: .92, sweepWidth: .22,
+    },
+  }, { seed: 6329 }, { glowEnabled: true, glowColor: '#E9AD9D', glowBlur: 10, glowIntensity: .10 }),
+
+  p('glitter-white-strobe', 'Glitter', 'White Strobe Ring', 'glitter', {
+    thickness: 48, color: '#ECECF4', secondaryColor: '#FFFFFF',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gws1', position: 0, color: '#BFC2D2' },
+      { id: 'gws2', position: .45, color: '#F5F5FA' },
+      { id: 'gws3', position: .72, color: '#FFFFFF' },
+      { id: 'gws4', position: 1, color: '#ADB1C4' },
+    ],
+    glitter: {
+      density: 235, particleSize: 1.7, sparkleSize: 14, sparkleRatio: .42,
+      spread: 18, glow: 5, baseOpacity: .28, edgeHighlight: .92,
+      colorCount: 2, colors: ['#FFFFFF','#DDE6FF','#FFFFFF','#DDE6FF'],
+      animated: true, animationStyle: 'flash', animationSpeed: 1.05, animationStrength: .94, animationSmoothness: .84, sweepWidth: .15,
+    },
+  }, { seed: 4391 }, { glowEnabled: true, glowColor: '#FFFFFF', glowBlur: 9, glowIntensity: .10 }),
+
+  p('glitter-red-orbit', 'Glitter', 'Red Orbit Spark', 'glitter', {
+    thickness: 56, color: '#E64965', secondaryColor: '#FFD3DC',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gro1', position: 0, color: '#B82744' },
+      { id: 'gro2', position: .38, color: '#F05A75' },
+      { id: 'gro3', position: .68, color: '#FFC3CF' },
+      { id: 'gro4', position: 1, color: '#A91F39' },
+    ],
+    glitter: {
+      density: 280, particleSize: 2.1, sparkleSize: 12, sparkleRatio: .25,
+      spread: 24, glow: 5, baseOpacity: .34, edgeHighlight: .72,
+      colorCount: 4, colors: ['#FFFFFF','#FF9BAD','#FF506F','#FFE1E7'],
+      animated: true, animationStyle: 'orbit', animationSpeed: .78, animationStrength: .92, animationSmoothness: .90, sweepWidth: .19,
+    },
+  }, { seed: 9443 }, { glowEnabled: true, glowColor: '#FF4768', glowBlur: 15, glowIntensity: .18 }),
+
+  p('glitter-blue-shimmer', 'Glitter', 'Blue Moon Shimmer', 'glitter', {
+    thickness: 54, color: '#7FAAE9', secondaryColor: '#E6F2FF',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gbs1', position: 0, color: '#648ED0' },
+      { id: 'gbs2', position: .42, color: '#A9C9F4' },
+      { id: 'gbs3', position: .74, color: '#F4FAFF' },
+      { id: 'gbs4', position: 1, color: '#597FC1' },
+    ],
+    glitter: {
+      density: 295, particleSize: 2, sparkleSize: 11, sparkleRatio: .18,
+      spread: 21, glow: 3.5, baseOpacity: .36, edgeHighlight: .78,
+      colorCount: 4, colors: ['#FFFFFF','#B9D9FF','#8BB9F1','#EDE7FF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .66, animationStrength: .88, animationSmoothness: .94, sweepWidth: .29,
+    },
+  }, { seed: 2741 }, { glowEnabled: true, glowColor: '#8ABAF4', glowBlur: 10, glowIntensity: .10 }),
+
+  p('glitter-fairy-mixed', 'Glitter', 'Fairy Mixed Twinkle', 'glitter', {
+    thickness: 58, color: '#E3B6EC', secondaryColor: '#FFF2FD',
+    gradientMode: 'linear', gradientAngle: 90,
+    gradientStops: [
+      { id: 'gfm1', position: 0, color: '#C994D7' },
+      { id: 'gfm2', position: .40, color: '#E6B8EE' },
+      { id: 'gfm3', position: .72, color: '#FFF4FE' },
+      { id: 'gfm4', position: 1, color: '#BD86CC' },
+    ],
+    glitter: {
+      density: 360, particleSize: 1.8, sparkleSize: 10.5, sparkleRatio: .21,
+      spread: 25, glow: 4, baseOpacity: .30, edgeHighlight: .76,
+      colorCount: 4, colors: ['#FFFFFF','#F7D0FF','#DCC7FF','#FFE6F4'],
+      animated: true, animationStyle: 'mixed', animationSpeed: .76, animationStrength: .90, animationSmoothness: .90, sweepWidth: .22,
+    },
+  }, { seed: 6673 }, { glowEnabled: true, glowColor: '#D9A7E7', glowBlur: 10, glowIntensity: .09 }),
+
+  p('sparkle-light', 'Decorative', 'Sparkle Ring', 'sparkle', { thickness: 8 }, { decorationCount: 16, decorationSize: 32, decorationOffset: 15 }),
+  p('sparkle-dense', 'Decorative', 'Dense Sparkle', 'sparkle', { thickness: 6 }, { decorationCount: 28, decorationSize: 24, decorationOffset: 18 }),
+  p('star-cute', 'Decorative', 'Star Circle', 'star', { thickness: 5 }, { decorationCount: 18, decorationSize: 28, decorationOffset: 10 }),
+  p('star-mini', 'Decorative', 'Mini Star Ring', 'star', { thickness: 5 }, { decorationCount: 30, decorationSize: 18, decorationOffset: 10 }),
+  p('heart-cute', 'Decorative', 'Heart Circle', 'heart', { thickness: 5 }, { decorationCount: 22, decorationSize: 24, decorationOffset: 10 }),
+  p('heart-wide', 'Decorative', 'Wide Heart Ring', 'heart', { thickness: 5 }, { decorationCount: 14, decorationSize: 34, decorationOffset: 12 }),
+  p('heart-fourcolor', 'Decorative', 'Four Color Heart Ring', 'heart', { color: '#F4C455', secondaryColor: '#8DC5FF' }, { decorationCount: 34, decorationSize: 15, decorationOffset: 10, colorCount: 4, paletteColors: ['#F4C455','#8DC5FF','#F6A8C8','#B8A5F2'], keepUpright: true }),
+  p('ribbon-cute', 'Decorative', 'Rounded Ribbon Ring', 'ribbon', { color: '#FFFFFF' }, { decorationCount: 12, decorationSize: 29, decorationOffset: 18, keepUpright: true, colorCount: 1, paletteColors: ['#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'] }),
+  p('ribbon-mini', 'Decorative', 'Mini Ribbon Ring', 'ribbon', { color: '#FFFFFF', secondaryColor: '#E4D1F9' }, { decorationCount: 20, decorationSize: 18, decorationOffset: 16, keepUpright: true, colorCount: 2, paletteColors: ['#FFFFFF','#E4D1F9','#FFFFFF','#E4D1F9'] }),
+  p('ribbon-fourcolor', 'Decorative', 'Pastel Ribbon Ring', 'ribbon', { color: '#F6A9CC', secondaryColor: '#F8C4DD' }, { decorationLayout: 'spacing', decorationSpacing: 210, decorationSize: 24, decorationOffset: 18, keepUpright: true, colorCount: 4, paletteColors: ['#F6A9CC','#F8C4DD','#F9A9C7','#F7D9E7'] }),
+      p('flower-soft', 'Decorative', 'Soft Flower Ring', 'flower', { color: '#FFFFFF', secondaryColor: '#FFDD74' }, { decorationCount: 18, decorationSize: 23, decorationOffset: 14, keepUpright: true }),
+  p('flower-pastel', 'Decorative', 'Pastel Flower Ring', 'flower', { color: '#FFD7EF', secondaryColor: '#FFF1A6' }, { decorationCount: 24, decorationSize: 19, decorationOffset: 16, keepUpright: true, colorCount: 2, paletteColors: ['#FFD7EF','#FFF1A6','#FFD7EF','#FFF1A6'] }),
+  p('flower-fourcolor', 'Decorative', 'Four Color Flower Ring', 'flower', { color: '#F1BDD7', secondaryColor: '#A7D4F3' }, { decorationLayout: 'spacing', decorationSpacing: 175, decorationSize: 20, decorationOffset: 18, keepUpright: true, colorCount: 4, paletteColors: ['#F1BDD7','#A7D4F3','#F3D987','#C3AEF4'] }),
+
+  p('gradient-lav', 'Gradient', 'Lavender Gradient', 'basic', { thickness: 42, gradientMode: 'conic' }),
+  p('gradient-pink', 'Gradient', 'Pink Blue Gradient', 'basic', { thickness: 52, gradientMode: 'conic', gradientStops: [
+    { id: 'g1', position: 0, color: '#F2AFCB' }, { id: 'g2', position: .34, color: '#9BC9EE' }, { id: 'g3', position: .7, color: '#F3D47F' }, { id: 'g4', position: 1, color: '#B9A5F2' },
+  ] }),
+  p('gradient-double', 'Gradient', 'Double Gradient', 'double', { thickness: 22, gradientMode: 'conic' }),
+  p('gradient-segment', 'Gradient', 'Segment Gradient', 'segmented', { thickness: 38, gradientMode: 'conic' }, { dash: 175, gap: 70 }),
+
+  // v0.19 — 흰색 + 한 가지색이 원 둘레를 따라 흐르는 2색 그라데이션
+  p('flow-lavender-soft', 'TwoToneFlow', 'Lavender Flow Soft', 'basic', {
+    thickness: 104,
+    color: '#B79BF1',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#B79BF1', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .24, blendWidth: .12, rotation: -14,
+      glossStrength: .16, innerHighlight: .12, outerHighlight: .09,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#B79BF1', glowBlur: 18, glowIntensity: .12 }),
+
+  p('flow-lavender-wide', 'TwoToneFlow', 'Lavender Flow Wide White', 'basic', {
+    thickness: 108,
+    color: '#AD8CEA',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#AD8CEA', colorB: '#FFFFFF',
+      whiteCenter: .55, whiteWidth: .34, blendWidth: .11, rotation: -12,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow-lavender-glossy', 'TwoToneFlow', 'Lavender Flow Glossy', 'basic', {
+    thickness: 112,
+    color: '#A983E8',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#A983E8', colorB: '#FFFFFF',
+      whiteCenter: .53, whiteWidth: .25, blendWidth: .10, rotation: -16,
+      glossStrength: .30, innerHighlight: .23, outerHighlight: .16,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#A983E8', glowBlur: 22, glowIntensity: .14 }),
+
+  p('flow-lavender-subtle', 'TwoToneFlow', 'Lavender Flow Subtle', 'basic', {
+    thickness: 92,
+    color: '#BFA8F3',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#BFA8F3', colorB: '#FFFFFF',
+      whiteCenter: .55, whiteWidth: .18, blendWidth: .18, rotation: -10,
+      glossStrength: .10, innerHighlight: .07, outerHighlight: .06,
+    },
+  }),
+
+  p('flow-pink-soft', 'TwoToneFlow', 'Pink Flow Soft', 'basic', {
+    thickness: 104,
+    color: '#F1A1C1',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#F1A1C1', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow-mint-soft', 'TwoToneFlow', 'Mint Flow Soft', 'basic', {
+    thickness: 104,
+    color: '#83D8C1',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#83D8C1', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow-sky-soft', 'TwoToneFlow', 'Sky Flow Soft', 'basic', {
+    thickness: 104,
+    color: '#9FC7F2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#9FC7F2', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow-peach-soft', 'TwoToneFlow', 'Peach Flow Soft', 'basic', {
+    thickness: 104,
+    color: '#F3B099',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 1, colorA: '#F3B099', colorB: '#FFFFFF',
+      whiteCenter: .54, whiteWidth: .25, blendWidth: .12, rotation: -14,
+      glossStrength: .15, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  // v0.20 — 실제 선택 색상은 2개지만, 둘레에는 흰색 → 선택색 → 흰색 → 선택색의 4구간으로 반복
+  p('flow4-lavender-balanced', 'TwoToneFlow4', 'Lavender 4-Segment Flow', 'basic', {
+    thickness: 108,
+    color: '#A98AE9',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#A98AE9', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .18, innerHighlight: .13, outerHighlight: .10,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#A98AE9', glowBlur: 18, glowIntensity: .10 }),
+
+  p('flow4-lavender-wide-white', 'TwoToneFlow4', 'Lavender 4-Segment Wide White', 'basic', {
+    thickness: 110,
+    color: '#AE91EC',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#AE91EC', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .52, blendWidth: .09, rotation: -8,
+      glossStrength: .16, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
+  p('flow4-lavender-soft', 'TwoToneFlow4', 'Lavender 4-Segment Soft', 'basic', {
+    thickness: 98,
+    color: '#B9A2F0',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#B9A2F0', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .38, blendWidth: .16, rotation: -8,
+      glossStrength: .12, innerHighlight: .08, outerHighlight: .07,
+    },
+  }),
+
+  p('flow4-lavender-glossy', 'TwoToneFlow4', 'Lavender 4-Segment Glossy', 'basic', {
+    thickness: 116,
+    color: '#9F7CE6',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#9F7CE6', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .40, blendWidth: .10, rotation: -10,
+      glossStrength: .32, innerHighlight: .24, outerHighlight: .17,
+    },
+  }, {}, { glowEnabled: true, glowColor: '#9F7CE6', glowBlur: 22, glowIntensity: .13 }),
+
+  p('flow4-pink', 'TwoToneFlow4', 'Pink 4-Segment Flow', 'basic', {
+    thickness: 106,
+    color: '#F1A0C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#F1A0C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .17, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
+  p('flow4-mint', 'TwoToneFlow4', 'Mint 4-Segment Flow', 'basic', {
+    thickness: 106,
+    color: '#86D8C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#86D8C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .17, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
+  p('flow4-sky', 'TwoToneFlow4', 'Sky 4-Segment Flow', 'basic', {
+    thickness: 106,
+    color: '#94C2F0',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 2, colorA: '#94C2F0', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .42, blendWidth: .11, rotation: -8,
+      glossStrength: .17, innerHighlight: .12, outerHighlight: .09,
+    },
+  }),
+
+  p('flow6-lavender', 'TwoToneFlow6', 'Lavender 6-Segment Flow', 'basic', {
+    thickness: 104,
+    color: '#A98AE9',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 3, colorA: '#A98AE9', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .34, blendWidth: .09, rotation: -8,
+      glossStrength: .16, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow6-pink', 'TwoToneFlow6', 'Pink 6-Segment Flow', 'basic', {
+    thickness: 104,
+    color: '#F1A0C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 3, colorA: '#F1A0C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .34, blendWidth: .09, rotation: -8,
+      glossStrength: .16, innerHighlight: .11, outerHighlight: .08,
+    },
+  }),
+
+  p('flow8-lavender', 'TwoToneFlow8', 'Lavender 8-Segment Flow', 'basic', {
+    thickness: 102,
+    color: '#A98AE9',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 4, colorA: '#A98AE9', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .26, blendWidth: .08, rotation: -8,
+      glossStrength: .14, innerHighlight: .10, outerHighlight: .08,
+    },
+  }),
+
+  p('flow8-mint', 'TwoToneFlow8', 'Mint 8-Segment Flow', 'basic', {
+    thickness: 102,
+    color: '#86D8C2',
+    secondaryColor: '#FFFFFF',
+    gradientMode: 'conic',
+    twoToneFlow: {
+      enabled: true, repeatCount: 4, colorA: '#86D8C2', colorB: '#FFFFFF',
+      whiteCenter: .50, whiteWidth: .26, blendWidth: .08, rotation: -8,
+      glossStrength: .14, innerHighlight: .10, outerHighlight: .08,
+    },
+  }),
+
+
+  p('glow-soft', 'Glow', 'Soft Glow Ring', 'basic', { thickness: 22 }, {}, { glowEnabled: true, glowBlur: 42, glowIntensity: .45 }),
+  p('glow-neon', 'Glow', 'Neon Circle', 'basic', { thickness: 20, color: '#9A8CFF' }, {}, { glowEnabled: true, glowColor: '#8C7BFF', glowBlur: 70, glowIntensity: .85, bloom: 20 }),
+  p('glow-double', 'Glow', 'Double Glow', 'double', { thickness: 16, gradientMode: 'conic' }, {}, { glowEnabled: true, glowBlur: 55, glowIntensity: .7 }),
+  p('glow-broken', 'Glow', 'Broken Neon', 'segmented', { thickness: 28, gradientMode: 'conic' }, { dash: 170, gap: 75 }, { glowEnabled: true, glowBlur: 65, glowIntensity: .75 }),
+  p('glow-dots', 'Glow', 'Glow Dots', 'dotted', { thickness: 8 }, { decorationCount: 46, decorationSize: 16 }, { glowEnabled: true, glowBlur: 38, glowIntensity: .72 }),
+  p('glow-neon-sign', 'Glow', 'Neon Sign Outline', 'scribble', { thickness: 7, color: '#B38AFF' }, { roughness: 6, strokeCount: 3 }, { glowEnabled: true, glowColor: '#A47BFF', glowBlur: 54, glowIntensity: .95, bloom: 18 }),
+  p('glow-neon-heart', 'Glow', 'Neon Heart Wreath', 'heart', { color: '#F7D267', secondaryColor: '#8AC9FF' }, { decorationCount: 26, decorationSize: 18, decorationOffset: 16, keepUpright: true, colorCount: 2, paletteColors: ['#F7D267','#8AC9FF','#F7D267','#8AC9FF'] }, { glowEnabled: true, glowColor: '#FFF0A4', glowBlur: 40, glowIntensity: .75 }),
+  p('glow-neon-ribbon', 'Glow', 'Neon Ribbon Ring', 'ribbon', { color: '#FFFFFF', secondaryColor: '#E2CBFF' }, { decorationCount: 14, decorationSize: 22, decorationOffset: 22, keepUpright: true, colorCount: 2, paletteColors: ['#FFFFFF','#E2CBFF','#FFFFFF','#E2CBFF'] }, { glowEnabled: true, glowColor: '#B38AFF', glowBlur: 44, glowIntensity: .65 }),
+
+  p('glossy-clean', '3D', 'Glossy Ring', 'glossy', { thickness: 74, gradientMode: 'conic' }, {}, { shadowEnabled: true, shadowBlur: 30, shadowOffsetY: 18 }),
+  p('glossy-thin', '3D', 'Thin Glossy', 'glossy', { thickness: 42, gradientMode: 'conic' }, {}, { glowEnabled: true, glowBlur: 28, glowIntensity: .25 }),
+  p('glossy-bright', '3D', 'Luminous Glossy', 'glossy', { thickness: 64, gradientMode: 'conic' }, {}, { glowEnabled: true, glowBlur: 55, glowIntensity: .48, bloom: 12 }),
+
+  p('abstract-offset', 'Abstract', 'Offset Arcs', 'arc', { thickness: 18, gradientMode: 'conic', rotation: 33 }, { dash: 340, gap: 110 }),
+  p('abstract-mix', 'Abstract', 'Mixed Segments', 'segmented', { thickness: 15 }, { dash: 95, gap: 25 }),
+  p('abstract-wave', 'Abstract', 'Organic Circle', 'wavy', { thickness: 16 }, { waveAmplitude: 15, waveCount: 9 }),
+  p('abstract-rough', 'Abstract', 'Organic Rough', 'rough', { thickness: 13 }, { roughness: 20, strokeCount: 4 }),
+]
+
+export const CATEGORIES = ['전체', ...Array.from(new Set(PRESETS.map(x => x.category)))]

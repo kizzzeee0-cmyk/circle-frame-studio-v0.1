@@ -13,6 +13,7 @@ import { downloadProject, exportPng } from './utils/export'
 import { addRecentSave, clearRecentSaves, deleteRecentSave, listRecentSaves, type RecentSaveRecord, type RecentSaveSource } from './utils/recentSaves'
 import { uid } from './utils/id'
 import { storeMediaFile } from './utils/media'
+import { exportPortableProject, importPortableProject } from './utils/projectBundle'
 import { createMediaLayer, defaultBackground, defaultComposerSettings, defaultTimeline, normalizeBackground, normalizeComposerSettings, normalizeMediaLayer, normalizeTimeline } from './utils/projectDefaults'
 import './styles.css'
 
@@ -318,6 +319,7 @@ export default function App() {
   const redoRef = useRef<FrameProject[]>([])
   const coalesceRef = useRef<{ key: string; time: number }>({ key: '', time: 0 })
   const fileInput = useRef<HTMLInputElement>(null)
+  const bundleInput = useRef<HTMLInputElement>(null)
 
   const commit = useCallback((updater: (draft: FrameProject) => FrameProject) => {
     setProject(prev => {
@@ -496,6 +498,29 @@ export default function App() {
   const handleJsonSave = async () => {
     downloadProject(project)
     await recordRecentSave('json')
+  }
+
+  const handlePortableSave = async () => {
+    try {
+      await exportPortableProject(project)
+      await recordRecentSave('json')
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '휴대용 프로젝트를 저장하지 못했습니다.')
+    }
+  }
+
+  const importPortable = async (file?: File) => {
+    if (!file) return
+    if (!confirm('프로젝트 패키지를 불러오면 현재 작업 상태가 바뀝니다. 계속할까요?')) return
+    try {
+      const restored = await importPortableProject(file)
+      commit(() => normalizeProject(restored))
+      setSelectedMediaId('')
+      setSelectedMediaIds([])
+      setTimelineTime(0)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '휴대용 프로젝트를 불러오지 못했습니다.')
+    }
   }
 
   const loadRecentSave = (record: RecentSaveRecord) => {
@@ -957,9 +982,17 @@ export default function App() {
           <button onClick={undo} title="Ctrl+Z">↶ 실행취소</button>
           <button onClick={redo} title="Ctrl+Y">↷ 다시실행</button>
           <span className="toolbar-sep" />
-          <button onClick={() => void handleJsonSave()}>JSON 저장</button>
-          <button onClick={() => fileInput.current?.click()}>JSON 불러오기</button>
+          <button className="project-package-button" onClick={() => void handlePortableSave()}>프로젝트 저장</button>
+          <button className="project-package-button" onClick={() => bundleInput.current?.click()}>프로젝트 불러오기</button>
+          <input ref={bundleInput} hidden type="file" accept=".cfszip,application/zip" onChange={e => void importPortable(e.target.files?.[0])} />
           <button onClick={() => setRecentOpen(true)}>최근 저장 내역</button>
+          <details className="toolbar-more">
+            <summary>기타</summary>
+            <div>
+              <button onClick={() => void handleJsonSave()}>JSON 백업</button>
+              <button onClick={() => fileInput.current?.click()}>JSON 불러오기</button>
+            </div>
+          </details>
           <input ref={fileInput} hidden type="file" accept="application/json,.json" onChange={e => importProject(e.target.files?.[0])} />
           <label className="autofit"><input type="checkbox" checked={project.autoFit} onChange={e => commit(d => ({ ...d, autoFit: e.target.checked }))} /> Auto Fit</label>
           <select className="top-export-resolution" value={pngResolution} onChange={e => setPngResolution(Number(e.target.value))} title="PNG 해상도">

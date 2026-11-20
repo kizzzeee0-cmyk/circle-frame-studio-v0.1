@@ -236,43 +236,51 @@ export default function CanvasPanel({
   }
 
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button === 1) {
-      event.preventDefault()
-      dragRef.current = { type: 'pan', startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y }
-      event.currentTarget.setPointerCapture(event.pointerId)
-      return
-    }
-
-    if (event.button === 0 && selectedMediaId && !event.altKey) {
-      const layer = (project.mediaLayers ?? []).find(item => item.id === selectedMediaId)
-      if (!layer || layer.locked) return
-      dragRef.current = { type: 'media', id: layer.id, startX: event.clientX, startY: event.clientY, mediaX: layer.x, mediaY: layer.y }
-      event.currentTarget.setPointerCapture(event.pointerId)
-    }
+    if (event.button !== 1) return
+    event.preventDefault()
+    panRef.current = { startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y }
+    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current
-    if (!drag) return
-    if (drag.type === 'pan') {
-      setPan({ x: drag.panX + event.clientX - drag.startX, y: drag.panY + event.clientY - drag.startY })
-      return
+    if (panRef.current) {
+      setPan({
+        x: panRef.current.panX + event.clientX - panRef.current.startX,
+        y: panRef.current.panY + event.clientY - panRef.current.startY,
+      })
     }
-    if (!onMoveMedia || !ref.current) return
-    const rect = ref.current.getBoundingClientRect()
-    const projectPerScreenX = project.width / Math.max(1, rect.width)
-    const projectPerScreenY = project.height / Math.max(1, rect.height)
-    onMoveMedia(
-      drag.id,
-      drag.mediaX + (event.clientX - drag.startX) * projectPerScreenX,
-      drag.mediaY + (event.clientY - drag.startY) * projectPerScreenY,
-    )
+    transformMove(event)
   }
 
   const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    dragRef.current = null
+    panRef.current = null
+    endTransform(event)
     try { event.currentTarget.releasePointerCapture(event.pointerId) } catch { /* ignore */ }
   }
+
+  const overlayStyle = (() => {
+    if (!bounds) return undefined
+    if (selectedLayers.length === 1) {
+      const layer = selectedLayers[0]
+      const widthPct = layer.width * layer.scale * fitScale / project.width * 100
+      const heightPct = layer.height * layer.scale * fitScale / project.height * 100
+      const leftPct = 50 + layer.x * fitScale / project.width * 100 - widthPct / 2
+      const topPct = 50 + layer.y * fitScale / project.height * 100 - heightPct / 2
+      return {
+        left: leftPct + '%',
+        top: topPct + '%',
+        width: widthPct + '%',
+        height: heightPct + '%',
+        transform: 'rotate(' + layer.rotation + 'deg)',
+      }
+    }
+    return {
+      left: (50 + bounds.left * fitScale / project.width * 100) + '%',
+      top: (50 + bounds.top * fitScale / project.height * 100) + '%',
+      width: (bounds.width * fitScale / project.width * 100) + '%',
+      height: (bounds.height * fitScale / project.height * 100) + '%',
+    }
+  })()
 
   return (
     <div className="canvas-stage">

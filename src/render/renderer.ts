@@ -553,7 +553,7 @@ function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
   ctx.restore()
 
   // 약한 하이라이트
-  ctx.fillStyle = '#FFFFFF'
+  ctx.fillStyle = validColor(glitter.highlightColor, '#FFFFFF')
   ctx.globalAlpha = oldAlpha * 0.15
   ctx.beginPath()
   ctx.ellipse(-8.7, -5.2, 5.4, 2.0, -0.35, 0, TAU)
@@ -975,9 +975,11 @@ function drawGlitter(
   const animationStrength = glitter.animated ? clamp01(glitter.animationStrength) : 0
   const animationSpeed = Math.max(.05, glitter.animationSpeed || 1)
   const animationSmoothness = clamp01(glitter.animationSmoothness ?? .86)
-  const time = animationProgress == null
+  const baseTime = animationProgress == null
     ? (animationTimeMs / 1000) * animationSpeed * TAU
     : (((animationProgress % 1) + 1) % 1) * TAU
+  const flowDirection = glitter.flowDirection === -1 ? -1 : 1
+  const time = baseTime * (glitter.flowEnabled ? flowDirection : 1)
 
   // Semi-transparent pearly base keeps the ring shape readable underneath the glitter.
   ctx.save()
@@ -1029,7 +1031,7 @@ function drawGlitter(
     ctx.globalAlpha *= alpha
     ctx.fillStyle = color
     ctx.strokeStyle = color
-    ctx.shadowColor = color
+    ctx.shadowColor = validColor(glitter.glowColor, color)
     ctx.shadowBlur = particleGlow * (isSparkle ? (.16 + motion * .72) : (.06 + motion * .20))
 
     if (isSparkle) {
@@ -1040,7 +1042,7 @@ function drawGlitter(
       const rayAlpha = smoothstep(.34, .92, motion)
       ctx.save()
       ctx.globalAlpha *= rayAlpha * .68
-      ctx.strokeStyle = '#FFFFFF'
+      ctx.strokeStyle = validColor(glitter.highlightColor, '#FFFFFF')
       ctx.lineWidth = Math.max(.48, size * .04)
       ctx.lineCap = 'round'
       ctx.beginPath()
@@ -1052,7 +1054,7 @@ function drawGlitter(
       ctx.restore()
 
       ctx.globalAlpha *= .76 + rayAlpha * .12
-      ctx.fillStyle = '#FFFFFF'
+      ctx.fillStyle = validColor(glitter.highlightColor, '#FFFFFF')
       ctx.beginPath()
       ctx.arc(x, y, Math.max(.4, size * .065), 0, TAU)
       ctx.fill()
@@ -1075,7 +1077,7 @@ function drawGlitter(
       if (hasPinHighlight) {
         const pinAlpha = smoothstep(.46, .96, motion)
         ctx.globalAlpha *= pinAlpha * .58
-        ctx.fillStyle = '#FFFFFF'
+        ctx.fillStyle = validColor(glitter.highlightColor, '#FFFFFF')
         ctx.beginPath()
         ctx.arc(x - size * .08, y - size * .10, Math.max(.22, size * .10), 0, TAU)
         ctx.fill()
@@ -1500,7 +1502,13 @@ function drawMediaLayer(
   const h = Math.max(1, layer.height * layer.scale * motion.scale * scale)
   const x = ctx.canvas.width / 2 + (layer.x + motion.x) * scale
   const y = ctx.canvas.height / 2 + (layer.y + motion.y) * scale
-  const rotation = ((layer.rotation + motion.rotation) * Math.PI) / 180
+  const followTarget = layer.followFrameRotation
+    ? project.layers.find(item => item.id === (layer.followFrameLayerId || layer.maskFrameLayerId))
+    : undefined
+  const followRotation = followTarget
+    ? followTarget.design.rotation + animatedFrameRotation(followTarget.design, sceneTimeSec)
+    : 0
+  const rotation = ((layer.rotation + motion.rotation + followRotation) * Math.PI) / 180
 
   const paint = (target: CanvasRenderingContext2D) => {
     target.save()
@@ -1552,7 +1560,7 @@ function drawMediaLayer(
     sctx.beginPath()
     sctx.arc(mx, my, outer, 0, TAU)
     sctx.arc(mx, my, inner, 0, TAU, true)
-    sctx.fillStyle = '#FFFFFF'
+    sctx.fillStyle = validColor(glitter.highlightColor, '#FFFFFF')
     sctx.fill('evenodd')
     sctx.globalCompositeOperation = 'source-over'
   }

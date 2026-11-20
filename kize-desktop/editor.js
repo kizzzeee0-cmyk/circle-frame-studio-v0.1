@@ -1537,6 +1537,42 @@ installCharacterPalette({
   download:(blob,name)=>downloadBlob(blob,name)
 });
 
+// Exact PNG handoff from Cute Pattern Studio. This imports a real original-
+// size image Blob through the common IndexedDB workspace, not a screenshot.
+async function receiveSharedAsset(){
+  if(new URL(location.href).searchParams.get('handoff')!=='1')return;
+  try{
+    const bridge=window.KIZEBridge;
+    if(!bridge)return;
+    const asset=await bridge.getAsset();
+    if(!asset){notify('전달받은 PNG가 없어요. 패턴 도구에서 다시 보내 주세요.');return;}
+    const file=new File([asset.blob],asset.name,{type:'image/png'});
+    await importRaster(file);
+    await bridge.clearAsset();
+    const url=new URL(location.href);url.searchParams.delete('handoff');
+    history.replaceState(null,'',url.pathname+url.search+url.hash);
+    notify('큐트 패턴에서 '+file.name+' 원본 크기 PNG를 가져왔어요. 색상 편집을 시작하세요.');
+  }catch(error){notify('도구 간 PNG 불러오기 실패: '+(error?.message||error));}
+}
+$('sendToCircle').onclick=async()=>{
+  if(!documentModel){notify('원형 프레임에 보낼 PNG를 먼저 불러와 주세요.');return;}
+  const bridge=window.KIZEBridge;
+  if(!bridge){notify('공통 작업 공간을 사용할 수 없어요.');return;}
+  if(unsavedChanges&&!confirm('현재 미저장 편집 내용을 새 도구로 전환하면 복구할 수 없어요. 필요한 경우 .kize 프로젝트로 먼저 저장해 주세요. 현재 결과 PNG만 보내고 이동할까요?'))return;
+  try{
+    const bytes=await canvasToPngBytes(canvas);
+    const filename=(documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'')+'-edited.png';
+    await bridge.putAsset(new Blob([bytes],{type:'image/png'}),filename);
+    // The handoff safely persists the full-resolution PNG. User approved
+    // leaving their current unsaved editor state above.
+    unsavedChanges=false;updateDirtyStatus();
+    bridge.openTool('circle');
+  }catch(error){notify('원형 프레임으로 보내기 실패: '+(error?.message||error));}
+};
+if(document.readyState==='loading')
+  document.addEventListener('DOMContentLoaded',()=>void receiveSharedAsset(),{once:true});
+else void receiveSharedAsset();
+
 function restoreSnapshots(snapshots){
   for(const snapshot of snapshots){
     const l=layers.find(x=>x.id===snapshot.id);

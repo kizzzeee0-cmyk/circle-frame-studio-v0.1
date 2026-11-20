@@ -23,10 +23,11 @@ test('mouse wheel zoom and middle-button drag panning are both registered',()=>{
   const css=readFileSync(new URL('../styles.css',import.meta.url),'utf8');
   assert.match(editor,/stage\.addEventListener\('wheel'/);
   assert.match(editor,/zoomAtPointer\(zoom\*factor,e\.clientX,e\.clientY\)/);
-  assert.match(editor,/e\.button!==1/);
-  assert.match(editor,/stage\.scrollLeft-=e\.clientX-middlePan\.lastX/);
-  assert.match(editor,/stage\.scrollTop-=e\.clientY-middlePan\.lastY/);
-  assert.match(editor,/if\(!documentModel\|\|e\.button!==0\)return/);
+  assert.match(editor,/e\.button===1/);
+  assert.match(editor,/panX=middlePan\.panX\+e\.clientX-middlePan\.startX/);
+  assert.match(editor,/panY=middlePan\.panY\+e\.clientY-middlePan\.startY/);
+  assert.match(editor,/window\.addEventListener\('pointermove'/);
+  assert.match(editor,/if\(!documentModel\|\|e\.button!==0\|\|middlePan\|\|spacePan\)return/);
   assert.match(css,/\.stage\{[^}]*display:block/);
   assert.match(css,/\.stage-sizer\{[^}]*width:max-content/);
 });

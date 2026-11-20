@@ -702,7 +702,14 @@ function refreshProperties(){
   $('photoScale').value=l?.scale??100;$('photoOffsetX').value=l?.offsetX??0;$('photoOffsetY').value=l?.offsetY??0;
   $('textValue').value=l?.type==='text'?(l.textValue||''):'';
   $('fontFamily').value=l?.fontFamily||'';$('fontSize').value=l?.fontSize||32;$('textColor').value=l?.textColor||'#333333';
-  for(const input of document.querySelectorAll('[data-adjust]')){const k=input.dataset.adjust;input.value=l?.adjust?.[k]||0;const id='out'+k[0].toUpperCase()+k.slice(1);if($(id))$(id).textContent=input.value;}
+  for(const input of document.querySelectorAll('[data-adjust]')){
+    const k=input.dataset.adjust;
+    input.value=l?.adjust?.[k]??0;
+    const id='out'+k[0].toUpperCase()+k.slice(1);
+    if($(id))$(id).textContent=input.value;
+    const numeric=$('num'+k[0].toUpperCase()+k.slice(1));
+    if(numeric)numeric.value=input.value;
+  }
   $('textPanel').hidden=l?.type!=='text';
   const note=$('layerCompatibility');
   if(l?.compatibility){
@@ -1386,16 +1393,43 @@ async function replaceImage(file){
   markEdited();clearSelections();refreshAll();notify('사진을 기존 레이어 영역에 맞춰 교체했습니다. 내부 이동/크기와 톤을 조정할 수 있습니다.');
 }
 $('replaceFile').onchange=async e=>{const f=e.target.files?.[0];e.target.value='';if(f)try{await replaceImage(f);}catch(err){notify('사진 교체 실패: '+err.message);}};
+function setPhotoAdjustment(layer,key,value){
+  if(!layer)return;
+  if(!layer.photoSource)layer.photoSource=cloneCanvas(layer.canvas);
+  const next=clamp(Math.round(Number(value)||0),-100,100);
+  layer.adjust[key]=next;
+  // PSD merged snapshots don't recalculate Camera Raw / layer effects.
+  // Show the edited raster layer so the user never sees a stale composite.
+  if(originalComposite){
+    appearanceSafe=false;
+    previewMode='layers';
+  }
+  temporaryPreview=null;
+  markEdited();
+  const slider=document.querySelector('[data-adjust="'+key+'"]');
+  const numeric=document.querySelector('[data-adjust-number="'+key+'"]');
+  if(slider)slider.value=String(next);
+  if(numeric)numeric.value=String(next);
+  const out=$('out'+key[0].toUpperCase()+key.slice(1));
+  if(out)out.textContent=String(next);
+  render();
+}
 for(const input of document.querySelectorAll('[data-adjust]')){
   input.addEventListener('pointerdown',()=>{if(sel())checkpoint(sel());});
   input.addEventListener('keydown',e=>{if(e.key.startsWith('Arrow')&&sel())checkpoint(sel());});
   input.oninput=e=>{
+    const l=sel();if(l)setPhotoAdjustment(l,e.target.dataset.adjust,e.target.value);
+  };
+}
+for(const input of document.querySelectorAll('[data-adjust-number]')){
+  input.onchange=e=>{
     const l=sel();if(!l)return;
-    if(!l.photoSource)l.photoSource=cloneCanvas(l.canvas);
-    markEdited();
-    const k=e.target.dataset.adjust;l.adjust[k]=Number(e.target.value);
-    const out=$('out'+k[0].toUpperCase()+k.slice(1));if(out)out.textContent=e.target.value;
-    render();
+    const key=e.target.dataset.adjustNumber;
+    const value=clamp(Math.round(Number(e.target.value)||0),-100,100);
+    if(value===(l.adjust?.[key]??0)){e.target.value=String(value);return;}
+    checkpoint(l);
+    setPhotoAdjustment(l,key,value);
+    notify('사진 '+key+' '+value+' 적용 · 슬라이더·숫자 동기화 완료');
   };
 }
 $('resetAdjust').onclick=()=>{const l=sel();if(!l)return;checkpoint(l);l.adjust=defaultAdjust();refreshAll();};

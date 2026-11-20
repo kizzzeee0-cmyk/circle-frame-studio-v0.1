@@ -37,9 +37,26 @@ try{
  await page.locator('#kize-unified-nav .kize-nav-share button').click();
  assert.match(await page.locator('#toast').textContent(),/KIZE 공통 팔레트/,
    'Pattern Studio current layer changed by shared palette');
- await page.locator('#kize-unified-nav a[data-tool="circle"]').click();
+ // Transfer the actual original-resolution Pattern PNG into the KIZE editor.
+ await page.locator('#exportW').fill('96');
+ await page.locator('#exportH').fill('96');
+ await page.locator('#sendKizeEditor').click();
+ await page.waitForFunction(()=>document.querySelector('#docInfo')?.textContent?.includes('96×96px'),
+   null,{timeout:60000});
+ assert.match(await page.locator('#sourceName').textContent(),/cute-pattern-96x96/,
+   'Pattern export arrived in the KIZE editor as full-res PNG, not iframe');
+ assert.equal(await page.locator('#kize-unified-nav a.current').textContent(),'색상·에셋 편집');
+ // Transfer the KIZE canvas to the Circle media library without PNG resampling.
+ await page.locator('#sendToCircle').click();
  await page.waitForFunction(()=>document.querySelector('#root')?.children.length>0,
    null,{timeout:60000});
+ await page.waitForFunction(()=>{
+   try{
+     const raw=localStorage.getItem('circle-frame-studio-project-v040');
+     const project=JSON.parse(raw||'{}');
+     return project.mediaLayers?.some(l=>l.name?.includes('cute-pattern-96x96'))??false;
+   }catch{return false;}
+ },null,{timeout:60000});
  assert.equal(await page.locator('#kize-unified-nav a.current').textContent(),'원형 프레임');
  assert.equal(await page.locator('iframe').count(),0,'Circle React renderer is native offline');
  await page.locator('#kize-shared-palette').selectOption({label:'테스트 블루 파스텔'});

@@ -1,4 +1,4 @@
-name: Package Circle Frame Studio v0.39
+name: Package Circle Frame Studio v0.40
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       - name: Upload source artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Circle-Frame-Studio-v0.39
+          name: Circle-Frame-Studio-v0.40
           if-no-files-found: error
           retention-days: 30
           path: |

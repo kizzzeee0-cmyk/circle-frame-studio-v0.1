@@ -475,6 +475,21 @@ v0.31에서 완료 처리하지 않았던 편집 기능을 실제 작업 흐름�
 
 즐겨찾기, 접힘 상태, 프리셋 즐겨찾기는 프로젝트 데이터와 별도로 브라우저 로컬 UI 설정에 저장됩니다.
 
+## v0.40 — Stable Playback & Deeper Rendering Optimization
+
+애니메이션 재생 중 화면이 순간적으로 깜빡이거나, 고밀도 글리터에서 프레임이 불규칙하게 밀리는 문제를 렌더 구조 기준으로 추가 수정했습니다.
+
+- 2D/GPU 모두 완성 중인 프레임을 화면에 직접 그리지 않고 offscreen back buffer에서 완성 후 한 번에 표시
+- 2D 미리보기에서 visible canvas를 매 프레임 clear/render 하던 구조 제거
+- GPU 합성에서 매 프레임 texImage2D로 텍스처를 재할당하지 않고, 크기가 같으면 texSubImage2D로 내용만 업데이트
+- GPU 표시 전에 불필요하게 화면을 clear하던 과정 제거
+- 한 프레임 렌더가 18ms를 넘기면 무리하게 60Hz 작업을 밀어 넣지 않고 안정적인 약 30Hz로 자동 전환
+- React 타임라인 UI 갱신을 약 10FPS로 낮춰 캔버스 애니메이션과 UI 업데이트 경쟁 추가 감소
+- Orbit Glitter의 고정 난수 입자 데이터를 캐시해 매 프레임 재생성 비용 제거
+- Orbit 600~1200 입자에서 particle별 canvas save/restore 제거하고 한 번의 배치 상태로 렌더
+- 트윙클 밝기 하한을 높여 입자가 거의 꺼졌다 다시 켜지는 듯한 깜빡임 완화
+- 비디오 재생 중 작은 시간 오차마다 seek하던 동작을 중단하고, 큰 드리프트·루프 점프에서만 동기화
+
 ## v0.39 — Interaction Performance & Preview Render Optimization
 
 설정 하나를 바꿀 때 전체 앱이 버벅이고 결과 반영이 늦는 문제를 실제 렌더 흐름 기준으로 최적화했습니다.

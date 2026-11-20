@@ -1,4 +1,4 @@
-export const APP_VERSION = '0.39'
+export const APP_VERSION = '0.40'
 
 export const UPDATE_SEEN_KEY = `circle-frame-studio-update-hints-seen-v${APP_VERSION}`
 

@@ -105,6 +105,8 @@ export default function CanvasPanel({
   const playingRef = useRef(playing)
   const staticRenderFrameRef = useRef(0)
   const settleRenderTimerRef = useRef(0)
+  const renderCostRef = useRef(0)
+  const lastPresentedAtRef = useRef(0)
   projectRef.current = project
   playingRef.current = playing
   if (!playing) previewTimeRef.current = timeSec
@@ -147,6 +149,7 @@ export default function CanvasPanel({
 
   const renderAt = useCallback((renderTime: number, renderPlaying: boolean, resolution = effectiveResolution) => {
     const currentProject = projectRef.current
+    const started = performance.now()
     syncProjectMediaPreview(currentProject, renderTime, renderPlaying)
     const duration = Math.max(.5, currentProject.timeline?.duration ?? 3)
     const wrapped = currentProject.timeline?.loop === false
@@ -154,21 +157,29 @@ export default function CanvasPanel({
       : ((renderTime % duration) + duration) % duration
     const progress = wrapped / duration
 
+    // v0.40: render into an offscreen back buffer first, then present only completed frames.
+    const surface = renderSurfaceRef.current ?? document.createElement('canvas')
+    renderSurfaceRef.current = surface
+    if (surface.width !== resolution) surface.width = resolution
+    if (surface.height !== resolution) surface.height = resolution
+    renderProject(surface, currentProject, undefined, wrapped * 1000, progress)
+
     if (useGpu && gpuRef.current) {
-      const surface = renderSurfaceRef.current ?? document.createElement('canvas')
-      renderSurfaceRef.current = surface
-      if (surface.width !== resolution) surface.width = resolution
-      if (surface.height !== resolution) surface.height = resolution
-      renderProject(surface, currentProject, undefined, wrapped * 1000, progress)
       presentCanvasWithGpu(gpuRef.current, surface)
-      return
+    } else if (ref.current) {
+      const display = ref.current
+      if (display.width !== resolution) display.width = resolution
+      if (display.height !== resolution) display.height = resolution
+      const displayCtx = display.getContext('2d')
+      if (displayCtx) {
+        displayCtx.globalCompositeOperation = 'copy'
+        displayCtx.drawImage(surface, 0, 0)
+        displayCtx.globalCompositeOperation = 'source-over'
+      }
     }
 
-    if (ref.current) {
-      if (ref.current.width !== resolution) ref.current.width = resolution
-      if (ref.current.height !== resolution) ref.current.height = resolution
-      renderProject(ref.current, currentProject, undefined, wrapped * 1000, progress)
-    }
+    const cost = performance.now() - started
+    renderCostRef.current = renderCostRef.current <= 0 ? cost : renderCostRef.current * .82 + cost * .18
   }, [effectiveResolution, useGpu])
 
   useEffect(() => {
@@ -218,7 +229,12 @@ export default function CanvasPanel({
         ? Math.min(duration, rawTime)
         : rawTime % duration
       previewTimeRef.current = currentTime
-      renderAt(currentTime, true, effectiveResolution)
+
+      const minFrameGap = renderCostRef.current > 18 ? 32 : 0
+      if (minFrameGap === 0 || now - lastPresentedAtRef.current >= minFrameGap) {
+        renderAt(currentTime, true, effectiveResolution)
+        lastPresentedAtRef.current = now
+      }
       frame = requestAnimationFrame(tick)
     }
 
@@ -229,7 +245,7 @@ export default function CanvasPanel({
   const sampleAt = (clientX: number, clientY: number) => {
     if (!onSampleColor) return
     const display = useGpu ? gpuRef.current : ref.current
-    const source = useGpu ? renderSurfaceRef.current : ref.current
+    const source = renderSurfaceRef.current
     if (!display || !source) return
     const rect = display.getBoundingClientRect()
     const x = Math.floor((clientX - rect.left) * (source.width / rect.width))
@@ -497,7 +513,7 @@ export default function CanvasPanel({
           <option value="quality">고품질</option>
           <option value="performance">성능 우선</option>
         </select>
-        {showUpdateHints && <span className="performance-update-badge">OPTIMIZED</span>}
+        {showUpdateHints && <span className="performance-update-badge">STABLE</span>}
         <span className={useGpu ? 'gpu-status active' : 'gpu-status'} title={useGpu ? '2D 캔버스 합성 결과를 WebGL2로 표시합니다. 최종 렌더 품질은 동일합니다.' : 'Canvas 2D 미리보기'}>{useGpu ? 'GPU 표시' : '2D 표시'}</span>
       </div>
 

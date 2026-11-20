@@ -16,6 +16,7 @@ const urlCache = new Map<string, string>()
 const imageCache = new Map<string, HTMLImageElement>()
 const videoCache = new Map<string, HTMLVideoElement>()
 const missingAssets = new Set<string>()
+const previewVideoTargets = new WeakMap<HTMLVideoElement, number>()
 let dbPromise: Promise<IDBDatabase> | null = null
 
 function openDb() {
@@ -219,41 +220,46 @@ function targetVideoTime(layer: MediaLayer, sceneTimeSec: number, duration: numb
   return Math.min(requestedEnd - .001, start + (local % usable))
 }
 
+function syncPreviewVideo(video: HTMLVideoElement, target: number, playing: boolean) {
+  if (!playing) {
+    previewVideoTargets.set(video, target)
+    video.pause()
+    if (Math.abs(video.currentTime - target) > .035 && !video.seeking) {
+      try { video.currentTime = target } catch { /* ignore */ }
+    }
+    return
+  }
+
+  const previousTarget = previewVideoTargets.get(video)
+  const wrappedOrJumped = previousTarget != null && (
+    target + .18 < previousTarget ||
+    Math.abs(target - previousTarget) > .75
+  )
+  const drift = Math.abs(video.currentTime - target)
+
+  // v0.40: normal playback is driven by the media element itself.
+  // Seeking on small timing differences can temporarily produce an empty video frame,
+  // which appeared as periodic flashing in the composed preview.
+  if (!video.seeking && (wrappedOrJumped || drift > 1.25)) {
+    try { video.currentTime = target } catch { /* ignore */ }
+  }
+  previewVideoTargets.set(video, target)
+  if (video.paused) void video.play().catch(() => {})
+}
+
 export function syncProjectMediaPreview(project: FrameProject, sceneTimeSec: number, playing: boolean) {
   for (const layer of project.mediaLayers ?? []) {
     if (layer.kind !== 'video') continue
     const video = getMediaElement(layer)
     if (!(video instanceof HTMLVideoElement) || !Number.isFinite(video.duration) || video.duration <= 0) continue
-    const target = targetVideoTime(layer, sceneTimeSec, video.duration)
-    if (playing) {
-      if (Math.abs(video.currentTime - target) > .45) {
-        try { video.currentTime = target } catch { /* ignore */ }
-      }
-      if (video.paused) void video.play().catch(() => {})
-    } else {
-      video.pause()
-      if (Math.abs(video.currentTime - target) > .035) {
-        try { video.currentTime = target } catch { /* ignore */ }
-      }
-    }
+    syncPreviewVideo(video, targetVideoTime(layer, sceneTimeSec, video.duration), playing)
   }
 
   const background = project.background
   if (background?.type === 'video') {
     const video = getBackgroundElement(background)
     if (video instanceof HTMLVideoElement && Number.isFinite(video.duration) && video.duration > 0) {
-      const target = sceneTimeSec % video.duration
-      if (playing) {
-        if (Math.abs(video.currentTime - target) > .45) {
-          try { video.currentTime = target } catch { /* ignore */ }
-        }
-        if (video.paused) void video.play().catch(() => {})
-      } else {
-        video.pause()
-        if (Math.abs(video.currentTime - target) > .035) {
-          try { video.currentTime = target } catch { /* ignore */ }
-        }
-      }
+      syncPreviewVideo(video, sceneTimeSec % video.duration, playing)
     }
   }
 }

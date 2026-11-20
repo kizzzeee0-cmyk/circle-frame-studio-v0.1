@@ -172,6 +172,19 @@ function makeGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: nu
 const embossMaskCache = new Map<string, HTMLCanvasElement>()
 const glitterSurfaceCache = new Map<string, HTMLCanvasElement>()
 
+interface OrbitParticleSeed {
+  angularJitter: number
+  phase: number
+  radialSeed: number
+  sizeSeed: number
+  brightnessSeed: number
+  color: string
+  strokeColor: string
+  laps: number
+}
+
+const orbitParticleCache = new Map<string, OrbitParticleSeed[]>()
+
 function makeEmbossMaskDesign(design: FrameDesign): FrameDesign {
   const white = '#FFFFFF'
   const next: FrameDesign = structuredClone(design)
@@ -1322,6 +1335,41 @@ function surfaceHighlightEnabled(g: FrameDesign['glitter']) {
   return g.highlightSweepEnabled ?? g.animationMode === 'sweep'
 }
 
+function getOrbitParticles(design: FrameDesign, count: number, colors: string[]) {
+  const key = JSON.stringify([design.pattern.seed, count, colors])
+  const cached = orbitParticleCache.get(key)
+  if (cached) return cached
+
+  const rand = seeded(design.pattern.seed + 66317)
+  const particles: OrbitParticleSeed[] = Array.from({ length: count }, () => {
+    const angularJitter = rand()
+    const phase = rand()
+    const radialSeed = rand() * 2 - 1
+    const sizeSeed = rand()
+    const brightnessSeed = rand()
+    const color = colors[Math.floor(rand() * colors.length)] ?? '#FFFFFF'
+    const laps = rand() < .11 ? 2 : 1
+    return {
+      angularJitter,
+      phase,
+      radialSeed,
+      sizeSeed,
+      brightnessSeed,
+      color,
+      strokeColor: mixHex(color, '#FFFFFF', .34),
+      laps,
+    }
+  })
+
+  orbitParticleCache.set(key, particles)
+  while (orbitParticleCache.size > 20) {
+    const first = orbitParticleCache.keys().next().value
+    if (typeof first === 'string') orbitParticleCache.delete(first)
+    else break
+  }
+  return particles
+}
+
 function drawOrbitGlitter(
   ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number,
   design: FrameDesign, rotation: number, scale: number,
@@ -1342,7 +1390,7 @@ function drawOrbitGlitter(
   const twinkleRepeats = Math.max(1, Math.min(4, Math.round(Math.max(.2, g.animationSpeed || 1) * 2)))
   const strength = clamp01(g.animationStrength)
   const colors = surfacePalette(design)
-  const rand = seeded(design.pattern.seed + 66317)
+  const particles = getOrbitParticles(design, count, colors)
   const accentChance = Math.min(.06, Math.max(0, g.accentSparkleCount) / Math.max(1, count) * 1.5)
 
   if (g.ringVisible) {
@@ -1355,61 +1403,65 @@ function drawOrbitGlitter(
     ctx.restore()
   }
 
+  const localCycle = moving ? cycle : 0
+  const baseAlpha = ctx.globalAlpha
+  const glowColor = validColor(g.glowColor, '#FFFFFF')
+  const glowBlur = Math.max(0, g.glow * scale * .12)
+
+  // v0.40: one canvas state for the whole particle batch.
+  // save/restore per particle was especially expensive at 600–1200 particles.
+  ctx.save()
+  ctx.globalCompositeOperation = 'screen'
+  ctx.lineCap = 'round'
+  ctx.shadowBlur = glowBlur
+
   for (let i = 0; i < count; i++) {
-    const angularJitter = rand()
-    const phase = rand()
-    const radialSeed = rand() * 2 - 1
-    const sizeSeed = rand()
-    const brightnessSeed = rand()
-    const color = colors[Math.floor(rand() * colors.length)] ?? '#FFFFFF'
-    const laps = rand() < .11 ? 2 : 1
-    const baseAngle = rotation - Math.PI / 2 + ((i + angularJitter * .92) / count) * TAU
-    const localCycle = moving ? cycle : 0
-    const angle = baseAngle + direction * TAU * localCycle * laps
-    const radialBreath = Math.sin(TAU * (localCycle * (i % 3 === 0 ? 2 : 1) + phase)) * spread * .075
-    const rr = r + radialSeed * spread + radialBreath
+    const particle = particles[i]
+    const baseAngle = rotation - Math.PI / 2 + ((i + particle.angularJitter * .92) / count) * TAU
+    const angle = baseAngle + direction * TAU * localCycle * particle.laps
+    const radialBreath = Math.sin(TAU * (localCycle * (i % 3 === 0 ? 2 : 1) + particle.phase)) * spread * .075
+    const rr = r + particle.radialSeed * spread + radialBreath
     const x = cx + Math.cos(angle) * rr
     const y = cy + Math.sin(angle) * rr
-    const wave = twinkle ? .5 + .5 * Math.sin(TAU * (cycle * twinkleRepeats + phase)) : .62
-    const pulse = .44 + smoothstep(.02, .98, wave) * .56
-    const size = Math.max(.28, baseParticle * (1 + (sizeSeed * 2 - 1) * variation) * (.82 + pulse * .16))
-    const alpha = (.18 + brightnessSeed * .62) * (.56 + pulse * .44) * (.54 + strength * .46)
+    const wave = twinkle ? .5 + .5 * Math.sin(TAU * (cycle * twinkleRepeats + particle.phase)) : .62
+    // Keep a non-zero light floor so twinkle reads as shimmer rather than whole-particle blinking.
+    const pulse = .58 + smoothstep(.04, .96, wave) * .42
+    const size = Math.max(.28, baseParticle * (1 + (particle.sizeSeed * 2 - 1) * variation) * (.88 + pulse * .12))
+    const alpha = (.18 + particle.brightnessSeed * .62) * (.68 + pulse * .32) * (.54 + strength * .46)
 
-    ctx.save()
-    ctx.globalCompositeOperation = 'screen'
-    ctx.globalAlpha *= alpha
-    ctx.fillStyle = color
-    ctx.strokeStyle = mixHex(color, '#FFFFFF', .34)
-    ctx.lineCap = 'round'
-    ctx.shadowColor = validColor(g.glowColor, color)
-    ctx.shadowBlur = Math.max(0, g.glow * scale * .12)
-    if (trail > .01 && brightnessSeed > .64) {
+    ctx.globalAlpha = baseAlpha * alpha
+    ctx.fillStyle = particle.color
+    ctx.strokeStyle = particle.strokeColor
+    ctx.shadowColor = glowColor === '#FFFFFF' ? particle.color : glowColor
+
+    if (trail > .01 && particle.brightnessSeed > .64) {
       const tangentX = -Math.sin(angle) * direction
       const tangentY = Math.cos(angle) * direction
       const length = size * (1.2 + trail * 5.5)
       const trailAlpha = .34 + trail * .34
-      ctx.globalAlpha *= trailAlpha
+      ctx.globalAlpha = baseAlpha * alpha * trailAlpha
       ctx.lineWidth = Math.max(.35, size * .22)
       ctx.beginPath()
       ctx.moveTo(x - tangentX * length, y - tangentY * length)
       ctx.lineTo(x, y)
       ctx.stroke()
-      ctx.globalAlpha /= trailAlpha
+      ctx.globalAlpha = baseAlpha * alpha
     }
-    if (brightnessSeed > 1 - accentChance) {
-      const sparkle = Math.max(size * 1.8, g.sparkleSize * scale * (.34 + pulse * .22))
-      ctx.globalAlpha *= .58 + pulse * .32
+
+    if (particle.brightnessSeed > 1 - accentChance) {
+      const sparkle = Math.max(size * 1.8, g.sparkleSize * scale * (.34 + pulse * .18))
+      ctx.globalAlpha = baseAlpha * alpha * (.68 + pulse * .22)
       ctx.fillStyle = validColor(g.highlightColor, '#FFFFFF')
-      drawFourPointGlint(ctx, x, y, sparkle, angle * .08 + phase * TAU)
+      drawFourPointGlint(ctx, x, y, sparkle, angle * .08 + particle.phase * TAU)
     } else {
       ctx.beginPath()
       ctx.arc(x, y, Math.max(.22, size * .48), 0, TAU)
       ctx.fill()
     }
-    ctx.restore()
   }
-}
 
+  ctx.restore()
+}
 function drawSurfaceGlitterOverlay(
   ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number,
   design: FrameDesign, rotation: number, scale: number,

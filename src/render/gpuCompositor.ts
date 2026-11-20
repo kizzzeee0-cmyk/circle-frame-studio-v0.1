@@ -3,6 +3,8 @@ interface GpuState {
   program: WebGLProgram
   texture: WebGLTexture
   vao: WebGLVertexArrayObject
+  textureWidth: number
+  textureHeight: number
 }
 
 const states = new WeakMap<HTMLCanvasElement, GpuState>()
@@ -86,7 +88,7 @@ function createState(canvas: HTMLCanvasElement): GpuState | null {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
-  return { gl, program, texture, vao }
+  return { gl, program, texture, vao, textureWidth: 0, textureHeight: 0 }
 }
 
 export function canUseGpuCompositor() {
@@ -107,21 +109,31 @@ export function presentCanvasWithGpu(target: HTMLCanvasElement, source: HTMLCanv
   }
 
   const { gl, program, texture, vao } = state
+  const sizeChanged = target.width !== source.width || target.height !== source.height
   if (target.width !== source.width) target.width = source.width
   if (target.height !== source.height) target.height = source.height
   gl.viewport(0, 0, target.width, target.height)
   gl.disable(gl.DEPTH_TEST)
   gl.disable(gl.BLEND)
-  gl.clearColor(0, 0, 0, 0)
-  gl.clear(gl.COLOR_BUFFER_BIT)
   gl.useProgram(program)
   gl.bindVertexArray(vao)
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, texture)
   gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true)
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source)
+
+  // v0.40: allocate the GPU texture only when the preview size changes.
+  // Reallocating with texImage2D every frame caused upload stalls and could expose a blank buffer.
+  if (sizeChanged || state.textureWidth !== source.width || state.textureHeight !== source.height) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source)
+    state.textureWidth = source.width
+    state.textureHeight = source.height
+  } else {
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, source)
+  }
+
   const location = gl.getUniformLocation(program, 'u_texture')
   gl.uniform1i(location, 0)
+  // Full-screen triangles overwrite every pixel, so clearing first is unnecessary and can flash on a slow upload.
   gl.drawArrays(gl.TRIANGLES, 0, 6)
   return true
 }

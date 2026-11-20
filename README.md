@@ -474,3 +474,36 @@ v0.31에서 완료 처리하지 않았던 편집 기능을 실제 작업 흐름�
 - UI 배치 초기화 기능 추가: 작업물은 유지하고 즐겨찾기/접힘 상태만 초기화
 
 즐겨찾기, 접힘 상태, 프리셋 즐겨찾기는 프로젝트 데이터와 별도로 브라우저 로컬 UI 설정에 저장됩니다.
+
+## v0.35 — Surface Glitter Engine
+
+기존 별 파티클 중심 글리터는 Legacy Particle 스타일로 보존하고, 링 표면 자체에 미세 글리터 질감을 생성하는 신규 Surface Glitter 렌더러를 추가했습니다.
+
+### 신규 스타일
+- Gradient Surface Glitter
+- Fine Pearl Glitter
+- Elegant Twinkle Surface
+- Pastel Holographic Glitter
+
+### 핵심 렌더링 변경
+- 실제 안쪽/바깥쪽 반지름을 가진 annulus 마스크 내부에만 글리터 생성
+- base gradient + micro reflective particle + localized highlight + inner/outer rim 구조
+- 정적 surface texture를 설정/해상도 키 기준으로 캐싱
+- 회전 시 개별 입자를 다시 계산하지 않고 완성된 texture 전체를 중심축 기준으로 회전
+- 큰 4갈래 별은 기본 질감이 아니라 선택적인 accent sparkle로만 사용
+
+### 애니메이션 모드
+- 반짝임만
+- 링 회전만
+- 회전 + 반짝임
+- 흐르는 반사광
+- 정지
+
+반짝임 위치는 고정 seed로 결정되며 frame마다 재배치되지 않습니다. export animationProgress가 제공되는 경우 동일한 0~1 주기를 사용해 반복 시작/끝을 맞춥니다.
+
+### UI
+- 기본: 스타일 / 메인색 / 서브색 / 링 두께 / 글리터 강도 / 애니메이션 모드 / 속도
+- 고급: 팔레트 / 밀도 / 입자 크기 / 크기 다양성 / 강조 반짝임 / 림 / 하이라이트 / 글로우 / 랜덤 시드
+- Legacy Particle 세부 설정은 고급 영역에서 계속 수정 가능
+
+기존 프로젝트에서 surfaceStyle 값이 없는 글리터는 legacy 기본값으로 normalize되어 기존 디자인을 강제로 새 렌더러로 변경하지 않습니다.

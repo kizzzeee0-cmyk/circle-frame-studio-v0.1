@@ -1,7 +1,7 @@
 name: KIZE DESIGN TOOL - Windows Build & Startup Check
 on:
   push:
-    branches: [kize-v0.9.0-group-vector-mask, kize-v0.11.0-simple-update-notice]
+    branches: [kize-v0.9.0-group-vector-mask, kize-v0.12.0-color-workflow-ux]
   pull_request:
     branches: [kize-v0.9.0-group-vector-mask]
     paths:
@@ -117,6 +117,12 @@ jobs:
         run: |
           node tests/browser-variants.mjs
           if ($LASTEXITCODE -ne 0) { throw 'PNG variation batch + 100% preview E2E test failed' }
+      - name: Browser regression - intuitive PNG/PSD color editing and pastel workflow
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          node tests/browser-color-workflow.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'PNG/PSD exact color, preview, palette and photo numeric E2E failed' }
       - name: Browser regression - KIZE one-time update badge and manual download
         working-directory: kize-desktop
         shell: pwsh
@@ -179,7 +185,7 @@ jobs:
       - name: Upload Windows setup
         uses: actions/upload-artifact@v4
         with:
-          name: KIZE-DESIGN-TOOL-v0.11.0-Windows
+          name: KIZE-DESIGN-TOOL-v0.12.0-Windows
           path: kize-desktop/src-tauri/target/release/bundle/nsis/*setup.exe
           if-no-files-found: error
           retention-days: 30

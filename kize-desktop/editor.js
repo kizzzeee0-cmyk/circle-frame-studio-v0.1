@@ -1038,11 +1038,29 @@ function refreshColorFinish(){
     Number($('pastelSoftness').value));
   $('effectiveColorText').textContent=shown;
   $('effectiveColorSwatch').style.backgroundColor=shown;
+  $('targetHex').value=$('targetColor').value.toUpperCase();
+  const hints={
+    exact:'정확한 HEX: 원본 명암·색상 조화 계산 없이 고른 색으로 바꿉니다. 흰색/검정 보호를 켜면 해당 픽셀은 그대로 남습니다.',
+    pastel:'파스텔 보정: 아래에서 밝히는 정도를 직접 정합니다. 실제 적용될 HEX는 위에 표시됩니다.',
+    shaded:'명암 유지: 대상 색상을 기준으로 원본 밝고 어두운 부분을 재현하므로 픽셀마다 HEX가 다를 수 있습니다.',
+    palette:'다색 조화 유지: 원본의 여러 색 차이를 유지하면서 색 계열을 이동시킵니다. 정확한 HEX와 다를 수 있습니다.'
+  };
+  $('colorFinishHint').textContent=hints[$('colorFinish').value];
   $('effectiveColorPreview').title='미리 표시한 기준 색상 '+shown;
   if(temporaryPreview)void drawTemporaryPreview();
 }
 $('colorFinish').onchange=refreshColorFinish;
 $('targetColor').oninput=refreshColorFinish;
+$('targetHex').onchange=e=>{
+  const value=e.target.value.trim();
+  if(!/^#[0-9a-fA-F]{6}$/.test(value)){
+    e.target.value=$('targetColor').value.toUpperCase();
+    notify('HEX는 #BEB5ED처럼 # + 숫자/영문 6자리로 입력해 주세요.');
+    return;
+  }
+  $('targetColor').value=value;
+  refreshColorFinish();
+};
 $('pastelSoftness').oninput=e=>{
   $('pastelSoftnessNumber').value=e.target.value;refreshColorFinish();
 };

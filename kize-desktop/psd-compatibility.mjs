@@ -20,6 +20,7 @@ export function inspectPhotoshopLayer(layer,groups=[]){
   const fill=!!layer?.vectorFill;
   const blend=String(layer?.blendMode||'normal');
   const advancedBlend=blend!=='normal'&&blend!=='source-over';
+  const groupMasked=groups.some(g=>g.masked);
   const groupEffects=groups.some(g=>(g.blendMode&&g.blendMode!=='pass through'&&g.blendMode!=='normal')||g.masked||g.effects);
   const issues=[];
   if(mask)issues.push('픽셀 마스크');
@@ -46,7 +47,7 @@ export function inspectPhotoshopLayer(layer,groups=[]){
     adjustments:adjustment,
     effects:activeEffects,
     text,smartObject:smart,vectorFill:fill,
-    advancedBlend,groupEffects,
+    advancedBlend,groupEffects,groupMasked,
     complexity,issues,
     guidance:issues.length
       ?'레이어 재구성 정확도 제한 · Photoshop 원본 합성 보존 색상 편집 권장'

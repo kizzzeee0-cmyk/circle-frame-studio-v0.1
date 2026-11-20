@@ -18,7 +18,8 @@
     "react": "latest",
     "react-dom": "latest",
     "wasm-webp": "0.1.0",
-    "mediabunny": "latest"
+    "mediabunny": "latest",
+    "fflate": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",

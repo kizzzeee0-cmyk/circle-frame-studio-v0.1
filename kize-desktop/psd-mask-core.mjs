@@ -59,12 +59,18 @@ export function layerConstraintAlpha(layer,docX,docY,byId){
     m=Math.round(m*maskOpacity(spec,docX,docY)/255);
     if(m===0)return 0;
   }
+  for(const spec of layer.groupMaskSpecs||[]){
+    if(!spec)continue;
+    m=Math.round(m*maskOpacity(spec,docX,docY)/255);
+    if(m===0)return 0;
+  }
   if(layer.clipBaseId!==undefined&&layer.clipBaseId!==null){
     const base=byId(layer.clipBaseId);
-    if(!base||!base.visible||base.maskDecodeFailed||base.unsupportedVectorMask)
+    if(!base||!base.visible||base.maskDecodeFailed||base.unsupportedVectorMask||base.unsupportedGroupMask)
       throw Error('PSD 클리핑 기준 레이어를 확인할 수 없어 원본을 보호하기 위해 편집을 차단했습니다.');
     let baseAlpha=pixelAlpha(base,docX,docY);
-    for(const spec of base.maskSpecs||[])baseAlpha=Math.round(baseAlpha*maskOpacity(spec,docX,docY)/255);
+    for(const spec of [...(base.maskSpecs||[]),...(base.groupMaskSpecs||[])])
+      baseAlpha=Math.round(baseAlpha*maskOpacity(spec,docX,docY)/255);
     m=Math.round(m*baseAlpha/255);
   }else if(layer.clipBaseKey&&!layer.clipBaseId){
     throw Error('PSD 클리핑 기준 레이어가 누락되어 정확한 영역을 선택할 수 없습니다.');

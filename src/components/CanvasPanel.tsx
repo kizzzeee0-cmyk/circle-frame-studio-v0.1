@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type WheelEvent } from 'react'
 import type { ComposerSettings, FrameProject, MediaLayer } from '../types'
 import { getProjectFitScale, renderProject } from '../render/renderer'
 import { canUseGpuCompositor, presentCanvasWithGpu } from '../render/gpuCompositor'
@@ -6,6 +6,7 @@ import { preloadProjectAssets } from '../utils/assets'
 import { preloadProjectMedia, syncProjectMediaPreview } from '../utils/media'
 
 interface Props {
+  showUpdateHints?: boolean
   project: FrameProject
   timeSec?: number
   playing?: boolean
@@ -64,6 +65,7 @@ function rotatePoint(x: number, y: number, cx: number, cy: number, angle: number
 }
 
 export default function CanvasPanel({
+  showUpdateHints = false,
   project,
   timeSec = 0,
   playing = false,
@@ -98,60 +100,131 @@ export default function CanvasPanel({
     layers: MediaLayer[]
   } | null>(null)
 
+  const projectRef = useRef(project)
+  const previewTimeRef = useRef(timeSec)
+  const playingRef = useRef(playing)
+  const staticRenderFrameRef = useRef(0)
+  const settleRenderTimerRef = useRef(0)
+  projectRef.current = project
+  playingRef.current = playing
+  if (!playing) previewTimeRef.current = timeSec
+
   const gpuAvailable = useMemo(() => canUseGpuCompositor(), [])
   const useGpu = gpuAvailable && settings.performanceMode !== 'quality'
+  const hasAnimatedFrame = project.layers.some(layer => {
+    if (!layer.visible) return false
+    const design = layer.design
+    return design.rotationAnimation.enabled || (
+      design.kind === 'glitter' && (
+        design.glitter.animated ||
+        design.glitter.orbitEnabled ||
+        design.glitter.twinkleEnabled ||
+        design.glitter.highlightSweepEnabled
+      )
+    )
+  })
+  const heavyAnimatedFrame = project.layers.some(layer =>
+    layer.visible &&
+    layer.design.kind === 'glitter' &&
+    (layer.design.glitter.orbitDensity > 600 || layer.design.glitter.density > 650),
+  )
   const effectiveResolution = settings.performanceMode === 'performance'
     ? 720
-    : settings.performanceMode === 'auto' && playing && (project.mediaLayers?.length ?? 0) > 4
-      ? 960
+    : settings.performanceMode === 'auto' && playing
+      ? (heavyAnimatedFrame || (project.mediaLayers?.length ?? 0) > 4 ? 720 : (hasAnimatedFrame || (project.mediaLayers?.length ?? 0) > 0 ? 960 : settings.previewResolution))
       : settings.previewResolution
-  const selectedLayers = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id) && layer.visible)
-  const bounds = selectionBounds(selectedLayers)
-  const fitScale = getProjectFitScale(project)
+  const selectedLayers = useMemo(
+    () => (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id) && layer.visible),
+    [project.mediaLayers, selectedMediaIds],
+  )
+  const bounds = useMemo(() => selectionBounds(selectedLayers), [selectedLayers])
+  const fitScale = useMemo(() => getProjectFitScale(project), [project])
   const assetKey = useMemo(() => JSON.stringify({
     media: (project.mediaLayers ?? []).map(layer => [layer.assetId, layer.sourceUrl, layer.customMaskAssetId, layer.customMaskSourceUrl]),
     background: [project.background?.assetId, project.background?.sourceUrl],
     frameAssets: project.layers.map(layer => layer.design.pattern.customAssetUrl),
   }), [project.mediaLayers, project.background, project.layers])
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      await Promise.all([preloadProjectAssets(project), preloadProjectMedia(project)])
-      if (cancelled) return
-      syncProjectMediaPreview(project, timeSec, playing)
-      const duration = Math.max(.5, project.timeline?.duration ?? 3)
-      const progress = (timeSec % duration) / duration
-      if (useGpu && gpuRef.current) {
-        const surface = renderSurfaceRef.current ?? document.createElement('canvas')
-        renderSurfaceRef.current = surface
-        surface.width = effectiveResolution
-        surface.height = effectiveResolution
-        renderProject(surface, project, undefined, timeSec * 1000, progress)
-        presentCanvasWithGpu(gpuRef.current, surface)
-      } else if (ref.current) {
-        renderProject(ref.current, project, undefined, timeSec * 1000, progress)
-      }
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [assetKey, effectiveResolution, useGpu])
+  const renderAt = useCallback((renderTime: number, renderPlaying: boolean, resolution = effectiveResolution) => {
+    const currentProject = projectRef.current
+    syncProjectMediaPreview(currentProject, renderTime, renderPlaying)
+    const duration = Math.max(.5, currentProject.timeline?.duration ?? 3)
+    const wrapped = currentProject.timeline?.loop === false
+      ? Math.min(duration, Math.max(0, renderTime))
+      : ((renderTime % duration) + duration) % duration
+    const progress = wrapped / duration
 
-  useEffect(() => {
-    syncProjectMediaPreview(project, timeSec, playing)
-    const duration = Math.max(.5, project.timeline?.duration ?? 3)
-    const progress = (timeSec % duration) / duration
     if (useGpu && gpuRef.current) {
       const surface = renderSurfaceRef.current ?? document.createElement('canvas')
       renderSurfaceRef.current = surface
-      if (surface.width !== effectiveResolution) surface.width = effectiveResolution
-      if (surface.height !== effectiveResolution) surface.height = effectiveResolution
-      renderProject(surface, project, undefined, timeSec * 1000, progress)
+      if (surface.width !== resolution) surface.width = resolution
+      if (surface.height !== resolution) surface.height = resolution
+      renderProject(surface, currentProject, undefined, wrapped * 1000, progress)
       presentCanvasWithGpu(gpuRef.current, surface)
-    } else if (ref.current) {
-      renderProject(ref.current, project, undefined, timeSec * 1000, progress)
+      return
     }
-  }, [project, timeSec, playing, effectiveResolution, useGpu])
+
+    if (ref.current) {
+      if (ref.current.width !== resolution) ref.current.width = resolution
+      if (ref.current.height !== resolution) ref.current.height = resolution
+      renderProject(ref.current, currentProject, undefined, wrapped * 1000, progress)
+    }
+  }, [effectiveResolution, useGpu])
+
+  useEffect(() => {
+    let cancelled = false
+    const currentProject = projectRef.current
+    void Promise.all([preloadProjectAssets(currentProject), preloadProjectMedia(currentProject)]).then(() => {
+      if (cancelled || playingRef.current) return
+      renderAt(previewTimeRef.current, false)
+    })
+    return () => { cancelled = true }
+    // assetKey intentionally isolates expensive asset preloading from ordinary property edits.
+  }, [assetKey, renderAt])
+
+  useEffect(() => {
+    if (playing) return
+
+    cancelAnimationFrame(staticRenderFrameRef.current)
+    window.clearTimeout(settleRenderTimerRef.current)
+
+    // During rapid slider/color edits render a lighter draft immediately, then restore full preview quality after settling.
+    const draftResolution = Math.min(effectiveResolution, 840)
+    staticRenderFrameRef.current = requestAnimationFrame(() => {
+      renderAt(timeSec, false, draftResolution)
+    })
+    settleRenderTimerRef.current = window.setTimeout(() => {
+      renderAt(timeSec, false, effectiveResolution)
+    }, 110)
+
+    return () => {
+      cancelAnimationFrame(staticRenderFrameRef.current)
+      window.clearTimeout(settleRenderTimerRef.current)
+    }
+  }, [project, timeSec, playing, effectiveResolution, renderAt])
+
+  useEffect(() => {
+    if (!playing) return
+    let frame = 0
+    const startedAt = performance.now()
+    const startTime = previewTimeRef.current
+
+    const tick = (now: number) => {
+      const currentProject = projectRef.current
+      const duration = Math.max(.5, currentProject.timeline?.duration ?? 3)
+      const elapsed = Math.max(0, (now - startedAt) / 1000)
+      const rawTime = startTime + elapsed
+      const currentTime = currentProject.timeline?.loop === false
+        ? Math.min(duration, rawTime)
+        : rawTime % duration
+      previewTimeRef.current = currentTime
+      renderAt(currentTime, true, effectiveResolution)
+      frame = requestAnimationFrame(tick)
+    }
+
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [playing, effectiveResolution, renderAt])
 
   const sampleAt = (clientX: number, clientY: number) => {
     if (!onSampleColor) return
@@ -424,6 +497,7 @@ export default function CanvasPanel({
           <option value="quality">고품질</option>
           <option value="performance">성능 우선</option>
         </select>
+        {showUpdateHints && <span className="performance-update-badge">OPTIMIZED</span>}
         <span className={useGpu ? 'gpu-status active' : 'gpu-status'} title={useGpu ? '2D 캔버스 합성 결과를 WebGL2로 표시합니다. 최종 렌더 품질은 동일합니다.' : 'Canvas 2D 미리보기'}>{useGpu ? 'GPU 표시' : '2D 표시'}</span>
       </div>
 

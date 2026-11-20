@@ -15,13 +15,13 @@ import { uid } from './utils/id'
 import { storeMediaFile } from './utils/media'
 import { exportPortableProject, importPortableProject } from './utils/projectBundle'
 import { createMediaLayer, defaultBackground, defaultComposerSettings, defaultTimeline, normalizeBackground, normalizeComposerSettings, normalizeMediaLayer, normalizeTimeline } from './utils/projectDefaults'
-import { APP_VERSION, UPDATE_SEEN_KEY } from './updateNotes'
+import { APP_VERSION, CURRENT_UPDATE_HINTS, UPDATE_SEEN_KEY } from './updateNotes'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v038'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v037', 'circle-frame-studio-project-v036', 'circle-frame-studio-project-v035', 'circle-frame-studio-project-v034', 'circle-frame-studio-project-v033', 'circle-frame-studio-project-v032', 'circle-frame-studio-project-v031', 'circle-frame-studio-project-v030', 'circle-frame-studio-project-v029', 'circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v038'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v037', 'circle-frame-studio-user-presets-v036', 'circle-frame-studio-user-presets-v035', 'circle-frame-studio-user-presets-v034', 'circle-frame-studio-user-presets-v033', 'circle-frame-studio-user-presets-v032', 'circle-frame-studio-user-presets-v031', 'circle-frame-studio-user-presets-v030', 'circle-frame-studio-user-presets-v029', 'circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v039'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v038', 'circle-frame-studio-project-v037', 'circle-frame-studio-project-v036', 'circle-frame-studio-project-v035', 'circle-frame-studio-project-v034', 'circle-frame-studio-project-v033', 'circle-frame-studio-project-v032', 'circle-frame-studio-project-v031', 'circle-frame-studio-project-v030', 'circle-frame-studio-project-v029', 'circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v039'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v038', 'circle-frame-studio-user-presets-v037', 'circle-frame-studio-user-presets-v036', 'circle-frame-studio-user-presets-v035', 'circle-frame-studio-user-presets-v034', 'circle-frame-studio-user-presets-v033', 'circle-frame-studio-user-presets-v032', 'circle-frame-studio-user-presets-v031', 'circle-frame-studio-user-presets-v030', 'circle-frame-studio-user-presets-v029', 'circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -386,6 +386,30 @@ export default function App() {
   const bundleInput = useRef<HTMLInputElement>(null)
   const mediaClipboardRef = useRef<MediaLayer[]>([])
 
+  const hasTimelineMotion =
+    project.background?.type === 'video' ||
+    (project.mediaLayers ?? []).some(layer =>
+      layer.visible && (
+        layer.kind === 'video' ||
+        layer.animation.intro !== 'none' ||
+        layer.animation.outro !== 'none' ||
+        layer.animation.continuous !== 'none'
+      ),
+    ) ||
+    project.layers.some(layer => {
+      if (!layer.visible) return false
+      const design = layer.design
+      return design.rotationAnimation.enabled || (
+        design.kind === 'glitter' && (
+          design.glitter.animated ||
+          design.glitter.orbitEnabled ||
+          design.glitter.twinkleEnabled ||
+          design.glitter.highlightSweepEnabled
+        )
+      )
+    })
+  const previewPlaying = timelinePlaying && hasTimelineMotion
+
   const commit = useCallback((updater: (draft: FrameProject) => FrameProject) => {
     setProject(prev => {
       undoRef.current.push(structuredClone(prev))
@@ -449,25 +473,34 @@ export default function App() {
   }, [showUpdateHints])
 
   useEffect(() => {
-    if (!timelinePlaying) return
+    if (!previewPlaying) return
     let frame = 0
-    let last = performance.now()
+    let lastFrame = performance.now()
+    let lastUiCommit = lastFrame
+    let accumulated = 0
     const tick = (now: number) => {
-      const delta = Math.max(0, Math.min(.1, (now - last) / 1000))
-      last = now
-      setTimelineTime(current => {
-        const duration = Math.max(.5, project.timeline?.duration ?? 3)
-        const next = current + delta
-        if (next < duration) return next
-        if (project.timeline?.loop !== false) return next % duration
-        setTimelinePlaying(false)
-        return duration
-      })
+      accumulated += Math.max(0, Math.min(.1, (now - lastFrame) / 1000))
+      lastFrame = now
+
+      // v0.39: CanvasPanel owns the smooth preview clock. React only refreshes timeline UI ~15fps.
+      if (now - lastUiCommit >= 66) {
+        const delta = accumulated
+        accumulated = 0
+        lastUiCommit = now
+        setTimelineTime(current => {
+          const duration = Math.max(.5, project.timeline?.duration ?? 3)
+          const next = current + delta
+          if (next < duration) return next
+          if (project.timeline?.loop !== false) return next % duration
+          setTimelinePlaying(false)
+          return duration
+        })
+      }
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [timelinePlaying, project.timeline?.duration, project.timeline?.loop])
+  }, [previewPlaying, project.timeline?.duration, project.timeline?.loop])
 
   const refreshRecentSaves = useCallback(async () => {
     setRecentLoading(true)
@@ -525,14 +558,22 @@ export default function App() {
   }
 
   const updateDesign = (next: FrameDesign) => {
-    commitCoalesced('design:' + project.selectedLayerId, draft => {
-      const index = draft.layers.findIndex(layer => layer.id === draft.selectedLayerId)
-      if (index >= 0) {
-        draft.layers[index].design = structuredClone(next)
-        draft.layers[index].name = next.name
+    setProject(prev => {
+      const key = 'design:' + prev.selectedLayerId
+      const now = performance.now()
+      const sameBurst = coalesceRef.current.key === key && now - coalesceRef.current.time < 450
+      if (!sameBurst) {
+        undoRef.current.push(structuredClone(prev))
+        if (undoRef.current.length > 80) undoRef.current.shift()
+        redoRef.current = []
       }
-      draft.design = structuredClone(next)
-      return draft
+      coalesceRef.current = { key, time: now }
+
+      const design = structuredClone(next)
+      const layers = prev.layers.map(layer => layer.id === prev.selectedLayerId
+        ? { ...layer, name: design.name, design }
+        : layer)
+      return { ...prev, design, layers }
     })
   }
 
@@ -856,9 +897,18 @@ export default function App() {
   }
 
   const updateMedia = (next: MediaLayer) => {
-    commitCoalesced('media:' + next.id, draft => {
-      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => layer.id === next.id ? structuredClone(next) : layer)
-      return draft
+    setProject(prev => {
+      const key = 'media:' + next.id
+      const now = performance.now()
+      const sameBurst = coalesceRef.current.key === key && now - coalesceRef.current.time < 450
+      if (!sameBurst) {
+        undoRef.current.push(structuredClone(prev))
+        if (undoRef.current.length > 80) undoRef.current.shift()
+        redoRef.current = []
+      }
+      coalesceRef.current = { key, time: now }
+      const mediaLayers = (prev.mediaLayers ?? []).map(layer => layer.id === next.id ? { ...next } : layer)
+      return { ...prev, mediaLayers }
     })
   }
 
@@ -1094,12 +1144,21 @@ export default function App() {
 
   const batchUpdateMedia = (updates: Array<Partial<MediaLayer> & { id: string }>) => {
     const byId = new Map(updates.map(update => [update.id, update]))
-    commitCoalesced('batch-media', draft => {
-      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => {
+    setProject(prev => {
+      const key = 'batch-media'
+      const now = performance.now()
+      const sameBurst = coalesceRef.current.key === key && now - coalesceRef.current.time < 450
+      if (!sameBurst) {
+        undoRef.current.push(structuredClone(prev))
+        if (undoRef.current.length > 80) undoRef.current.shift()
+        redoRef.current = []
+      }
+      coalesceRef.current = { key, time: now }
+      const mediaLayers = (prev.mediaLayers ?? []).map(layer => {
         const update = byId.get(layer.id)
         return update ? { ...layer, ...update } : layer
       })
-      return draft
+      return { ...prev, mediaLayers }
     })
   }
 
@@ -1111,14 +1170,13 @@ export default function App() {
 
   const transformMediaTransient = (updates: Array<Partial<MediaLayer> & { id: string }>) => {
     const byId = new Map(updates.map(update => [update.id, update]))
-    setProject(prev => {
-      const next = structuredClone(prev)
-      next.mediaLayers = (next.mediaLayers ?? []).map(layer => {
+    setProject(prev => ({
+      ...prev,
+      mediaLayers: (prev.mediaLayers ?? []).map(layer => {
         const update = byId.get(layer.id)
         return update ? { ...layer, ...update } : layer
-      })
-      return syncSelectedLayer(next)
-    })
+      }),
+    }))
   }
 
   const alignSelectedMedia = (mode: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom' | 'center' | 'distribute-x' | 'distribute-y') => {
@@ -1403,7 +1461,7 @@ export default function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">◯</div>
-          <div><h1>Circle Frame Studio</h1><span>v{APP_VERSION} · Comfort UI {showUpdateHints && <i className="top-update-badge">UPDATED</i>}</span></div>
+          <div><h1>Circle Frame Studio</h1><span>v{APP_VERSION} · Performance {showUpdateHints && <i className="top-update-badge">OPTIMIZED</i>}</span></div>
         </div>
         <div className="toolbar">
           <button className="toolbar-icon-button" onClick={undo} title="실행취소 · Ctrl/⌘+Z">↶</button>
@@ -1488,7 +1546,7 @@ export default function App() {
             onBackgroundFile={uploadBackground}
           />
           <PresetBrowser
-            showUpdateHints={showUpdateHints}
+            showUpdateHints={showUpdateHints && CURRENT_UPDATE_HINTS.glitterFeatures}
             onSelect={selectPreset}
             userPresets={userPresets}
             onUploadAsset={uploadAsset}
@@ -1499,10 +1557,11 @@ export default function App() {
 
         <section className="center-column composer-center">
           <CanvasPanel
+            showUpdateHints={showUpdateHints && CURRENT_UPDATE_HINTS.performance}
             project={project}
             onSampleColor={sampleColor}
             timeSec={timelineTime}
-            playing={timelinePlaying}
+            playing={previewPlaying}
             selectedMediaIds={selectedMediaIds}
             primaryMediaId={selectedMediaId}
             settings={project.settings ?? defaultComposerSettings()}
@@ -1519,7 +1578,7 @@ export default function App() {
           <TimelinePanel
             duration={project.timeline?.duration ?? 3}
             currentTime={timelineTime}
-            playing={timelinePlaying}
+            playing={previewPlaying}
             loop={project.timeline?.loop !== false}
             snapEnabled={(project.settings ?? defaultComposerSettings()).timelineSnapEnabled}
             snapFps={(project.settings ?? defaultComposerSettings()).timelineFps}
@@ -1575,7 +1634,7 @@ export default function App() {
           />
         ) : (
           <PropertyPanel
-            showUpdateHints={showUpdateHints}
+            showUpdateHints={showUpdateHints && CURRENT_UPDATE_HINTS.glitterFeatures}
             design={project.design}
             timelineDuration={Math.max(.5, project.timeline?.duration ?? 3)}
             onTimelineDurationChange={value => commitCoalesced('timeline-duration', draft => {

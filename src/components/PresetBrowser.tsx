@@ -1,12 +1,24 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import type { FramePreset, FrameProject } from '../types'
 import { PRESETS } from '../presets'
 import { renderProject } from '../render/renderer'
 import { preloadProjectAssets } from '../utils/assets'
 import { APP_VERSION, UPDATED_PRESET_IDS } from '../updateNotes'
 
-function Thumb({ preset }: { preset: FramePreset }) {
+const Thumb = memo(function Thumb({ preset }: { preset: FramePreset }) {
   const ref = useRef<HTMLCanvasElement>(null)
+  const visibleRef = useRef(true)
+
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas || !('IntersectionObserver' in window)) return
+    const observer = new IntersectionObserver(entries => {
+      visibleRef.current = entries[0]?.isIntersecting !== false
+    }, { rootMargin: '80px' })
+    observer.observe(canvas)
+    return () => observer.disconnect()
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     const run = async () => {
@@ -27,8 +39,8 @@ function Thumb({ preset }: { preset: FramePreset }) {
       let last = 0
       const tick = (time: number) => {
         if (cancelled || !ref.current) return
-        // v0.37: animated thumbnails use ~30fps so Orbit/Reflection motion is easier to recognize.
-        if (time - last > 33) {
+        // v0.39: off-screen thumbnails do no rendering work; visible animated thumbnails are capped near 20fps.
+        if (visibleRef.current && document.visibilityState !== 'hidden' && time - last > 50) {
           renderProject(ref.current, project, 1, time)
           last = time
         }
@@ -40,7 +52,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
     return () => { cancelled = true }
   }, [preset])
   return <canvas ref={ref} width={96} height={96} />
-}
+})
 
 interface Props {
   showUpdateHints: boolean

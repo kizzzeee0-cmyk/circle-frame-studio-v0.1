@@ -454,6 +454,14 @@ function refreshProperties(){
   $('fontFamily').value=l?.fontFamily||'';$('fontSize').value=l?.fontSize||32;$('textColor').value=l?.textColor||'#333333';
   for(const input of document.querySelectorAll('[data-adjust]')){const k=input.dataset.adjust;input.value=l?.adjust?.[k]||0;const id='out'+k[0].toUpperCase()+k.slice(1);if($(id))$(id).textContent=input.value;}
   $('textPanel').hidden=l?.type!=='text';
+  const note=$('layerCompatibility');
+  if(l?.compatibility){
+    const c=l.compatibility;
+    note.hidden=false;
+    note.textContent=c.issues?.length
+      ?'PSD 원본 정보 · '+c.issues.join(' / ')+' — 색상 편집은 원본 보존 방식 권장. 레이어 재구성 시 효과가 달라질 수 있습니다.'
+      :'PSD 원본 정보 · 일반 픽셀 레이어. 정확한 표시 여부는 품질 검사로 확인할 수 있습니다.';
+  }else{note.hidden=true;note.textContent='';}
   updateSelectionUi();
 }
 function refreshAll(){refreshLayers();refreshProperties();setPreviewMode(previewMode);}

@@ -420,6 +420,41 @@ export default function App() {
     })
   }, [])
 
+  // The shared KIZE palette is a live frame edit with native undo and
+  // existing autosave. Unlike a separate website link, all three editors
+  // receive the exact same locally stored 5-color palette.
+  useEffect(() => {
+    const applySharedPalette = (event: Event) => {
+      const raw=(event as CustomEvent<{ colors?: string[] }>).detail?.colors
+      if(!Array.isArray(raw)||raw.length<2||
+        raw.some(c=>typeof c!=='string'||!/^#[a-f0-9]{6}$/i.test(c)))return
+      const colors=raw.map(c=>c.toUpperCase())
+      const main=colors[0],sub=colors[1]||main
+      const light=colors[2]||main,accent=colors[3]||sub
+      const outline=colors[4]||sub
+      const four:[string,string,string,string]=[main,sub,light,accent]
+      commit(draft=>{
+        const selected=draft.selectedLayerId||draft.layers.at(-1)?.id
+        draft.layers=draft.layers.map(layer=>{
+          if(layer.id!==selected)return layer
+          const design=layer.design
+          return {...layer,design:{
+            ...design,color:main,secondaryColor:sub,
+            gradientStops:design.gradientStops.map((stop,i)=>({...stop,
+              color:four[i%four.length]})),
+            pattern:{...design.pattern,paletteColors:[...four]},
+            tripleRing:{...design.tripleRing,colors:[main,sub,accent]},
+            glitter:{...design.glitter,colors:[...four],highlightColor:light},
+            effects:{...design.effects,outlineColor:outline}
+          }}
+        })
+        return draft
+      })
+    }
+    window.addEventListener('kize:shared-palette-apply',applySharedPalette)
+    return ()=>window.removeEventListener('kize:shared-palette-apply',applySharedPalette)
+  },[commit])
+
   const commitCoalesced = useCallback((key: string, updater: (draft: FrameProject) => FrameProject) => {
     setProject(prev => {
       const now = performance.now()

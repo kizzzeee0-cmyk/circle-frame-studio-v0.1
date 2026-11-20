@@ -61,6 +61,12 @@ jobs:
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
           if (-not (Test-Path 'dist/index.html')) { throw 'Editor HTML missing' }
+      - name: Browser integration - import actual PSD through Web Worker in Microsoft Edge
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          node tests/browser-psd.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Browser PSD import regression test failed' }
       - name: Generate app icon
         shell: powershell
         run: |

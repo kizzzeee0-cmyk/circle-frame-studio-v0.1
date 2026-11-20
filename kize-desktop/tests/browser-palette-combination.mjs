@@ -48,12 +48,18 @@ try{
  assert.match(await page.locator('#selectionInfo').textContent(),/2,160개 픽셀 선택/);
  await page.locator('#clearSelection').click();
  await page.locator('#variantColors').fill('#F2C4CC, #CEE5B7, #C9D4F1');
+ await page.locator('#variantColors').press('Control+Shift+a');
+ assert.match(await page.locator('#selectionInfo').textContent(),/2,160개 픽셀 선택/,
+   'Ctrl+Shift+A selects whole image even when palette HEX text has focus');
+ await page.locator('#paletteClearSelection').click();
  await page.locator('#variantFinish').selectOption('exact');
  await page.locator('#paletteScope').selectOption('all');
  await page.waitForFunction(()=>document.querySelectorAll('#paletteMapping .palette-map-item').length===3);
  assert.equal(await page.locator('#paletteMapping .palette-map-item').count(),3,
   'Three original color families map to three DISTINCT preset swatches');
  const colors=[[242,196,204,255],[206,229,183,255],[201,212,241,255]];
+ assert.equal(await page.locator('#paletteApply').isVisible(),true,
+   'Primary Apply action stays immediately beside the recommended preset picker');
  await page.locator('#palettePreview').click();
  assert.deepEqual(await pixel(2,2),colors[0],'First original color -> first target');
  assert.deepEqual(await pixel(36,2),colors[1],'Second original color -> second target');

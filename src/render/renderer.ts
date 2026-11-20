@@ -553,7 +553,7 @@ function drawRibbon(ctx: CanvasRenderingContext2D, x: number, y: number, size: n
   ctx.restore()
 
   // 약한 하이라이트
-  ctx.fillStyle = validColor(glitter.highlightColor, '#FFFFFF')
+  ctx.fillStyle = '#FFFFFF'
   ctx.globalAlpha = oldAlpha * 0.15
   ctx.beginPath()
   ctx.ellipse(-8.7, -5.2, 5.4, 2.0, -0.35, 0, TAU)
@@ -1560,7 +1560,7 @@ function drawMediaLayer(
     sctx.beginPath()
     sctx.arc(mx, my, outer, 0, TAU)
     sctx.arc(mx, my, inner, 0, TAU, true)
-    sctx.fillStyle = validColor(glitter.highlightColor, '#FFFFFF')
+    sctx.fillStyle = '#FFFFFF'
     sctx.fill('evenodd')
     sctx.globalCompositeOperation = 'source-over'
   }

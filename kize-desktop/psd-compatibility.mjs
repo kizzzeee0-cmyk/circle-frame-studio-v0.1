@@ -20,7 +20,7 @@ export function inspectPhotoshopLayer(layer,groups=[]){
   const fill=!!layer?.vectorFill;
   const blend=String(layer?.blendMode||'normal');
   const advancedBlend=blend!=='normal'&&blend!=='source-over';
-  const groupEffects=groups.some(g=>g.blendMode&&g.blendMode!=='pass through'&&g.blendMode!=='normal');
+  const groupEffects=groups.some(g=>(g.blendMode&&g.blendMode!=='pass through'&&g.blendMode!=='normal')||g.masked||g.effects);
   const issues=[];
   if(mask)issues.push('픽셀 마스크');
   if(vector)issues.push('벡터 마스크');
@@ -37,6 +37,7 @@ export function inspectPhotoshopLayer(layer,groups=[]){
   return {
     sourceId:Number.isFinite(layer?.id)?layer.id:null,
     groupPath:groups.map(g=>String(g.name||'그룹')),
+    groupKeys:groups.map(g=>String(g.key||g.name||'그룹')),
     groupDepth:groups.length,
     blendMode:blend,
     opacity:layer?.opacity??1,
@@ -63,7 +64,7 @@ export function summarizePsdCompatibility(layers,{compositeAvailable=false,skipp
       if(c[key])counts[key]++;
     if(c.adjustments)counts.adjustments++;
     if(c.effects?.length)counts.effects++;
-    for(const n of c.groupPath||[])groupNames.add(n);
+    for(const n of c.groupKeys||c.groupPath||[])groupNames.add(n);
   }
   counts.groups=groupNames.size;
   const observations=[];

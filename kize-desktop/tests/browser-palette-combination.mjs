@@ -71,9 +71,9 @@ try{
  assert.deepEqual(await pixel(2,2),colors[0],'Apply changes current PNG visibly');
  assert.deepEqual(await pixel(36,2),colors[1]);
  assert.deepEqual(await pixel(54,2),colors[2]);
- await page.locator('#undo').click();
+ await page.locator('#paletteUndo').click();
  assert.deepEqual(await pixel(2,2),[211,139,167,255],'Undo restores PNG');
- await page.locator('#redo').click();
+ await page.locator('#paletteRedo').click();
  assert.deepEqual(await pixel(36,2),colors[1],'Redo restores combo');
 
  // Even if legacy mode was chosen previously, selecting a palette must

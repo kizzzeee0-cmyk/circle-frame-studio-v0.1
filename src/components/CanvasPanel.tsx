@@ -82,7 +82,7 @@ export default function CanvasPanel({
   const checkerRef = useRef<HTMLDivElement>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [guide, setGuide] = useState({ x: false, y: false })
+  const [guide, setGuide] = useState<{ x: number | null; y: number | null }>({ x: null, y: null })
   const panRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null)
   const transformRef = useRef<{
     mode: 'move' | 'resize' | 'rotate'
@@ -234,7 +234,7 @@ export default function CanvasPanel({
     }
 
     if (Math.abs(bestDiff) <= threshold) {
-      if (Math.abs(bestTarget) < .001) setGuide(prev => ({ ...prev, [axis]: true }))
+      setGuide(prev => ({ ...prev, [axis]: bestTarget }))
       return proposedDelta + bestDiff
     }
 
@@ -247,7 +247,7 @@ export default function CanvasPanel({
   const transformMove = (event: PointerEvent) => {
     const session = transformRef.current
     if (!session || !onTransformMedia) return
-    setGuide({ x: false, y: false })
+    setGuide({ x: null, y: null })
 
     if (session.mode === 'move') {
       const factor = projectPerScreen()
@@ -289,7 +289,7 @@ export default function CanvasPanel({
   const endTransform = (event: PointerEvent) => {
     if (!transformRef.current) return
     transformRef.current = null
-    setGuide({ x: false, y: false })
+    setGuide({ x: null, y: null })
     try { (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId) } catch { /* ignore */ }
   }
 
@@ -383,8 +383,8 @@ export default function CanvasPanel({
           <canvas ref={ref} className={useGpu ? 'preview-canvas hidden' : 'preview-canvas'} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
           <canvas ref={gpuRef} className={useGpu ? 'preview-canvas gpu' : 'preview-canvas gpu hidden'} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
 
-          {settings.showGuides && guide.x && <div className="smart-guide vertical" />}
-          {settings.showGuides && guide.y && <div className="smart-guide horizontal" />}
+          {settings.showGuides && guide.x !== null && <div className="smart-guide vertical" style={{ left: (50 + guide.x * fitScale / project.width * 100) + '%' }} />}
+          {settings.showGuides && guide.y !== null && <div className="smart-guide horizontal" style={{ top: (50 + guide.y * fitScale / project.height * 100) + '%' }} />}
 
           {overlayStyle && (
             <div className={'transform-box ' + (selectedLayers.length > 1 ? 'multi' : 'single')} style={overlayStyle} onPointerDown={event => beginTransform(event, 'move')}>

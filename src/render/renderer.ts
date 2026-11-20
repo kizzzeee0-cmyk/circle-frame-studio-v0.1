@@ -1698,7 +1698,7 @@ export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, 
   drawBackground(ctx, project)
 
   const media = project.mediaLayers ?? []
-  for (const layer of media.filter(item => item.placement === 'below')) {
+  for (const layer of media.filter(item => item.placement === 'below').slice().reverse()) {
     drawMediaLayer(ctx, project, layer, scale, animationTimeMs, animationProgress, sceneTimeSec)
   }
 
@@ -1706,7 +1706,7 @@ export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, 
     drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress, sceneTimeSec)
   }
 
-  for (const layer of media.filter(item => item.placement === 'above')) {
+  for (const layer of media.filter(item => item.placement === 'above').slice().reverse()) {
     drawMediaLayer(ctx, project, layer, scale, animationTimeMs, animationProgress, sceneTimeSec)
     if (layer.keepFrameAbove && layer.maskFrameLayerId) {
       const target = project.layers.find(item => item.id === layer.maskFrameLayerId)

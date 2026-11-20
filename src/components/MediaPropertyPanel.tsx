@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import type { FrameLayer, MediaLayer } from '../types'
+import { useCompactSectionOrganizer } from '../utils/uiPreferences'
 
 interface Props {
   media: MediaLayer
@@ -28,11 +29,16 @@ function Slider({ label, value, min, max, step = 1, suffix = '', onChange }: { l
 export default function MediaPropertyPanel({ media, selectedMedia, frameLayers, duration, onChange, onBatchChange, onAlign, onGroup, onUngroup, onCustomMask, onRelink, onDuplicate, onDelete, onReturnFrame }: Props) {
   const relinkInput = useRef<HTMLInputElement>(null)
   const customMaskInput = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLElement>(null)
+  useCompactSectionOrganizer(panelRef, 'media', {
+    defaultFavorites: ['레이어 기본', '마스크 · 클리핑'],
+    defaultCollapsed: ['타임라인', '등장 · 퇴장 애니메이션', '지속 애니메이션'],
+  })
   const selectedCount = Math.max(1, selectedMedia.length)
   const patch = (partial: Partial<MediaLayer>) => onChange({ ...media, ...partial })
   const animation = (partial: Partial<MediaLayer['animation']>) => patch({ animation: { ...media.animation, ...partial } })
 
-  return <aside className="right-panel panel media-property-panel">
+  return <aside ref={panelRef} className="right-panel panel media-property-panel">
     <div className="panel-title-row sticky-head">
       <div><strong>{selectedCount > 1 ? selectedCount + '개 미디어 선택' : '미디어 설정'}</strong><small>{selectedCount > 1 ? '다중 선택 · 일괄 편집' : media.kind === 'video' ? '영상 레이어' : '이미지 · PNG 레이어'}</small></div>
       <button type="button" className="soft-button" onClick={onReturnFrame}>프레임 설정</button>

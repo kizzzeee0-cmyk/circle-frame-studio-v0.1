@@ -1,4 +1,6 @@
+import { useRef } from 'react'
 import type { FrameDesign, FrameLayer, GradientMode } from '../types'
+import { useCompactSectionOrganizer } from '../utils/uiPreferences'
 import { PALETTES } from '../presets/palettes'
 import { uid } from '../utils/id'
 
@@ -72,6 +74,11 @@ export default function PropertyPanel({
   onReorderLayer,
   onDeleteLayer,
 }: Props) {
+  const panelRef = useRef<HTMLElement>(null)
+  useCompactSectionOrganizer(panelRef, 'frame', {
+    defaultFavorites: ['기본', '선 색상 · 그라데이션', '2색 흐름 그라데이션'],
+    defaultCollapsed: ['레이어', '프레임 회전 애니메이션', '외곽선 · 입체감 · 글로우 · 블러 · 그림자', '패턴 세부 설정'],
+  })
   const patch = (partial: Partial<FrameDesign>) => onChange({ ...design, ...partial })
   const nestedEffects = (partial: Partial<FrameDesign['effects']>) => patch({ effects: { ...design.effects, ...partial } })
   const nestedPattern = (partial: Partial<FrameDesign['pattern']>) => patch({ pattern: { ...design.pattern, ...partial } })
@@ -128,7 +135,7 @@ export default function PropertyPanel({
   const isDecoration = decorationKinds.includes(design.kind)
 
   return (
-    <aside className="right-panel panel">
+    <aside ref={panelRef} className="right-panel panel">
       <div className="panel-title-row sticky-head">
         <div><strong>현재 프레임 설정</strong><small>{design.kind}</small></div>
         <button className="soft-button" onClick={onSavePreset}>내 프리셋 저장</button>

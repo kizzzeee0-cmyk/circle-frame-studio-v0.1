@@ -131,6 +131,13 @@ export function generateCharacterPalettes(swatches,{
   return opts.map((arr,i)=>{
     let colors=arr.map((c,j)=>j===3?mix(c,point,accent/350):sat(c));
     const roles=['main','sub','light','point','outline'];
+    // Locked colors are exact constants across every generated category,
+    // unlike auto-generated tints. User-provided color remains editable
+    // until intentionally locked in the UI.
+    for(const item of active){
+      const position=roles.indexOf(item.role);
+      if(item.locked&&position>=0)colors[position]=item.hex.toUpperCase();
+    }
     // Ensure visibly distinct dark linework, light negative space and accent.
     if(colors[4]===colors[2])colors[4]=outline();
     return {name:PHOTO_CATEGORIES[i],colors,roles,

@@ -1,5 +1,6 @@
 // PSD parsing runs in a worker to avoid blocking the editor while decoding large files.
 import {regionMask,recolorPixels,photoAdjust,hexToRGB,rgbToHex,clamp} from './engine.js';
+import {colorSelection,paintSelection} from './color-tools.mjs';
 import {initUpdates} from './updater.js';
 
 const $=id=>document.getElementById(id);
@@ -11,6 +12,10 @@ let documentModel=null,layers=[],selectedId=null,selection=null,zoom=1,history=[
 // reconstruction of masks, layer styles, groups and text is never assumed exact.
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 let nextId=1;
+let selectionPreview=null;
+let panX=0,panY=0;
+let gradientStops=[{id:1,color:'#F5B8CC',position:0},{id:2,color:'#9185D5',position:100}];
+let nextStopId=3;
 const maxDocPixels=26000000,maxLayerPixels=65000000,maxLayers=120;
 const maxPsdFileBytes=700*1024*1024;
 const defaultAdjust=()=>({exposure:0,contrast:0,saturation:0,warmth:0,highlights:0,shadows:0});
@@ -31,7 +36,7 @@ function newLayer(obj){return {id:nextId++,name:'레이어',x:0,y:0,w:100,h:100,
 function sel(){return layers.find(l=>l.id===selectedId)||null;}
 function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
 function checkpoint(l){if(!l)return;history.push(settingsSnapshot(l));if(history.length>12)history.shift();hasLayerEdits=true;if(previewMode==='composite')setPreviewMode('layers');}
-function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];originalComposite=null;previewMode='layers';hasLayerEdits=false;stage.scrollLeft=0;stage.scrollTop=0;}
+function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];originalComposite=null;previewMode='layers';hasLayerEdits=false;selectionPreview=null;panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -227,7 +232,7 @@ function refreshProperties(){
   $('selectionInfo').textContent=selection&&selection.id===selectedId?selection.count.toLocaleString()+'개 픽셀 선택됨':'색상 영역을 선택하지 않았습니다.';
 }
 function refreshAll(){refreshLayers();refreshProperties();setPreviewMode(previewMode);}
-function select(id){selectedId=id;selection=null;refreshAll();}
+function select(id){selectedId=id;selection=null;selectionPreview=null;refreshAll();}
 function setZoom(v){zoom=clamp(v,.1,8);$('zoomLabel').textContent=Math.round(zoom*100)+'%';if(documentModel){holder.style.width=Math.round(documentModel.width*zoom)+'px';holder.style.height=Math.round(documentModel.height*zoom)+'px';}}
 function fitZoom(){if(!documentModel)return;const v=Math.min((stage.clientWidth-70)/documentModel.width,(stage.clientHeight-70)/documentModel.height,1);setZoom(clamp(v,.1,8));}
 $('zoomIn').onclick=()=>setZoom(zoom*1.25);$('zoomOut').onclick=()=>setZoom(zoom/1.25);$('zoomFit').onclick=fitZoom;

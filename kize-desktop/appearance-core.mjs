@@ -81,7 +81,16 @@ export function makeAppearancePatch(layer,selection,docW,docH,referenceCrop,prio
   if(!mapped.count)return null;
   // Compute reference luminance from actual visible Photoshop pixels, not from
   // a raw PSD layer (which might lack styles, clipping or adjustment layers).
-  const sx=Math.floor((mapped.bounds.y+mapped.bounds.h/2)*rect.w+mapped.bounds.x+mapped.bounds.w/2);
+  // Never combine fractional x/y before flattening. Doing so can carry the
+  // half-pixel into the next row and sample the *background* instead of the
+  // selected object, making a recolored asset unexpectedly very dark.
+  const sampleX=Math.floor(mapped.bounds.x+(mapped.bounds.w-1)/2);
+  const sampleY=Math.floor(mapped.bounds.y+(mapped.bounds.h-1)/2);
+  let sx=sampleY*rect.w+sampleX;
+  if(!mapped.mask[sx]||base[sx*4+3]===0){
+    const fallback=mapped.mask.findIndex((alpha,i)=>alpha>0&&base[i*4+3]>0);
+    if(fallback>=0)sx=fallback;
+  }
   const sample=[base[sx*4],base[sx*4+1],base[sx*4+2]];
   const painted=paintSelection(base,rect.w,rect.h,{
     mask:mapped.mask,bounds:mapped.bounds,sample

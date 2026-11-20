@@ -66,10 +66,11 @@ try{
  assert.equal(await page.locator('#paletteApply').isVisible(),true);
  await page.locator('#paletteApply').click();
  assert.notDeepEqual(await rgba('renderCanvas',12,20),artBefore,'actual multi-color palette applied');
+ await page.locator('#charRemove').click();
+ assert.equal(await page.locator('#charReference').isVisible(),false);
  await page.locator('#modeSingle').click();
  assert.equal(await page.locator('#targetHex').isVisible(),true,
   'after palette apply individual color editing remains accessible');
- await page.locator('#charRemove').click().catch(()=>{});
  assert.deepEqual(errors,[],'no JS page errors');
  console.log('PASS: exact color canvas, cyan-only outline, stateful preview, photo palettes and post-apply editing.');
 }finally{if(browser)await browser.close();server.kill();}

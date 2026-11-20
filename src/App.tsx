@@ -891,6 +891,25 @@ export default function App() {
     })
   }
 
+  const renameMediaGroup = (id: string, name: string) => {
+    commitCoalesced('group-name:' + id, draft => {
+      draft.mediaGroups = (draft.mediaGroups ?? []).map(group => group.id === id ? { ...group, name } : group)
+      return draft
+    })
+  }
+
+  const toggleMediaGroupLock = (id: string) => {
+    commit(draft => {
+      const group = (draft.mediaGroups ?? []).find(item => item.id === id)
+      if (!group) return draft
+      const locked = !group.locked
+      group.locked = locked
+      const ids = new Set(group.layerIds)
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => ids.has(layer.id) ? { ...layer, locked } : layer)
+      return draft
+    })
+  }
+
   const batchUpdateMedia = (updates: Array<Partial<MediaLayer> & { id: string }>) => {
     const byId = new Map(updates.map(update => [update.id, update]))
     commit(draft => {
@@ -1128,6 +1147,8 @@ export default function App() {
             onDeleteMedia={deleteMedia}
             onGroupSelected={groupSelectedMedia}
             onUngroupSelected={ungroupSelectedMedia}
+            onRenameGroup={renameMediaGroup}
+            onToggleGroupLock={toggleMediaGroupLock}
             onSelectAllMedia={() => {
               const ids = (project.mediaLayers ?? []).map(layer => layer.id)
               setSelectedMediaIds(ids)

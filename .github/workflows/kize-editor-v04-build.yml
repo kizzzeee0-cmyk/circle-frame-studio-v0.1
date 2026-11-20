@@ -1,0 +1,156 @@
+name: KIZE DESIGN TOOL v0.4 - Windows Editor
+on:
+  push:
+    branches: [kize-editor-v0.4-development]
+    paths:
+      - 'kize-desktop/**'
+      - '.github/workflows/kize-editor-v04-build.yml'
+  workflow_dispatch:
+    inputs:
+      publish_update:
+        description: 'Publish signed updater release (requires signing secrets)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Build and verify the desktop editor
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rust stable toolchain (build server only)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Rust build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: kize-desktop/src-tauri
+      - name: Install editor dependencies
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm installation failed' }
+      - name: Test pixel operations
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          npm run test
+          if ($LASTEXITCODE -ne 0) { throw 'Pixel tests failed' }
+      - name: Verify no legacy tools in UI
+        shell: pwsh
+        run: |
+          $html = Get-Content 'kize-desktop/index.html' -Raw
+          if ($html -match 'id="patternFrame"|id="circleFrame"|data-page="pattern"|data-page="circle"') {
+            throw 'Legacy tool entry points still present'
+          }
+          if ($html -notmatch 'PSD / PNG' -or $html -notmatch 'guideOn' -or $html -notmatch 'replaceFile') {
+            throw 'Required editor controls missing'
+          }
+      - name: Build editor frontend
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed' }
+          if (-not (Test-Path 'dist/index.html')) { throw 'Editor HTML missing' }
+      - name: Generate app icon
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $bmp = New-Object System.Drawing.Bitmap(512,512)
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+          $g.Clear([System.Drawing.Color]::Transparent)
+          $purple = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(143,126,208))
+          $white = [System.Drawing.Brushes]::White
+          $g.FillEllipse($purple,24,24,464,464)
+          $font = New-Object System.Drawing.Font('Arial',255,[System.Drawing.FontStyle]::Bold,[System.Drawing.GraphicsUnit]::Pixel)
+          $g.DrawString('K',$font,$white,138,98)
+          $bmp.Save('kize-desktop/icon-source.png',[System.Drawing.Imaging.ImageFormat]::Png)
+          $font.Dispose(); $purple.Dispose(); $g.Dispose(); $bmp.Dispose()
+      - name: Generate Windows ICO
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          npx tauri icon icon-source.png --output src-tauri/icons
+          if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
+      - name: Configure signed updater only when both credentials exist
+        env:
+          UPDATE_PUBLIC_KEY: ${{ vars.KIZE_UPDATER_PUBLIC_KEY }}
+          UPDATE_PRIVATE_KEY: ${{ secrets.KIZE_UPDATER_PRIVATE_KEY }}
+        shell: pwsh
+        run: |
+          if (-not $env:UPDATE_PUBLIC_KEY -or -not $env:UPDATE_PRIVATE_KEY) {
+            Write-Host 'Update-signing credentials not configured; building standard standalone installer.'
+            if ('${{ inputs.publish_update }}' -eq 'true') { throw 'Cannot publish unsigned updates. Configure GitHub Actions updater keys first.' }
+            exit 0
+          }
+          $path = 'kize-desktop/src-tauri/tauri.conf.json'
+          $obj = Get-Content $path -Raw | ConvertFrom-Json
+          $obj | Add-Member -NotePropertyName plugins -NotePropertyValue @{
+            updater = @{
+              pubkey = $env:UPDATE_PUBLIC_KEY
+              endpoints = @('https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/latest/download/latest.json')
+              windows = @{ installMode = 'passive' }
+            }
+          } -Force
+          $obj.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
+          $obj | ConvertTo-Json -Depth 20 | Set-Content $path -Encoding UTF8
+          Write-Host 'Signed-update support enabled for this build.'
+      - name: Build Windows installer
+        working-directory: kize-desktop
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.KIZE_UPDATER_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.KIZE_UPDATER_PASSWORD }}
+        run: |
+          npm run desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Windows desktop compilation failed' }
+      - name: Verify installer exists and size
+        shell: pwsh
+        run: |
+          $dir = 'kize-desktop/src-tauri/target/release/bundle/nsis'
+          $setups = @(Get-ChildItem $dir -Filter '*setup.exe' -File -ErrorAction Stop)
+          if (-not $setups.Count) { throw 'Setup EXE not generated' }
+          foreach ($setup in $setups) {
+            if ($setup.Length -lt 500000) { throw "Suspiciously small EXE: $($setup.Name)" }
+            Write-Host "KIZE SETUP: $($setup.Name) $($setup.Length) bytes"
+          }
+      - name: Upload Windows setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: KIZE-DESIGN-TOOL-v0.4.0-Windows
+          path: kize-desktop/src-tauri/target/release/bundle/nsis/*setup.exe
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish signed in-app update
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_update }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNING_KEY: ${{ secrets.KIZE_UPDATER_PRIVATE_KEY }}
+          UPDATE_PUBLIC_KEY: ${{ vars.KIZE_UPDATER_PUBLIC_KEY }}
+        shell: pwsh
+        run: |
+          if (-not $env:SIGNING_KEY -or -not $env:UPDATE_PUBLIC_KEY) { throw 'Signing credentials missing' }
+          $dir = 'kize-desktop/src-tauri/target/release/bundle/nsis'
+          $setup = Get-ChildItem $dir -Filter '*setup.exe' -File | Select-Object -First 1
+          $sigPath = "$($setup.FullName).sig"
+          if (-not (Test-Path $sigPath)) { throw 'Update signature not generated' }
+          $signature = (Get-Content $sigPath -Raw).Trim()
+          $version = '0.4.0'
+          $tag = "kize-v$version"
+          $url = "https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/download/$tag/$($setup.Name)"
+          $json = @{ version=$version; notes='KIZE PSD editor'; platforms=@{ 'windows-x86_64'=@{url=$url;signature=$signature} } } | ConvertTo-Json -Depth 10
+          $json | Set-Content latest.json -Encoding utf8
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create $tag --title "KIZE DESIGN TOOL v$version" --notes "PSD editing and signed updates" }
+          gh release upload $tag $setup.FullName latest.json --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }

@@ -59,6 +59,7 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
       ? isVideoFormatSupported('mp4')
       : true
   const animated = hasAnimatedLayer(project)
+  const estimatedVideoMb = videoFormat ? ((options.videoBitrateMbps ?? 12) * options.duration / 8) : 0
 
   useEffect(() => {
     if (!open) return
@@ -249,9 +250,10 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
             </div>}
 
             <div className={'animated-memory ' + (memoryHeavy ? 'danger' : '')}>
-              <span>프레임 원본 메모리 예상</span>
-              <strong>약 {rawMb.toFixed(0)} MB</strong>
+              <span>{videoFormat ? '예상 영상 파일 크기' : '프레임 원본 메모리 예상'}</span>
+              <strong>{videoFormat ? '약 ' + estimatedVideoMb.toFixed(1) + ' MB' : '약 ' + rawMb.toFixed(0) + ' MB'}</strong>
             </div>
+            {videoFormat && <p className="animated-small-note">영상은 전체 RGBA 프레임을 한꺼번에 메모리에 적재하지 않고 브라우저 MediaRecorder로 순차 인코딩합니다. 실제 파일 크기는 장면 복잡도와 브라우저 인코더에 따라 달라질 수 있습니다.</p>}
             {memoryHeavy && <div className="animated-warning">이 조합은 브라우저 메모리 사용량이 너무 큽니다. 해상도·FPS·길이를 낮추거나 GIF를 선택해 주세요.</div>}
 
             {progress && <div className="animated-progress">

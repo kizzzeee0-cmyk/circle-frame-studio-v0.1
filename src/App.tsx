@@ -624,6 +624,17 @@ export default function App() {
     })
   }
 
+  const reorderLayer = (layerId: string, targetId: string) => {
+    commit(draft => {
+      const from = draft.layers.findIndex(layer => layer.id === layerId)
+      const to = draft.layers.findIndex(layer => layer.id === targetId)
+      if (from < 0 || to < 0 || from === to) return draft
+      const [layer] = draft.layers.splice(from, 1)
+      draft.layers.splice(to, 0, layer)
+      return draft
+    })
+  }
+
   const deleteLayer = (layerId: string) => {
     if (project.layers.length <= 1) {
       alert('레이어는 최소 1개 이상 있어야 합니다.')
@@ -892,6 +903,7 @@ export default function App() {
             onRenameLayer={renameLayer}
             onToggleLayerVisibility={toggleLayerVisibility}
             onMoveLayer={moveLayer}
+            onReorderLayer={reorderLayer}
             onDeleteLayer={deleteLayer}
           />
         )}

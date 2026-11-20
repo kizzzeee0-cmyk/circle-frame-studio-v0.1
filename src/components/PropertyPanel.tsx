@@ -14,6 +14,7 @@ interface Props {
   onRenameLayer: (layerId: string, name: string) => void
   onToggleLayerVisibility: (layerId: string) => void
   onMoveLayer: (layerId: string, direction: -1 | 1) => void
+  onReorderLayer: (layerId: string, targetId: string) => void
   onDeleteLayer: (layerId: string) => void
 }
 
@@ -68,6 +69,7 @@ export default function PropertyPanel({
   onRenameLayer,
   onToggleLayerVisibility,
   onMoveLayer,
+  onReorderLayer,
   onDeleteLayer,
 }: Props) {
   const patch = (partial: Partial<FrameDesign>) => onChange({ ...design, ...partial })
@@ -141,7 +143,23 @@ export default function PropertyPanel({
           {layers.map((layer, index) => {
             const active = layer.id === selectedLayerId
             return (
-              <div key={layer.id} className={active ? 'layer-card active' : 'layer-card'}>
+              <div
+                key={layer.id}
+                draggable
+                className={active ? 'layer-card active' : 'layer-card'}
+                onDragStart={event => {
+                  event.dataTransfer.effectAllowed = 'move'
+                  event.dataTransfer.setData('text/frame-layer', layer.id)
+                }}
+                onDragOver={event => {
+                  if (event.dataTransfer.types.includes('text/frame-layer')) event.preventDefault()
+                }}
+                onDrop={event => {
+                  event.preventDefault()
+                  const sourceId = event.dataTransfer.getData('text/frame-layer')
+                  if (sourceId && sourceId !== layer.id) onReorderLayer(sourceId, layer.id)
+                }}
+              >
                 <div className="layer-row-top">
                   <button type="button" className="layer-select" onClick={() => onSelectLayer(layer.id)} title="이 레이어 편집">
                     <strong>#{index + 1}</strong>

@@ -64,7 +64,7 @@ test('gradient stop colors, ratios, positions and angle are editable',()=>{
   assert.ok(vertical[0]>vertical[5*4],'top should be more red');
 });
 test('antialias fringe colors blend without changing source transparency',()=>{
-  const px=pixels(3,1,x=>x===0?[180,60,100,255]:x===1?[195,75,115,127]:[250,250,250,255]);
+  const px=pixels(3,1,x=>x===0?[180,60,100,255]:x===1?[187,67,107,127]:[250,250,250,255]);
   const selection=colorSelection(px,3,1,0,0,{connected:true,tolerance:8});
   assert.equal(selection.mask[0],255);
   assert.ok(selection.mask[1]>0&&selection.mask[1]<255);

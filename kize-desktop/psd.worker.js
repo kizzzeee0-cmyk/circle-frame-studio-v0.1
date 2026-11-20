@@ -25,6 +25,9 @@ self.onmessage = e => {
       if(l.bitmap?.data?.buffer)transfer.add(l.bitmap.data.buffer);
       for(const mask of l.maskSpecs||[])if(mask.pixels?.buffer)transfer.add(mask.pixels.buffer);
     }
+    for(const group of result.groupMasks||[])
+      for(const spec of group.maskSpecs||[])
+        if(spec.pixels?.buffer)transfer.add(spec.pixels.buffer);
     if(result.composite?.data?.buffer)transfer.add(result.composite.data.buffer);
     self.postMessage({type:'complete',result},[...transfer]);
   } catch(error) {

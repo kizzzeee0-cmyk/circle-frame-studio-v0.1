@@ -52,7 +52,7 @@ try{
  await page.locator('#showSelectionOutline').check();
 
  // Loading a reference MUST NOT replace/alter current document.
- await page.locator('#characterAnalyzer summary').click();
+ await page.locator('#characterAnalyzer > summary').click();
  const nameBefore=await page.locator('#sourceName').textContent();
  await page.locator('#charPhotoInput').setInputFiles({name:'ref.png',mimeType:'image/png',buffer:fixture(60,50)});
  await page.waitForFunction(()=>document.querySelectorAll('#charPaletteSuggestions .char-palette-item').length===12);

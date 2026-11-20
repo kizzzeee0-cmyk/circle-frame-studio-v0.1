@@ -114,14 +114,14 @@ export default function CanvasPanel({
     }
     void load()
     return () => { cancelled = true }
-  }, [project])
+  }, [project, effectiveResolution])
 
   useEffect(() => {
     syncProjectMediaPreview(project, timeSec, playing)
     if (!ref.current) return
     const duration = Math.max(.5, project.timeline?.duration ?? 3)
     renderProject(ref.current, project, undefined, timeSec * 1000, (timeSec % duration) / duration)
-  }, [project, timeSec, playing])
+  }, [project, timeSec, playing, effectiveResolution])
 
   const sample = (event: MouseEvent<HTMLCanvasElement>) => {
     if (!event.altKey || !onSampleColor || !ref.current) return
@@ -285,16 +285,22 @@ export default function CanvasPanel({
   return (
     <div className="canvas-stage">
       <div className="canvas-meta">
-        <span>2000 × 2000 출력 기준</span>
-        <span>Alt + 클릭: 스포이드</span>
-        <span>휠 확대 · 휠 클릭 이동 · 미디어 좌클릭 이동</span>
+        <span>{project.width} × {project.height} 출력 기준</span>
+        <span>{selectedLayers.length ? selectedLayers.length + '개 선택' : 'Alt + 클릭: 스포이드'}</span>
+        <span>휠 확대 · 휠 클릭 이동 · 핸들 직접 편집</span>
       </div>
 
       <div className="canvas-view-controls">
-        <button type="button" onClick={() => setZoom(value => Math.max(.35, value - .1))}>−</button>
+        <button type="button" onClick={() => setZoom(value => Math.max(.25, value - .1))}>−</button>
         <span>{Math.round(zoom * 100)}%</span>
-        <button type="button" onClick={() => setZoom(value => Math.min(3, value + .1))}>＋</button>
+        <button type="button" onClick={() => setZoom(value => Math.min(4, value + .1))}>＋</button>
         <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>전체 보기</button>
+        <label className="canvas-mini-toggle"><input type="checkbox" checked={settings.snapEnabled} onChange={event => onSettingsChange?.({ ...settings, snapEnabled: event.target.checked })} /> 스냅</label>
+        <select value={settings.performanceMode} onChange={event => onSettingsChange?.({ ...settings, performanceMode: event.target.value as ComposerSettings['performanceMode'] })}>
+          <option value="auto">자동 품질</option>
+          <option value="quality">고품질</option>
+          <option value="performance">성능 우선</option>
+        </select>
       </div>
 
       <div
@@ -307,8 +313,36 @@ export default function CanvasPanel({
         onPointerCancel={pointerUp}
         onAuxClick={event => event.preventDefault()}
       >
-        <div className="checkerboard" style={{ transform: 'translate(' + pan.x + 'px,' + pan.y + 'px) scale(' + zoom + ')' }}>
-          <canvas ref={ref} width={1200} height={1200} onClick={sample} />
+        <div ref={checkerRef} className="checkerboard" style={{ transform: 'translate(' + pan.x + 'px,' + pan.y + 'px) scale(' + zoom + ')' }}>
+          <canvas ref={ref} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
+
+          {settings.showGuides && guide.x && <div className="smart-guide vertical" />}
+          {settings.showGuides && guide.y && <div className="smart-guide horizontal" />}
+
+          {overlayStyle && (
+            <div className={'transform-box ' + (selectedLayers.length > 1 ? 'multi' : 'single')} style={overlayStyle} onPointerDown={event => beginTransform(event, 'move')}>
+              <button className="transform-handle nw" type="button" onPointerDown={event => beginTransform(event, 'resize')} />
+              <button className="transform-handle ne" type="button" onPointerDown={event => beginTransform(event, 'resize')} />
+              <button className="transform-handle sw" type="button" onPointerDown={event => beginTransform(event, 'resize')} />
+              <button className="transform-handle se" type="button" onPointerDown={event => beginTransform(event, 'resize')} />
+              <button className="transform-rotate-handle" type="button" title="드래그해서 회전" onPointerDown={event => beginTransform(event, 'rotate')}>↻</button>
+              {selectedLayers.length > 1 && <span className="transform-count">{selectedLayers.length}</span>}
+            </div>
+          )}
+
+          {(project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id)).map(layer => (
+            <button
+              key={layer.id}
+              type="button"
+              className={'canvas-selection-chip ' + (layer.id === primaryMediaId ? 'primary' : '')}
+              style={{ left: (50 + layer.x * fitScale / project.width * 100) + '%', top: (50 + layer.y * fitScale / project.height * 100) + '%' }}
+              onClick={event => {
+                event.stopPropagation()
+                onSelectMedia?.(layer.id, event.ctrlKey || event.metaKey || event.shiftKey)
+              }}
+              title={layer.name}
+            />
+          ))}
         </div>
       </div>
     </div>

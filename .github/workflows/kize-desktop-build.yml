@@ -1,0 +1,109 @@
+name: KIZE DESIGN TOOL - Windows Installer
+on:
+  push:
+    branches:
+      - kize-design-tool-desktop-builder
+    paths:
+      - 'kize-desktop/**'
+      - '.github/workflows/kize-desktop-build.yml'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Build standalone Windows setup
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    steps:
+      - name: Check out KIZE desktop development branch
+        uses: actions/checkout@v4
+      - name: Install Node 22 for cloud build ONLY
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Rust for cloud build ONLY
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: kize-desktop/src-tauri
+      - name: Compile original Circle Frame Studio
+        shell: pwsh
+        run: |
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "Circle npm install failed" }
+          npm run build
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path "dist/index.html")) { throw "Circle build failed" }
+      - name: Retrieve pinned Cute Pattern Studio
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/kizzzeee0-cmyk/cute-pattern-studio-v0.1.git _kize_pattern_source
+          if ($LASTEXITCODE -ne 0) { throw "Could not download original Cute Pattern Studio" }
+          Push-Location _kize_pattern_source
+          git fetch --depth 1 origin 16ac27fbe00eb915164d8da035a55b23cb52024c
+          if ($LASTEXITCODE -ne 0) { throw "Could not retrieve pinned Cute Pattern commit" }
+          git checkout --detach 16ac27fbe00eb915164d8da035a55b23cb52024c
+          if ($LASTEXITCODE -ne 0) { throw "Could not checkout pinned Cute Pattern commit" }
+          Pop-Location
+      - name: Bundle both full original tools for OFFLINE use
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "kize-desktop/public/tools/circle" | Out-Null
+          New-Item -ItemType Directory -Force "kize-desktop/public/tools/pattern" | Out-Null
+          Copy-Item -Path "dist/*" -Destination "kize-desktop/public/tools/circle/" -Recurse -Force
+          @("index.html","app.js","patterns.js","styles.css") | ForEach-Object {
+            if (-not (Test-Path "_kize_pattern_source/$_")) { throw "Pattern source missing: $_" }
+            Copy-Item "_kize_pattern_source/$_" "kize-desktop/public/tools/pattern/$_" -Force
+          }
+          foreach ($p in @("kize-desktop/public/tools/circle/index.html","kize-desktop/public/tools/pattern/index.html")) {
+            if (-not (Test-Path $p)) { throw "Missing bundled tool: $p" }
+          }
+      - name: Install desktop packaging dependencies on the BUILD SERVER
+        shell: pwsh
+        working-directory: kize-desktop
+        run: |
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "KIZE frontend dependency install failed" }
+      - name: Generate KIZE application icon
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $bmp = New-Object System.Drawing.Bitmap(512,512)
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+          $g.Clear([System.Drawing.Color]::Transparent)
+          $purple = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(143,126,208))
+          $white = [System.Drawing.Brushes]::White
+          $g.FillEllipse($purple,24,24,464,464)
+          $font = New-Object System.Drawing.Font('Arial',255,[System.Drawing.FontStyle]::Bold,[System.Drawing.GraphicsUnit]::Pixel)
+          $g.DrawString('K',$font,$white,138,98)
+          $bmp.Save('kize-desktop/icon-source.png',[System.Drawing.Imaging.ImageFormat]::Png)
+          $font.Dispose(); $purple.Dispose(); $g.Dispose(); $bmp.Dispose()
+      - name: Generate Windows ICO and app icons
+        shell: pwsh
+        working-directory: kize-desktop
+        run: |
+          npx tauri icon icon-source.png --output src-tauri/icons
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path "src-tauri/icons/icon.ico")) { throw "Icon generation failed" }
+      - name: Build signed-format NSIS setup EXE (unsigned publisher)
+        shell: pwsh
+        working-directory: kize-desktop
+        run: |
+          npm run desktop
+          if ($LASTEXITCODE -ne 0) { throw "Tauri Windows installer build failed" }
+      - name: Verify original tools included and installer exists
+        shell: pwsh
+        run: |
+          foreach ($p in @("kize-desktop/dist/tools/circle/index.html","kize-desktop/dist/tools/pattern/index.html","kize-desktop/dist/tools/pattern/app.js")) {
+            if (-not (Test-Path $p)) { throw "Bundled offline tool missing: $p" }
+          }
+          $setups = @(Get-ChildItem "kize-desktop/src-tauri/target/release/bundle/nsis" -File -Filter "*setup.exe" -ErrorAction SilentlyContinue)
+          if ($setups.Count -eq 0) { throw "Setup.exe is missing" }
+          foreach ($f in $setups) { if ($f.Length -lt 100000) { throw "Suspiciously small installer: $f" }; Write-Host "SETUP READY: $($f.Name) $($f.Length) bytes" }
+      - name: Upload ready-to-install Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: KIZE-DESIGN-TOOL-v0.3.0-Windows-Setup
+          path: kize-desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 30

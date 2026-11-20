@@ -33,10 +33,7 @@ function easeValue(value: number, mode: 'linear' | 'ease-in' | 'ease-out' | 'eas
 
 function animatedFrameRotation(design: FrameDesign, sceneTimeSec: number) {
   const motion = design.rotationAnimation
-  if (design.kind === 'glitter' && design.glitter.surfaceStyle !== 'legacy') {
-    const mode = design.glitter.animationMode
-    if (mode !== 'rotate' && mode !== 'rotate-twinkle') return 0
-  }
+  // v0.36: ring rotation is independent from orbit / twinkle / highlight motion.
   if (!motion?.enabled || sceneTimeSec < motion.startTime) return motion?.startAngle ?? 0
   const end = Math.max(motion.startTime, motion.endTime)
   const activeTime = Math.min(sceneTimeSec, end) - motion.startTime
@@ -1311,57 +1308,146 @@ function getSurfaceGlitterTexture(design: FrameDesign, r: number, scale: number)
 
 function surfaceAnimationCycle(glitter: FrameDesign['glitter'], animationTimeMs: number, animationProgress?: number) {
   if (animationProgress != null) return ((animationProgress % 1) + 1) % 1
-  return (((animationTimeMs / 1000) * Math.max(.05, glitter.animationSpeed || 1)) % 1 + 1) % 1
+  const seconds = Math.max(.25, Number(glitter.loopDuration || 3))
+  return ((((animationTimeMs / 1000) / seconds) % 1) + 1) % 1
+}
+
+function surfaceTwinkleEnabled(g: FrameDesign['glitter']) {
+  return g.twinkleEnabled ?? (g.animationMode === 'twinkle' || g.animationMode === 'rotate-twinkle' || g.animationMode === 'orbit')
+}
+function surfaceOrbitEnabled(g: FrameDesign['glitter']) {
+  return g.orbitEnabled ?? g.animationMode === 'orbit'
+}
+function surfaceHighlightEnabled(g: FrameDesign['glitter']) {
+  return g.highlightSweepEnabled ?? g.animationMode === 'sweep'
+}
+
+function drawOrbitGlitter(
+  ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number,
+  design: FrameDesign, rotation: number, scale: number,
+  animationTimeMs: number, animationProgress?: number,
+) {
+  const g = design.glitter
+  const isOrbitStyle = g.surfaceStyle === 'orbit'
+  const moving = surfaceOrbitEnabled(g)
+  if (!isOrbitStyle && !moving) return
+  const cycle = surfaceAnimationCycle(g, animationTimeMs, animationProgress)
+  const direction = g.flowDirection === -1 ? -1 : 1
+  const count = Math.max(48, Math.min(1200, Math.round(g.orbitDensity || g.density || 280)))
+  const spread = Math.max(.5, (g.orbitSpread || Math.max(6, design.thickness * .22)) * scale)
+  const baseParticle = Math.max(.35, g.particleSize * scale)
+  const variation = clamp01(g.particleSizeVariation)
+  const trail = clamp01(g.orbitTrail ?? .2)
+  const twinkle = surfaceTwinkleEnabled(g)
+  const twinkleRepeats = Math.max(1, Math.min(4, Math.round(Math.max(.2, g.animationSpeed || 1) * 2)))
+  const strength = clamp01(g.animationStrength)
+  const colors = surfacePalette(design)
+  const rand = seeded(design.pattern.seed + 66317)
+  const accentChance = Math.min(.06, Math.max(0, g.accentSparkleCount) / Math.max(1, count) * 1.5)
+
+  if (g.ringVisible) {
+    ctx.save()
+    ctx.globalAlpha *= .12 + clamp01(g.baseOpacity) * .18
+    ctx.strokeStyle = mixHex(validColor(design.color), '#FFFFFF', .38)
+    ctx.lineWidth = Math.max(.6, design.thickness * scale * .08)
+    ctx.lineCap = 'round'
+    strokeCircle(ctx, cx, cy, r, rotation)
+    ctx.restore()
+  }
+
+  for (let i = 0; i < count; i++) {
+    const angularJitter = rand()
+    const phase = rand()
+    const radialSeed = rand() * 2 - 1
+    const sizeSeed = rand()
+    const brightnessSeed = rand()
+    const color = colors[Math.floor(rand() * colors.length)] ?? '#FFFFFF'
+    const laps = rand() < .11 ? 2 : 1
+    const baseAngle = rotation - Math.PI / 2 + ((i + angularJitter * .92) / count) * TAU
+    const localCycle = moving ? cycle : 0
+    const angle = baseAngle + direction * TAU * localCycle * laps
+    const radialBreath = Math.sin(TAU * (localCycle * (i % 3 === 0 ? 2 : 1) + phase)) * spread * .075
+    const rr = r + radialSeed * spread + radialBreath
+    const x = cx + Math.cos(angle) * rr
+    const y = cy + Math.sin(angle) * rr
+    const wave = twinkle ? .5 + .5 * Math.sin(TAU * (cycle * twinkleRepeats + phase)) : .62
+    const pulse = .44 + smoothstep(.02, .98, wave) * .56
+    const size = Math.max(.28, baseParticle * (1 + (sizeSeed * 2 - 1) * variation) * (.82 + pulse * .16))
+    const alpha = (.18 + brightnessSeed * .62) * (.56 + pulse * .44) * (.54 + strength * .46)
+
+    ctx.save()
+    ctx.globalCompositeOperation = 'screen'
+    ctx.globalAlpha *= alpha
+    ctx.fillStyle = color
+    ctx.strokeStyle = mixHex(color, '#FFFFFF', .34)
+    ctx.lineCap = 'round'
+    ctx.shadowColor = validColor(g.glowColor, color)
+    ctx.shadowBlur = Math.max(0, g.glow * scale * .12)
+    if (trail > .01 && brightnessSeed > .64) {
+      const tangentX = -Math.sin(angle) * direction
+      const tangentY = Math.cos(angle) * direction
+      const length = size * (1.2 + trail * 5.5)
+      const trailAlpha = .34 + trail * .34
+      ctx.globalAlpha *= trailAlpha
+      ctx.lineWidth = Math.max(.35, size * .22)
+      ctx.beginPath()
+      ctx.moveTo(x - tangentX * length, y - tangentY * length)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+      ctx.globalAlpha /= trailAlpha
+    }
+    if (brightnessSeed > 1 - accentChance) {
+      const sparkle = Math.max(size * 1.8, g.sparkleSize * scale * (.34 + pulse * .22))
+      ctx.globalAlpha *= .58 + pulse * .32
+      ctx.fillStyle = validColor(g.highlightColor, '#FFFFFF')
+      drawFourPointGlint(ctx, x, y, sparkle, angle * .08 + phase * TAU)
+    } else {
+      ctx.beginPath()
+      ctx.arc(x, y, Math.max(.22, size * .48), 0, TAU)
+      ctx.fill()
+    }
+    ctx.restore()
+  }
 }
 
 function drawSurfaceGlitterOverlay(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  r: number,
-  design: FrameDesign,
-  rotation: number,
-  scale: number,
-  animationTimeMs: number,
-  animationProgress?: number,
+  ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number,
+  design: FrameDesign, rotation: number, scale: number,
+  animationTimeMs: number, animationProgress?: number,
 ) {
   const g = design.glitter
-  const mode = g.animationMode
-  if (!g.animated || mode === 'none' || mode === 'rotate') return
-
   const cycle = surfaceAnimationCycle(g, animationTimeMs, animationProgress)
   const thickness = Math.max(1, design.thickness * scale)
   const direction = g.flowDirection === -1 ? -1 : 1
-
-  if (mode === 'sweep') {
+  if (surfaceHighlightEnabled(g)) {
     const centerAngle = rotation - Math.PI / 2 + direction * cycle * TAU
-    const span = Math.max(.08, Math.min(.75, g.sweepWidth * TAU * .52))
+    const span = Math.max(.08, Math.min(.78, g.sweepWidth * TAU * .52))
     ctx.save()
     ctx.globalCompositeOperation = 'screen'
     ctx.strokeStyle = validColor(g.highlightColor, '#FFFFFF')
     ctx.lineCap = 'round'
     ctx.shadowColor = validColor(g.glowColor, '#FFFFFF')
-    ctx.shadowBlur = Math.max(0, g.glow * scale * .45)
-    ctx.globalAlpha *= .18 + clamp01(g.animationStrength) * .48
-    ctx.lineWidth = Math.max(1, thickness * .18)
+    ctx.shadowBlur = Math.max(0, g.glow * scale * .24)
+    ctx.globalAlpha *= .14 + clamp01(g.animationStrength) * .42
+    ctx.lineWidth = Math.max(.8, thickness * (g.surfaceStyle === 'reflection' ? .16 : .12))
     ctx.beginPath()
     ctx.arc(cx, cy, r, centerAngle - span / 2, centerAngle + span / 2)
     ctx.stroke()
-    ctx.globalAlpha *= .55
-    ctx.lineWidth = Math.max(.7, thickness * .055)
+    ctx.globalAlpha *= .48
+    ctx.lineWidth = Math.max(.55, thickness * .042)
     ctx.beginPath()
-    ctx.arc(cx, cy, r - thickness * .34, centerAngle - span * .34, centerAngle + span * .34)
+    ctx.arc(cx, cy, r - thickness * .24, centerAngle - span * .30, centerAngle + span * .30)
     ctx.stroke()
     ctx.restore()
-    return
   }
+  if (!surfaceTwinkleEnabled(g)) return
 
   const rand = seeded(design.pattern.seed + 90271)
   const count = Math.max(0, Math.min(18, Math.round(g.accentSparkleCount)))
   const duration = Math.max(.04, Math.min(.8, g.accentSparkleDuration))
   const strength = clamp01(g.animationStrength)
   const sparkleSize = Math.max(1, g.sparkleSize * scale)
-
+  const repeats = Math.max(1, Math.min(4, Math.round(Math.max(.2, g.animationSpeed || 1) * 2)))
   for (let i = 0; i < count; i++) {
     const angle = rotation - Math.PI / 2 + rand() * TAU
     const radial = (rand() * 2 - 1) * thickness * .31
@@ -1369,43 +1455,69 @@ function drawSurfaceGlitterOverlay(
     const x = cx + Math.cos(angle) * rr
     const y = cy + Math.sin(angle) * rr
     const phase = rand()
-    const wave = .5 + .5 * Math.cos(TAU * (cycle + phase))
+    const wave = .5 + .5 * Math.cos(TAU * (cycle * repeats + phase))
     const pulse = smoothstep(1 - duration, 1, wave)
-    if (pulse < .015) continue
-    const size = sparkleSize * (.46 + rand() * .42) * (.82 + pulse * .18)
-
+    if (pulse < .01) continue
+    const size = sparkleSize * (.42 + rand() * .38) * (.86 + pulse * .14)
     ctx.save()
     ctx.globalCompositeOperation = 'screen'
-    ctx.globalAlpha *= pulse * (.28 + strength * .68)
+    ctx.globalAlpha *= pulse * (.22 + strength * .62)
     ctx.fillStyle = validColor(g.highlightColor, '#FFFFFF')
     ctx.shadowColor = validColor(g.glowColor, '#FFFFFF')
-    ctx.shadowBlur = Math.max(0, g.glow * scale * (.18 + pulse * .36))
+    ctx.shadowBlur = Math.max(0, g.glow * scale * (.10 + pulse * .20))
     drawFourPointGlint(ctx, x, y, size, angle * .08 + phase * TAU)
-    ctx.globalAlpha *= .75
+    ctx.globalAlpha *= .72
     ctx.beginPath()
-    ctx.arc(x, y, Math.max(.4, size * .06), 0, TAU)
+    ctx.arc(x, y, Math.max(.32, size * .055), 0, TAU)
     ctx.fill()
     ctx.restore()
   }
 }
 
-function drawSurfaceGlitter(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  r: number,
-  design: FrameDesign,
-  rotation: number,
-  scale: number,
-  animationTimeMs = 0,
-  animationProgress?: number,
+function drawReflectionGlitter(
+  ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number,
+  design: FrameDesign, rotation: number, scale: number,
+  animationTimeMs: number, animationProgress?: number,
 ) {
-  const texture = getSurfaceGlitterTexture(design, r, scale)
-  ctx.save()
-  ctx.translate(cx, cy)
-  ctx.rotate(rotation)
-  ctx.drawImage(texture, -texture.width / 2, -texture.height / 2)
-  ctx.restore()
+  const g = design.glitter
+  const thickness = Math.max(1, design.thickness * scale)
+  if (g.ringVisible) {
+    ctx.save()
+    ctx.globalAlpha *= .46 + clamp01(g.baseOpacity) * .34
+    ctx.strokeStyle = makeSurfaceGlitterGradient(ctx, design, cx, cy, r)
+    ctx.lineCap = 'round'
+    ctx.lineWidth = Math.max(1, thickness * .22)
+    strokeCircle(ctx, cx, cy, r, rotation)
+    ctx.globalCompositeOperation = 'screen'
+    ctx.strokeStyle = validColor(g.highlightColor, '#FFFFFF')
+    ctx.globalAlpha *= .44
+    ctx.lineWidth = Math.max(.55, thickness * .034)
+    strokeCircle(ctx, cx, cy, r - thickness * .12, rotation)
+    ctx.restore()
+  }
+  drawOrbitGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
+  drawSurfaceGlitterOverlay(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
+}
+
+function drawSurfaceGlitter(
+  ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number,
+  design: FrameDesign, rotation: number, scale: number,
+  animationTimeMs = 0, animationProgress?: number,
+) {
+  const g = design.glitter
+  if (g.surfaceStyle === 'reflection') {
+    drawReflectionGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
+    return
+  }
+  if (g.surfaceStyle !== 'orbit' && g.ringVisible !== false) {
+    const texture = getSurfaceGlitterTexture(design, r, scale)
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.rotate(rotation)
+    ctx.drawImage(texture, -texture.width / 2, -texture.height / 2)
+    ctx.restore()
+  }
+  drawOrbitGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
   drawSurfaceGlitterOverlay(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
 }
 

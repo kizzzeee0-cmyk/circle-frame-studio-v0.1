@@ -335,6 +335,7 @@ async function exportCanvasVideo(
   await audioMix?.start()
   const frameCount = Math.max(2, Math.round(options.duration * fps))
   const frameDelay = 1000 / fps
+  const recordingStartedAt = performance.now()
 
   try {
     for (let i = 0; i < frameCount; i++) {
@@ -348,7 +349,9 @@ async function exportCanvasVideo(
         total: frameCount,
         message: (format === 'mp4' ? 'MP4' : 'WebM') + ' 프레임 ' + (i + 1) + ' / ' + frameCount + ' 기록 중',
       })
-      await new Promise(resolve => setTimeout(resolve, frameDelay))
+      const targetTime = recordingStartedAt + (i + 1) * frameDelay
+      const wait = Math.max(0, targetTime - performance.now())
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait))
     }
 
     throwIfAborted(signal)

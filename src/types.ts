@@ -24,8 +24,8 @@ export type GradientMode = 'solid' | 'linear' | 'radial' | 'conic'
 export type DecorationLayout = 'count' | 'spacing'
 export type AssetTintMode = 'original' | 'palette'
 export type GlitterParticleStyle = 'soft' | 'twinkle' | 'sugar' | 'luminous'
-export type GlitterSurfaceStyle = 'legacy' | 'gradient' | 'fine' | 'twinkle' | 'holographic'
-export type GlitterAnimationMode = 'none' | 'twinkle' | 'rotate' | 'rotate-twinkle' | 'sweep'
+export type GlitterSurfaceStyle = 'legacy' | 'gradient' | 'fine' | 'twinkle' | 'holographic' | 'orbit' | 'reflection'
+export type GlitterAnimationMode = 'none' | 'twinkle' | 'rotate' | 'rotate-twinkle' | 'sweep' | 'orbit'
 export type MediaLayerKind = 'image' | 'video'
 export type MediaMaskMode = 'none' | 'circle' | 'ring' | 'custom'
 export type MediaPlacement = 'below' | 'above'
@@ -126,6 +126,14 @@ export interface GlitterSettings {
   textureContrast: number
   surfaceHighlight: number
   rimStrength: number
+  ringVisible: boolean
+  orbitSpread: number
+  orbitDensity: number
+  orbitTrail: number
+  loopDuration: number
+  orbitEnabled: boolean
+  twinkleEnabled: boolean
+  highlightSweepEnabled: boolean
   sparkleRatio: number
   spread: number
   glow: number

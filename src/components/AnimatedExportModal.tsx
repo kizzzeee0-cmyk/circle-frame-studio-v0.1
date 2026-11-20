@@ -71,6 +71,11 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
   const memoryHeavy = !['gif','webm','mp4','mov'].includes(options.format) && rawMb > 320
   const movHeavy = movFormat && rawMb > 1600
   const animated = hasAnimatedLayer(project)
+  const glitterLoopDuration = (project.layers ?? [])
+    .filter(layer => layer.visible && layer.design.kind === 'glitter' && layer.design.glitter.surfaceStyle !== 'legacy')
+    .map(layer => Math.max(.5, Number(layer.design.glitter.loopDuration || project.timeline?.duration || 3)))[0] ?? 0
+  const loopRatio = glitterLoopDuration > 0 ? options.duration / glitterLoopDuration : 1
+  const loopMismatch = glitterLoopDuration > 0 && Math.abs(loopRatio - Math.round(loopRatio)) > .001
   const estimatedVideoMb = videoFormat ? ((options.videoBitrateMbps ?? 12) * options.duration / 8) : 0
   const audioLayers = (project.mediaLayers ?? []).filter(layer => layer.kind === 'video' && layer.visible && layer.audioEnabled && layer.audioVolume > 0).length
   const needsRealtimeAudio = videoFormat && options.includeAudio !== false && audioLayers > 0
@@ -134,10 +139,11 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
     setOptions(prev => ({ ...prev, [key]: value }))
 
   const applyPreset = (name: string) => {
-    if (name === '부드러운 글리터') setOptions(prev => ({ ...prev, fps: 20, duration: 2.4, webpQuality: 88 }))
-    if (name === '화려한 반짝임') setOptions(prev => ({ ...prev, fps: 24, duration: 1.5, webpQuality: 90 }))
-    if (name === '잔잔한 쉬머') setOptions(prev => ({ ...prev, fps: 20, duration: 3, webpQuality: 88 }))
-    if (name === '빠른 스파클') setOptions(prev => ({ ...prev, fps: 24, duration: 1, webpQuality: 86 }))
+    const duration = Math.max(.5, Math.min(30, project.timeline?.duration ?? options.duration))
+    if (name === '부드러운 글리터') setOptions(prev => ({ ...prev, fps: 20, duration, webpQuality: 88 }))
+    if (name === '화려한 반짝임') setOptions(prev => ({ ...prev, fps: 30, duration, webpQuality: 90 }))
+    if (name === '잔잔한 쉬머') setOptions(prev => ({ ...prev, fps: 20, duration, webpQuality: 88 }))
+    if (name === '빠른 스파클') setOptions(prev => ({ ...prev, fps: 30, duration, webpQuality: 86 }))
   }
 
   const applyExportPreset = (name: string) => {
@@ -254,8 +260,9 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
             </label>
 
             <label className="control"><span><b>출력 길이</b><em>{options.duration}s</em></span>
-              <input disabled={busy} type="number" min={.5} max={30} step={.5} value={options.duration} onChange={event => set('duration', Math.max(.5, Math.min(30, Number(event.target.value) || .5)))} />
+              <input disabled={busy} type="number" min={.5} max={30} step={.1} value={options.duration} onChange={event => set('duration', Math.max(.5, Math.min(30, Number(event.target.value) || .5)))} />
             </label>
+            {loopMismatch && <p className="hint">현재 출력 길이는 글리터 반복 길이 {glitterLoopDuration.toFixed(1)}s의 정수 배수가 아니어서 반복 경계가 어색할 수 있습니다. 자연스러운 무한 루프는 {glitterLoopDuration.toFixed(1)}s 또는 그 정수 배수로 출력해 주세요.</p>}
 
             <label className="control"><span><b>반복</b></span>
               <select

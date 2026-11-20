@@ -114,6 +114,14 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
       textureContrast: .62,
       surfaceHighlight: .42,
       rimStrength: .68,
+      ringVisible: true,
+      orbitSpread: 18,
+      orbitDensity: 320,
+      orbitTrail: .22,
+      loopDuration: 3,
+      orbitEnabled: false,
+      twinkleEnabled: true,
+      highlightSweepEnabled: false,
       sparkleRatio: .18,
       spread: 34,
       glow: 6,
@@ -315,6 +323,44 @@ export const PRESETS: FramePreset[] = [
     },
     rotationAnimation: { enabled: false, secondsPerTurn: 8, easing: 'linear' },
   }, { seed: 35014 }, { glowEnabled: true, glowColor: '#D9D0FF', glowBlur: 5, glowIntensity: .035 }),
+
+
+  // v0.36 — ringless orbital glitter + independent motion controls.
+  p('glitter-orbit-flow-v036', 'Glitter', 'Orbit Glitter Flow', 'glitter', {
+    thickness: 58, color: '#E9D7FF', secondaryColor: '#FFFFFF',
+    glitter: {
+      surfaceStyle: 'orbit', animationMode: 'orbit',
+      ringVisible: false, orbitEnabled: true, twinkleEnabled: true, highlightSweepEnabled: false,
+      orbitSpread: 17, orbitDensity: 360, orbitTrail: .24, loopDuration: 3,
+      density: 360, particleSize: 1.45, particleSizeVariation: .68,
+      sparkleSize: 8.5, accentSparkleCount: 3, accentSparkleDuration: .18,
+      textureContrast: .58, surfaceHighlight: .18, rimStrength: .18,
+      sparkleRatio: .025, spread: 14, glow: 1.8, baseOpacity: .90, edgeHighlight: .18,
+      colorCount: 4, colors: ['#FFFFFF','#F6E9FF','#E7CEFF','#D8ECFF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .72, animationStrength: .62,
+      animationSmoothness: .98, sweepWidth: .11, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#E5D5FF', flowEnabled: true, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 7, easing: 'linear' },
+  }, { seed: 36011 }),
+
+  p('glitter-reflection-flow-v036', 'Glitter', 'Flowing Reflection Ring', 'glitter', {
+    thickness: 62, color: '#E7DDF9', secondaryColor: '#FFFFFF',
+    glitter: {
+      surfaceStyle: 'reflection', animationMode: 'sweep',
+      ringVisible: true, orbitEnabled: false, twinkleEnabled: false, highlightSweepEnabled: true,
+      orbitSpread: 10, orbitDensity: 220, orbitTrail: .16, loopDuration: 3.4,
+      density: 520, particleSize: .95, particleSizeVariation: .42,
+      sparkleSize: 7, accentSparkleCount: 1, accentSparkleDuration: .16,
+      textureContrast: .34, surfaceHighlight: .28, rimStrength: .48,
+      sparkleRatio: .01, spread: 10, glow: 1.4, baseOpacity: .82, edgeHighlight: .42,
+      colorCount: 3, colors: ['#FFFFFF','#E8DDF8','#CFC2EC','#FFFFFF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .45, animationStrength: .58,
+      animationSmoothness: .99, sweepWidth: .14, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#E8DEFA', flowEnabled: true, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 8, easing: 'linear' },
+  }, { seed: 36012 }),
 
   p('jelly-balloon-pink-v031', '3D', 'Jelly Balloon Pink', 'jelly', {
     radius: 720,

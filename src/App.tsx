@@ -17,10 +17,10 @@ import { exportPortableProject, importPortableProject } from './utils/projectBun
 import { createMediaLayer, defaultBackground, defaultComposerSettings, defaultTimeline, normalizeBackground, normalizeComposerSettings, normalizeMediaLayer, normalizeTimeline } from './utils/projectDefaults'
 import './styles.css'
 
-const AUTOSAVE_KEY = 'circle-frame-studio-project-v035'
-const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v034', 'circle-frame-studio-project-v033', 'circle-frame-studio-project-v032', 'circle-frame-studio-project-v031', 'circle-frame-studio-project-v030', 'circle-frame-studio-project-v029', 'circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
-const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v035'
-const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v034', 'circle-frame-studio-user-presets-v033', 'circle-frame-studio-user-presets-v032', 'circle-frame-studio-user-presets-v031', 'circle-frame-studio-user-presets-v030', 'circle-frame-studio-user-presets-v029', 'circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
+const AUTOSAVE_KEY = 'circle-frame-studio-project-v036'
+const LEGACY_AUTOSAVE_KEYS = ['circle-frame-studio-project-v035', 'circle-frame-studio-project-v034', 'circle-frame-studio-project-v033', 'circle-frame-studio-project-v032', 'circle-frame-studio-project-v031', 'circle-frame-studio-project-v030', 'circle-frame-studio-project-v029', 'circle-frame-studio-project-v028', 'circle-frame-studio-project-v027', 'circle-frame-studio-project-v026', 'circle-frame-studio-project-v025', 'circle-frame-studio-project-v024', 'circle-frame-studio-project-v023', 'circle-frame-studio-project-v022', 'circle-frame-studio-project-v021', 'circle-frame-studio-project-v020', 'circle-frame-studio-project-v019', 'circle-frame-studio-project-v018', 'circle-frame-studio-project-v017', 'circle-frame-studio-project-v016', 'circle-frame-studio-project-v015', 'circle-frame-studio-project-v014', 'circle-frame-studio-project-v013', 'circle-frame-studio-project-v012', 'circle-frame-studio-project-v011', 'circle-frame-studio-project-v010', 'circle-frame-studio-project-v09', 'circle-frame-studio-project-v08', 'circle-frame-studio-project-v07', 'circle-frame-studio-project-v06', 'circle-frame-studio-project-v05', 'circle-frame-studio-project-v04', 'circle-frame-studio-project-v03']
+const USER_PRESETS_KEY = 'circle-frame-studio-user-presets-v036'
+const LEGACY_USER_PRESET_KEYS = ['circle-frame-studio-user-presets-v035', 'circle-frame-studio-user-presets-v034', 'circle-frame-studio-user-presets-v033', 'circle-frame-studio-user-presets-v032', 'circle-frame-studio-user-presets-v031', 'circle-frame-studio-user-presets-v030', 'circle-frame-studio-user-presets-v029', 'circle-frame-studio-user-presets-v028', 'circle-frame-studio-user-presets-v027', 'circle-frame-studio-user-presets-v026', 'circle-frame-studio-user-presets-v025', 'circle-frame-studio-user-presets-v024', 'circle-frame-studio-user-presets-v023', 'circle-frame-studio-user-presets-v022', 'circle-frame-studio-user-presets-v021', 'circle-frame-studio-user-presets-v020', 'circle-frame-studio-user-presets-v019', 'circle-frame-studio-user-presets-v018', 'circle-frame-studio-user-presets-v017', 'circle-frame-studio-user-presets-v016', 'circle-frame-studio-user-presets-v015', 'circle-frame-studio-user-presets-v014', 'circle-frame-studio-user-presets-v013', 'circle-frame-studio-user-presets-v012', 'circle-frame-studio-user-presets-v011', 'circle-frame-studio-user-presets-v010', 'circle-frame-studio-user-presets-v09', 'circle-frame-studio-user-presets-v08', 'circle-frame-studio-user-presets-v07', 'circle-frame-studio-user-presets-v06', 'circle-frame-studio-user-presets-v05', 'circle-frame-studio-user-presets-v04', 'circle-frame-studio-user-presets-v03']
 
 function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   const base = createDesign(source.kind ?? 'basic', source.name ?? 'Frame')
@@ -64,10 +64,10 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
       colors: Array.isArray(source.glitter?.colors) && source.glitter.colors.length >= 4
         ? [source.glitter.colors[0], source.glitter.colors[1], source.glitter.colors[2], source.glitter.colors[3]]
         : base.glitter.colors,
-      surfaceStyle: ['legacy','gradient','fine','twinkle','holographic'].includes(String(source.glitter?.surfaceStyle))
+      surfaceStyle: ['legacy','gradient','fine','twinkle','holographic','orbit','reflection'].includes(String(source.glitter?.surfaceStyle))
         ? source.glitter!.surfaceStyle
         : base.glitter.surfaceStyle,
-      animationMode: ['none','twinkle','rotate','rotate-twinkle','sweep'].includes(String(source.glitter?.animationMode))
+      animationMode: ['none','twinkle','rotate','rotate-twinkle','sweep','orbit'].includes(String(source.glitter?.animationMode))
         ? source.glitter!.animationMode
         : base.glitter.animationMode,
       density: Math.max(12, Math.min(900, Number(source.glitter?.density ?? base.glitter.density))),
@@ -79,6 +79,14 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
       textureContrast: Math.max(0, Math.min(1, Number(source.glitter?.textureContrast ?? base.glitter.textureContrast))),
       surfaceHighlight: Math.max(0, Math.min(1, Number(source.glitter?.surfaceHighlight ?? base.glitter.surfaceHighlight))),
       rimStrength: Math.max(0, Math.min(1, Number(source.glitter?.rimStrength ?? base.glitter.rimStrength))),
+      ringVisible: source.glitter?.ringVisible !== false,
+      orbitSpread: Math.max(.5, Math.min(120, Number(source.glitter?.orbitSpread ?? base.glitter.orbitSpread))),
+      orbitDensity: Math.max(48, Math.min(1200, Math.round(Number(source.glitter?.orbitDensity ?? base.glitter.orbitDensity)))),
+      orbitTrail: Math.max(0, Math.min(1, Number(source.glitter?.orbitTrail ?? base.glitter.orbitTrail))),
+      loopDuration: Math.max(.5, Math.min(30, Number(source.glitter?.loopDuration ?? base.glitter.loopDuration))),
+      orbitEnabled: source.glitter?.orbitEnabled ?? (source.glitter?.animationMode === 'orbit'),
+      twinkleEnabled: source.glitter?.twinkleEnabled ?? ['twinkle','rotate-twinkle','orbit'].includes(String(source.glitter?.animationMode ?? base.glitter.animationMode)),
+      highlightSweepEnabled: source.glitter?.highlightSweepEnabled ?? (source.glitter?.animationMode === 'sweep'),
       sparkleRatio: Math.max(0, Math.min(1, Number(source.glitter?.sparkleRatio ?? base.glitter.sparkleRatio))),
       spread: Math.max(1, Number(source.glitter?.spread ?? base.glitter.spread)),
       glow: Math.max(0, Number(source.glitter?.glow ?? base.glitter.glow)),
@@ -435,21 +443,17 @@ export default function App() {
     if (!timelinePlaying) return
     let frame = 0
     let last = performance.now()
-    let lastCommit = 0
     const tick = (now: number) => {
       const delta = Math.max(0, Math.min(.1, (now - last) / 1000))
       last = now
-      if (now - lastCommit > 30) {
-        lastCommit = now
-        setTimelineTime(current => {
-          const duration = Math.max(.5, project.timeline?.duration ?? 3)
-          const next = current + delta
-          if (next < duration) return next
-          if (project.timeline?.loop !== false) return next % duration
-          setTimelinePlaying(false)
-          return duration
-        })
-      }
+      setTimelineTime(current => {
+        const duration = Math.max(.5, project.timeline?.duration ?? 3)
+        const next = current + delta
+        if (next < duration) return next
+        if (project.timeline?.loop !== false) return next % duration
+        setTimelinePlaying(false)
+        return duration
+      })
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -1562,6 +1566,11 @@ export default function App() {
         ) : (
           <PropertyPanel
             design={project.design}
+            timelineDuration={Math.max(.5, project.timeline?.duration ?? 3)}
+            onTimelineDurationChange={value => commitCoalesced('timeline-duration', draft => {
+              draft.timeline = { ...(draft.timeline ?? defaultTimeline()), duration: Math.max(.5, Math.min(30, value)) }
+              return draft
+            })}
             onChange={updateDesign}
             onSavePreset={saveCurrentPreset}
             onUploadAsset={uploadAsset}

@@ -98,10 +98,10 @@ export function growShrinkMask(mask,w,h,amount){
     const i=y*cw+x,idx=(top+y)*w+left+x;
     if(radius>0){
       if(binary[i])out[idx]=mask[idx]||255;
-      else out[idx]=Math.round(255*clamp(radius+1.5-dist[i],0,1));
+      else out[idx]=Math.round(255*clamp(radius+.65-dist[i],0,1));
     }else{
       if(!binary[i])continue;
-      out[idx]=Math.round(mask[idx]*clamp(dist[i]-Math.abs(radius)+.5,0,1));
+      out[idx]=Math.round(mask[idx]*clamp(dist[i]-Math.abs(radius),0,1));
     }
   }
   return out;

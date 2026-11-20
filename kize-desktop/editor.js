@@ -749,16 +749,60 @@ $('exportPng').onclick=()=>{
   render();
   canvas.toBlob(blob=>{if(blob)downloadBlob(blob,(documentModel.name.replace(/\.[^.]+$/,'')||'KIZE-design')+'-edited.png');else notify('PNG 저장에 실패했습니다.');},'image/png');
 };
-$('saveProject').onclick=()=>{
+$('saveProject').onclick=async()=>{
   if(!documentModel){notify('저장할 프로젝트가 없습니다.');return;}
+  const button=$('saveProject');button.disabled=true;
   try{
-    const out={format:'KIZE-PROJECT-1',width:documentModel.width,height:documentModel.height,layers:layers.map(l=>{
-      const {canvas,photoSource,psdText,...props}=l;return {...props,data:layerImage(l).toDataURL('image/png')};
-    })};
-    downloadBlob(new Blob([JSON.stringify(out)],{type:'application/json'}),'KIZE-project.kize.json');
-    notify('KIZE 프로젝트 저장 완료 · PSD 파일은 변경하지 않았습니다.');
-  }catch(err){notify('프로젝트 저장 실패: '+err.message);}
+    notify('프로젝트 이미지와 편집 설정을 별도로 보존하는 중…');
+    const images={},meta=[];
+    for(let i=0;i<layers.length;i++){
+      const l=layers[i];
+      const bitmap='layers/'+String(i).padStart(4,'0')+'.png';
+      images[bitmap]=await canvasToPngBytes(l.canvas);
+      let photoBitmap=null;
+      if(l.photoSource){
+        photoBitmap='photos/'+String(i).padStart(4,'0')+'.png';
+        images[photoBitmap]=await canvasToPngBytes(l.photoSource);
+      }
+      const {canvas,photoSource,psdText,...properties}=l;
+      meta.push({...properties,bitmap,...(photoBitmap?{photoBitmap}:{}),
+        // Preserve editable text metadata without including binary PSD structures.
+        psdText:psdText?{text:psdText.text||''}:null});
+    }
+    let composite=null;
+    if(originalComposite){
+      composite='reference/psd-merged.png';
+      images[composite]=await canvasToPngBytes(originalComposite);
+    }
+    const manifest={
+      format:'KIZE-PROJECT-2',
+      appVersion:'0.6.0',
+      width:documentModel.width,height:documentModel.height,
+      name:documentModel.name,kind:documentModel.kind,
+      edited:hasLayerEdits,previewMode,
+      layers:meta,...(composite?{composite}:{}),
+    };
+    const archive=createArchive(manifest,images);
+    const name=(documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]+/g,'-');
+    downloadBlob(new Blob([archive],{type:'application/octet-stream'}),name+'.kize');
+    unsavedChanges=false;updateDirtyStatus();
+    notify('KIZE 프로젝트 저장 완료 · 사진 원본·보정값·PSD 원본 미리보기 보존');
+  }catch(err){
+    notify('프로젝트 저장 실패: '+(err?.message||String(err)));
+    console.error('KIZE project save error:',err);
+  }finally{button.disabled=false;}
 };
-window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$('undo').click();}});
+window.addEventListener('beforeunload',e=>{
+  if(!unsavedChanges)return;
+  e.preventDefault();e.returnValue='';
+});
+window.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+  const key=e.key.toLowerCase();
+  if(key==='z'){
+    e.preventDefault();(e.shiftKey?$('redo'):$('undo')).click();
+  }else if(key==='y'){e.preventDefault();$('redo').click();}
+  else if(key==='s'){e.preventDefault();$('saveProject').click();}
+});
 window.addEventListener('resize',()=>{if(documentModel)syncGuides();});
 initUpdates($('updateStatus'),$('checkUpdate'));

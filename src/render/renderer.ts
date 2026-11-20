@@ -33,6 +33,10 @@ function easeValue(value: number, mode: 'linear' | 'ease-in' | 'ease-out' | 'eas
 
 function animatedFrameRotation(design: FrameDesign, sceneTimeSec: number) {
   const motion = design.rotationAnimation
+  if (design.kind === 'glitter' && design.glitter.surfaceStyle !== 'legacy') {
+    const mode = design.glitter.animationMode
+    if (mode !== 'rotate' && mode !== 'rotate-twinkle') return 0
+  }
   if (!motion?.enabled || sceneTimeSec < motion.startTime) return motion?.startAngle ?? 0
   const end = Math.max(motion.startTime, motion.endTime)
   const activeTime = Math.min(sceneTimeSec, end) - motion.startTime
@@ -169,6 +173,7 @@ function makeGradient(ctx: CanvasRenderingContext2D, design: FrameDesign, cx: nu
 }
 
 const embossMaskCache = new Map<string, HTMLCanvasElement>()
+const glitterSurfaceCache = new Map<string, HTMLCanvasElement>()
 
 function makeEmbossMaskDesign(design: FrameDesign): FrameDesign {
   const white = '#FFFFFF'
@@ -946,7 +951,7 @@ function glitterMotion(
   return (1 - strength) * .78 + strength * eased
 }
 
-function drawGlitter(
+function drawLegacyGlitter(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
@@ -1085,6 +1090,335 @@ function drawGlitter(
     }
     ctx.restore()
   }
+}
+
+
+function glitterSurfaceKey(design: FrameDesign, r: number, scale: number) {
+  const g = design.glitter
+  return JSON.stringify([
+    Math.round(r * 100) / 100,
+    Math.round(scale * 10000) / 10000,
+    design.thickness,
+    design.color,
+    design.secondaryColor,
+    design.gradientMode,
+    design.gradientAngle,
+    design.gradientStops.map(stop => [stop.position, stop.color]),
+    g.surfaceStyle,
+    g.density,
+    g.particleSize,
+    g.particleSizeVariation,
+    g.textureContrast,
+    g.surfaceHighlight,
+    g.rimStrength,
+    g.baseOpacity,
+    g.colorCount,
+    g.colors.slice(0, g.colorCount),
+    g.highlightColor,
+    design.pattern.seed,
+  ])
+}
+
+function surfacePalette(design: FrameDesign) {
+  const g = design.glitter
+  const colors = g.colors
+    .slice(0, Math.max(1, Math.min(4, g.colorCount)))
+    .map((color, index) => validColor(color, index === 0 ? validColor(design.color) : validColor(design.secondaryColor, '#FFFFFF')))
+  return colors.length ? colors : [validColor(design.color)]
+}
+
+function makeSurfaceGlitterGradient(
+  ctx: CanvasRenderingContext2D,
+  design: FrameDesign,
+  cx: number,
+  cy: number,
+  r: number,
+) {
+  const g = design.glitter
+  const colors = surfacePalette(design)
+  if (g.surfaceStyle !== 'gradient' && g.surfaceStyle !== 'holographic' && design.gradientMode !== 'solid') {
+    return makeGradient(ctx, design, cx, cy, r)
+  }
+  if (colors.length === 1) return colors[0]
+
+  const gradient = ctx.createConicGradient(-Math.PI / 2 + (design.gradientAngle * Math.PI) / 180, cx, cy)
+  if (g.surfaceStyle === 'gradient' && colors.length >= 4) {
+    const stops = [
+      [0, colors[0]],
+      [.18, colors[1]],
+      [.50, colors[2]],
+      [.78, colors[3]],
+      [1, colors[0]],
+    ] as Array<[number, string]>
+    stops.forEach(([position, color]) => gradient.addColorStop(position, color))
+    return gradient
+  }
+
+  const repeats = g.surfaceStyle === 'holographic' ? 1 : 1
+  const count = colors.length * repeats
+  for (let i = 0; i <= count; i++) {
+    gradient.addColorStop(i / count, colors[i % colors.length])
+  }
+  return gradient
+}
+
+function createSurfaceGlitterTexture(design: FrameDesign, r: number, scale: number) {
+  const g = design.glitter
+  const thickness = Math.max(1, design.thickness * scale)
+  const pad = Math.ceil(Math.max(6 * scale, g.particleSize * scale * 2, thickness * .08))
+  const half = Math.ceil(r + thickness / 2 + pad)
+  const size = Math.max(8, half * 2)
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return canvas
+
+  const cx = size / 2
+  const cy = size / 2
+  const outer = r + thickness / 2
+  const inner = Math.max(1, r - thickness / 2)
+  const rand = seeded(design.pattern.seed + 35051)
+  const colors = surfacePalette(design)
+  const contrast = clamp01(g.textureContrast)
+  const variation = clamp01(g.particleSizeVariation)
+  const style = g.surfaceStyle
+  const densityMultiplier = style === 'fine' ? 1.4 : style === 'twinkle' ? 1.18 : style === 'holographic' ? 1.08 : 1.2
+  const density = Math.max(80, Math.min(1600, Math.round(g.density * densityMultiplier)))
+  const baseSize = Math.max(.35, g.particleSize * scale)
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(cx, cy, outer, 0, TAU)
+  ctx.arc(cx, cy, inner, 0, TAU, true)
+  ctx.clip('evenodd')
+
+  ctx.globalAlpha = Math.max(.2, clamp01(g.baseOpacity) * .94)
+  ctx.fillStyle = makeSurfaceGlitterGradient(ctx, design, cx, cy, r)
+  ctx.fillRect(0, 0, size, size)
+
+  if (g.surfaceHighlight > 0) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'screen'
+    ctx.strokeStyle = validColor(g.highlightColor, '#FFFFFF')
+    ctx.globalAlpha = clamp01(g.surfaceHighlight) * .20
+    ctx.lineWidth = Math.max(1, thickness * .46)
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, -2.78, -1.05)
+    ctx.stroke()
+    ctx.globalAlpha *= .62
+    ctx.lineWidth = Math.max(1, thickness * .26)
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, .24, 1.18)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  for (let i = 0; i < density; i++) {
+    const angularJitter = rand()
+    const angle = ((i + angularJitter) / density) * TAU
+    const radial = (rand() * 2 - 1) * thickness * .43
+    const rr = r + radial
+    const x = cx + Math.cos(angle) * rr
+    const y = cy + Math.sin(angle) * rr
+    const sizeVariance = 1 + (rand() * 2 - 1) * variation
+    const particle = Math.max(.28, baseSize * sizeVariance)
+    const shine = Math.pow(rand(), 1.45)
+    const alpha = (.08 + shine * (.30 + contrast * .48)) * (style === 'fine' ? .82 : 1)
+    const sourceColor = colors[Math.floor(rand() * colors.length)] ?? '#FFFFFF'
+    const whiteMix = .28 + shine * (.34 + contrast * .24)
+    const color = mixHex(sourceColor, '#FFFFFF', whiteMix)
+
+    ctx.save()
+    ctx.globalCompositeOperation = 'screen'
+    ctx.globalAlpha = alpha
+    ctx.fillStyle = color
+    ctx.strokeStyle = color
+
+    if (style === 'holographic' && rand() < .32) {
+      const w = particle * (1.1 + rand() * .9)
+      const h = Math.max(.35, particle * .32)
+      ctx.translate(x, y)
+      ctx.rotate(angle + (rand() - .5) * .8)
+      ctx.fillRect(-w / 2, -h / 2, w, h)
+    } else if (style === 'gradient' && rand() < .18) {
+      ctx.lineWidth = Math.max(.35, particle * .22)
+      ctx.lineCap = 'round'
+      ctx.beginPath()
+      ctx.moveTo(x - particle * .55, y)
+      ctx.lineTo(x + particle * .55, y)
+      ctx.stroke()
+    } else {
+      ctx.beginPath()
+      ctx.arc(x, y, Math.max(.2, particle * (style === 'fine' ? .32 : .42)), 0, TAU)
+      ctx.fill()
+    }
+
+    if (shine > .86 && rand() < .34) {
+      ctx.globalAlpha *= .72
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.arc(x - particle * .12, y - particle * .12, Math.max(.18, particle * .10), 0, TAU)
+      ctx.fill()
+    }
+    ctx.restore()
+  }
+  ctx.restore()
+
+  const rim = clamp01(g.rimStrength)
+  if (rim > 0) {
+    const rimColor = mixHex(validColor(design.secondaryColor, '#FFFFFF'), '#FFFFFF', .76)
+    ctx.save()
+    ctx.globalCompositeOperation = 'screen'
+    ctx.strokeStyle = rimColor
+    ctx.lineCap = 'round'
+    ctx.shadowBlur = 0
+    for (const [radius, alpha, width] of [
+      [outer - Math.max(.5, scale * .65), rim * .68, Math.max(.7, thickness * .035)],
+      [inner + Math.max(.5, scale * .65), rim * .92, Math.max(.7, thickness * .048)],
+    ] as Array<[number, number, number]>) {
+      ctx.globalAlpha = alpha
+      ctx.lineWidth = width
+      ctx.beginPath()
+      ctx.arc(cx, cy, radius, 0, TAU)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+
+  return canvas
+}
+
+function getSurfaceGlitterTexture(design: FrameDesign, r: number, scale: number) {
+  const key = glitterSurfaceKey(design, r, scale)
+  const cached = glitterSurfaceCache.get(key)
+  if (cached) return cached
+  const canvas = createSurfaceGlitterTexture(design, r, scale)
+  glitterSurfaceCache.set(key, canvas)
+  if (glitterSurfaceCache.size > 14) {
+    const oldest = glitterSurfaceCache.keys().next().value
+    if (oldest) glitterSurfaceCache.delete(oldest)
+  }
+  return canvas
+}
+
+function surfaceAnimationCycle(glitter: FrameDesign['glitter'], animationTimeMs: number, animationProgress?: number) {
+  if (animationProgress != null) return ((animationProgress % 1) + 1) % 1
+  return (((animationTimeMs / 1000) * Math.max(.05, glitter.animationSpeed || 1)) % 1 + 1) % 1
+}
+
+function drawSurfaceGlitterOverlay(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  design: FrameDesign,
+  rotation: number,
+  scale: number,
+  animationTimeMs: number,
+  animationProgress?: number,
+) {
+  const g = design.glitter
+  const mode = g.animationMode
+  if (!g.animated || mode === 'none' || mode === 'rotate') return
+
+  const cycle = surfaceAnimationCycle(g, animationTimeMs, animationProgress)
+  const thickness = Math.max(1, design.thickness * scale)
+  const direction = g.flowDirection === -1 ? -1 : 1
+
+  if (mode === 'sweep') {
+    const centerAngle = rotation - Math.PI / 2 + direction * cycle * TAU
+    const span = Math.max(.08, Math.min(.75, g.sweepWidth * TAU * .52))
+    ctx.save()
+    ctx.globalCompositeOperation = 'screen'
+    ctx.strokeStyle = validColor(g.highlightColor, '#FFFFFF')
+    ctx.lineCap = 'round'
+    ctx.shadowColor = validColor(g.glowColor, '#FFFFFF')
+    ctx.shadowBlur = Math.max(0, g.glow * scale * .45)
+    ctx.globalAlpha *= .18 + clamp01(g.animationStrength) * .48
+    ctx.lineWidth = Math.max(1, thickness * .18)
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, centerAngle - span / 2, centerAngle + span / 2)
+    ctx.stroke()
+    ctx.globalAlpha *= .55
+    ctx.lineWidth = Math.max(.7, thickness * .055)
+    ctx.beginPath()
+    ctx.arc(cx, cy, r - thickness * .34, centerAngle - span * .34, centerAngle + span * .34)
+    ctx.stroke()
+    ctx.restore()
+    return
+  }
+
+  const rand = seeded(design.pattern.seed + 90271)
+  const count = Math.max(0, Math.min(18, Math.round(g.accentSparkleCount)))
+  const duration = Math.max(.04, Math.min(.8, g.accentSparkleDuration))
+  const strength = clamp01(g.animationStrength)
+  const sparkleSize = Math.max(1, g.sparkleSize * scale)
+
+  for (let i = 0; i < count; i++) {
+    const angle = rotation - Math.PI / 2 + rand() * TAU
+    const radial = (rand() * 2 - 1) * thickness * .31
+    const rr = r + radial
+    const x = cx + Math.cos(angle) * rr
+    const y = cy + Math.sin(angle) * rr
+    const phase = rand()
+    const wave = .5 + .5 * Math.cos(TAU * (cycle + phase))
+    const pulse = smoothstep(1 - duration, 1, wave)
+    if (pulse < .015) continue
+    const size = sparkleSize * (.46 + rand() * .42) * (.82 + pulse * .18)
+
+    ctx.save()
+    ctx.globalCompositeOperation = 'screen'
+    ctx.globalAlpha *= pulse * (.28 + strength * .68)
+    ctx.fillStyle = validColor(g.highlightColor, '#FFFFFF')
+    ctx.shadowColor = validColor(g.glowColor, '#FFFFFF')
+    ctx.shadowBlur = Math.max(0, g.glow * scale * (.18 + pulse * .36))
+    drawFourPointGlint(ctx, x, y, size, angle * .08 + phase * TAU)
+    ctx.globalAlpha *= .75
+    ctx.beginPath()
+    ctx.arc(x, y, Math.max(.4, size * .06), 0, TAU)
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
+function drawSurfaceGlitter(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  design: FrameDesign,
+  rotation: number,
+  scale: number,
+  animationTimeMs = 0,
+  animationProgress?: number,
+) {
+  const texture = getSurfaceGlitterTexture(design, r, scale)
+  ctx.save()
+  ctx.translate(cx, cy)
+  ctx.rotate(rotation)
+  ctx.drawImage(texture, -texture.width / 2, -texture.height / 2)
+  ctx.restore()
+  drawSurfaceGlitterOverlay(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
+}
+
+function drawGlitter(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  design: FrameDesign,
+  rotation: number,
+  scale: number,
+  animationTimeMs = 0,
+  animationProgress?: number,
+) {
+  if (design.glitter.surfaceStyle === 'legacy') {
+    drawLegacyGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
+    return
+  }
+  drawSurfaceGlitter(ctx, cx, cy, r, design, rotation, scale, animationTimeMs, animationProgress)
 }
 
 function drawAttachedTriple(

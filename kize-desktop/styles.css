@@ -179,3 +179,25 @@
 #paletteScopeHint{font-size:10px;line-height:1.5;margin:8px 0 0;color:#97899f}
 #selectAllOpaque{flex:1}
 #paletteApply{border-radius:8px}
+
+/* v0.14: two distinct editor workflows. Never make the user scroll through
+   "single color" settings to find actual multi-color palette Apply. */
+.color-mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0 10px}
+.color-mode-tab{border:1px solid #e5e1ec;background:#faf9fc;color:#897f98;border-radius:9px;padding:9px 6px;font-size:11px;font-weight:750;line-height:1.5;min-width:0}
+.color-mode-tab small{font-size:10px;color:#aaa0b5;font-weight:500}
+.color-mode-tab.selected{border-color:#aaa0d7;background:#f1eef9;color:#645485}
+.color-mode-tab.selected small{color:#82739c}
+#singleEditor[hidden],#paletteEditor[hidden]{display:none!important}
+#paletteEditor>.palette-lead{font-size:11px;color:#7d7089;line-height:1.65;margin:11px 0 10px}
+#paletteEditor>.palette-lead strong{color:#625270}
+.palette-quick-select{margin:8px 0!important;display:grid!important;grid-template-columns:1fr 1fr;gap:6px!important}
+.palette-main-action{margin:9px 0 14px;padding:10px 9px;border:1px solid #ddd3eb;border-radius:9px;background:#f9f7fd}
+.palette-main-action button{display:block;width:100%;min-height:39px;white-space:normal;line-height:1.5;font-size:12px}
+.palette-main-action small{display:block;margin-top:6px;color:#8f859b;line-height:1.5;font-size:10px}
+#paletteEditor .variant-details{border:0;padding:0;margin:7px 0;background:transparent}
+#paletteEditor .variant-details summary{display:none}
+#paletteEditor .palette-combo-panel{margin:9px 0}
+#paletteEditor .palette-apply-row{grid-template-columns:1fr!important}
+#paletteEditor .palette-map{max-height:230px;overflow:auto}
+#paletteEditor #variantSummary{color:#877991}
+#paletteEditor #paletteApply[disabled]{opacity:.5;cursor:not-allowed}

@@ -117,7 +117,7 @@ export function importPsdPixels(buffer, options={}) {
   if(!decoded.length || (failed.length && options.useCompositeIfIncomplete)){
     try{
       const pxCount=header.width*header.height;
-      if(pxCount<=PSD_LIMITS.documentPixels){
+      if(pxCount<=PSD_LIMITS.documentPixels && pxCount*4*bytesPerChannel<=512*1024*1024){
         const candidate=getCompositeImageData(psd);
         if(candidate?.data?.length===candidate.width*candidate.height*4)
           composite=candidate;

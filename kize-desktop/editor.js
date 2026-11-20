@@ -206,20 +206,45 @@ function drawOverlay(){
 }
 function refreshLayers(){
   const list=$('layerList');list.replaceChildren();
-  const shown=layers.slice().reverse().filter(l=>$('showHidden').checked||l.visible);
-  $('layerCount').textContent=layers.length;
-  if(!shown.length){list.innerHTML='<div class="placeholder">표시할 레이어가 없습니다.</div>';return;}
+  const query=($('layerSearch')?.value||'').trim().toLocaleLowerCase();
+  const shown=layers.slice().reverse().filter(l=>($('showHidden').checked||l.visible)&&(!query||l.name.toLocaleLowerCase().includes(query)));
+  $('layerCount').textContent=query?shown.length+' / '+layers.length:String(layers.length);
+  const info=$('activeLayerInfo'),active=sel();
+  info.textContent=active?'편집 중 · '+active.name:'먼저 색상을 수정할 PSD 레이어를 선택하세요.';
+  info.title=active?.name||'';
+  if(!shown.length){list.innerHTML='<div class="placeholder">검색 결과가 없거나 표시할 레이어가 없습니다.</div>';return;}
+  const fragment=document.createDocumentFragment();
   for(const l of shown){
-    const row=document.createElement('button');row.className='layer'+(l.id===selectedId?' active':'');row.type='button';
-    const icon=document.createElement('span');icon.className='layer-icon';icon.textContent=l.type==='text'?'T':l.type==='smart-object'?'◇':'▧';
-    const label=document.createElement('span');label.className='layer-text';
-    const name=document.createElement('strong');name.textContent=l.name;
-    const note=document.createElement('small');note.textContent=l.type+' · '+Math.round(l.w)+'×'+Math.round(l.h);
-    label.append(name,note);
-    const eye=document.createElement('span');eye.className='eye';eye.textContent=l.visible?'◉':'○';
-    row.append(icon,label,eye);row.onclick=()=>{select(l.id);};list.append(row);
+    const row=document.createElement('div');
+    row.className='layer'+(l.id===selectedId?' active':'')+(l.visible?'':' layer-hidden');
+    row.setAttribute('role','option');row.setAttribute('aria-selected',String(l.id===selectedId));
+    row.tabIndex=0;row.title=l.name;
+    row.onclick=()=>select(l.id);
+    row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(l.id);}};
+    const thumb=document.createElement('canvas');thumb.className='layer-thumb';thumb.width=40;thumb.height=40;
+    const tc=thumb.getContext('2d');
+    tc.fillStyle='#faf8fd';tc.fillRect(0,0,40,40);
+    if(l.canvas?.width&&l.canvas?.height){
+      const scale=Math.min(36/l.canvas.width,36/l.canvas.height);
+      const dw=l.canvas.width*scale,dh=l.canvas.height*scale;
+      tc.drawImage(l.canvas,(40-dw)/2,(40-dh)/2,dw,dh);
+    }
+    const nameBox=document.createElement('span');nameBox.className='layer-text';
+    const parts=l.name.split(' / '),depth=parts.length-1;
+    const name=document.createElement('strong');name.textContent=parts.at(-1);
+    if(depth){const path=document.createElement('small');path.className='layer-path';path.textContent=parts.slice(0,-1).join(' / ');nameBox.append(path);}
+    const note=document.createElement('small');note.textContent=(l.type==='text'?'텍스트':l.type==='smart-object'?'스마트 오브젝트':l.type==='composite'?'통합 미리보기':'이미지')+' · '+Math.round(l.w)+'×'+Math.round(l.h);
+    nameBox.append(name,note);
+    const eye=document.createElement('button');eye.type='button';eye.className='eye';eye.textContent=l.visible?'◉':'○';
+    eye.setAttribute('aria-label',l.visible?'레이어 숨기기':'레이어 표시');eye.title=eye.getAttribute('aria-label');
+    eye.onclick=e=>{e.stopPropagation();selectedId=l.id;checkpoint(l);l.visible=!l.visible;selection=null;selectionPreview=null;refreshAll();};
+    row.append(thumb,nameBox,eye);fragment.append(row);
   }
+  list.append(fragment);
 }
+$('layerSearch').oninput=refreshLayers;
+$('selectedLayerOnly').onchange=e=>notify(e.target.checked?'선택한 PSD 레이어에서만 색상을 추출합니다.':'캔버스에서 클릭한 최상단 레이어의 색상을 추출합니다.');
+
 function refreshProperties(){
   const l=sel();$('selectedType').textContent=l?l.type:'선택 없음';
   for(const [input,key] of [['propX','x'],['propY','y'],['propW','w'],['propH','h']])$(input).value=l?Math.round(l[key]):'';
@@ -229,7 +254,7 @@ function refreshProperties(){
   $('fontFamily').value=l?.fontFamily||'';$('fontSize').value=l?.fontSize||32;$('textColor').value=l?.textColor||'#333333';
   for(const input of document.querySelectorAll('[data-adjust]')){const k=input.dataset.adjust;input.value=l?.adjust?.[k]||0;const id='out'+k[0].toUpperCase()+k.slice(1);if($(id))$(id).textContent=input.value;}
   $('textPanel').hidden=l?.type!=='text';
-  $('selectionInfo').textContent=selection&&selection.id===selectedId?selection.count.toLocaleString()+'개 픽셀 선택됨':'색상 영역을 선택하지 않았습니다.';
+  $('selectionInfo').textContent=selection&&selection.id===selectedId?'선택된 색상 픽셀 '+selection.count.toLocaleString()+'개 · 레이어 내 '+(selection.bounds?selection.bounds.w+'×'+selection.bounds.h+'px 범위':'영역 없음'):'왼쪽에서 레이어를 선택한 뒤 해당 색상을 클릭하세요.';
 }
 function refreshAll(){refreshLayers();refreshProperties();setPreviewMode(previewMode);}
 function select(id){selectedId=id;selection=null;selectionPreview=null;refreshAll();}

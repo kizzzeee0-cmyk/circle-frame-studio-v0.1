@@ -119,6 +119,30 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
       animationStrength: .84,
       animationSmoothness: .86,
       sweepWidth: .18,
+      particleStyle: 'soft',
+      highlightColor: '#FFFFFF',
+      glowColor: '#FFE6B5',
+      flowEnabled: true,
+      flowDirection: 1,
+    },
+    jelly: {
+      highlightColor: '#FFFFFF',
+      highlightOpacity: .92,
+      highlightWidth: .13,
+      highlightLength: .28,
+      highlightCount: 4,
+      shadowColor: '#8A1740',
+      shadowOpacity: .26,
+      volume: .72,
+    },
+    rotationAnimation: {
+      enabled: false,
+      direction: 1,
+      secondsPerTurn: 4,
+      startAngle: 0,
+      easing: 'linear',
+      startTime: 0,
+      endTime: 999,
     },
     effects: baseEffects(),
     pattern: basePattern(),
@@ -128,8 +152,12 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
 function p(id: string, category: string, name: string, kind: RingKind, patch: Partial<FrameDesign> = {}, pattern = {}, effects = {}): FramePreset {
   const design = createDesign(kind, name)
   const baseGlitter = { ...design.glitter }
+  const baseJelly = { ...design.jelly }
+  const baseRotation = { ...design.rotationAnimation }
   Object.assign(design, patch)
   if (patch.glitter) design.glitter = { ...baseGlitter, ...patch.glitter }
+  if (patch.jelly) design.jelly = { ...baseJelly, ...patch.jelly }
+  if (patch.rotationAnimation) design.rotationAnimation = { ...baseRotation, ...patch.rotationAnimation }
   Object.assign(design.pattern, pattern)
   if (!(pattern as { paletteColors?: unknown }).paletteColors) {
     design.pattern.paletteColors = [design.color, design.secondaryColor, '#F7A8CF', '#B9D1FF']
@@ -143,6 +171,80 @@ export const PRESETS: FramePreset[] = [
   p('basic-thin', 'Basic', 'Thin Ring', 'basic', { thickness: 12 }),
   p('basic-medium', 'Basic', 'Clean Ring', 'basic', { thickness: 26 }),
   p('basic-thick', 'Basic', 'Thick Ring', 'basic', { thickness: 62 }),
+
+  // v0.31 — distinct glitter textures, not color-only variations.
+  p('glitter-soft-v031', 'Glitter', 'Soft Glitter', 'glitter', {
+    thickness: 54,
+    color: '#F6C8DB',
+    secondaryColor: '#FFF4F9',
+    glitter: {
+      density: 430, particleSize: 1.5, sparkleSize: 7.5, sparkleRatio: .08,
+      spread: 18, glow: 2.2, baseOpacity: .34, edgeHighlight: .66,
+      colorCount: 3, colors: ['#FFFFFF','#FFD7E8','#F3AAC8','#FFFFFF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .62, animationStrength: .76,
+      animationSmoothness: .95, sweepWidth: .18, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#F7B9D4', flowEnabled: false, flowDirection: 1,
+    },
+  }, { seed: 3101 }),
+
+  p('glitter-twinkle-v031', 'Glitter', 'Twinkle Glitter', 'glitter', {
+    thickness: 58,
+    color: '#B9A5F2',
+    secondaryColor: '#F4EFFF',
+    glitter: {
+      density: 290, particleSize: 1.8, sparkleSize: 13, sparkleRatio: .31,
+      spread: 22, glow: 4.5, baseOpacity: .31, edgeHighlight: .75,
+      colorCount: 4, colors: ['#FFFFFF','#D9CBFF','#B9A5F2','#FFF0FA'],
+      animated: true, animationStyle: 'mixed', animationSpeed: .72, animationStrength: .92,
+      animationSmoothness: .92, sweepWidth: .20, particleStyle: 'twinkle',
+      highlightColor: '#FFFFFF', glowColor: '#B9A5F2', flowEnabled: true, flowDirection: 1,
+    },
+  }, { seed: 3102 }),
+
+  p('glitter-sugar-v031', 'Glitter', 'Sugar Glitter', 'glitter', {
+    thickness: 62,
+    color: '#F1B56D',
+    secondaryColor: '#FFF0CE',
+    glitter: {
+      density: 360, particleSize: 2.4, sparkleSize: 8, sparkleRatio: .10,
+      spread: 20, glow: 2.4, baseOpacity: .38, edgeHighlight: .62,
+      colorCount: 4, colors: ['#FFFFFF','#FFE7AE','#F6C66D','#FFF8DF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .78, animationStrength: .78,
+      animationSmoothness: .90, sweepWidth: .17, particleStyle: 'sugar',
+      highlightColor: '#FFFFFF', glowColor: '#FFD592', flowEnabled: false, flowDirection: 1,
+    },
+  }, { seed: 3103 }),
+
+  p('glitter-luminous-v031', 'Glitter', 'Luminous Glitter', 'glitter', {
+    thickness: 66,
+    color: '#7DD7C5',
+    secondaryColor: '#E9FFF9',
+    glitter: {
+      density: 300, particleSize: 1.8, sparkleSize: 11, sparkleRatio: .18,
+      spread: 21, glow: 5.5, baseOpacity: .48, edgeHighlight: .86,
+      colorCount: 3, colors: ['#FFFFFF','#CFFFF2','#7DD7C5','#FFFFFF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .58, animationStrength: .86,
+      animationSmoothness: .96, sweepWidth: .26, particleStyle: 'luminous',
+      highlightColor: '#FFFFFF', glowColor: '#8FE8D6', flowEnabled: true, flowDirection: 1,
+    },
+  }, { seed: 3104 }, { glowEnabled: true, glowColor: '#8FE8D6', glowBlur: 18, glowIntensity: .16 }),
+
+  p('jelly-balloon-pink-v031', '3D', 'Jelly Balloon Pink', 'jelly', {
+    radius: 720,
+    thickness: 138,
+    color: '#FF2760',
+    secondaryColor: '#FF6F91',
+    jelly: {
+      highlightColor: '#FFFFFF',
+      highlightOpacity: .96,
+      highlightWidth: .12,
+      highlightLength: .26,
+      highlightCount: 4,
+      shadowColor: '#9A1238',
+      shadowOpacity: .30,
+      volume: .84,
+    },
+  }),
   p('tube-rounded', 'Basic', '도톰한 둥근 링', 'basic', {
     thickness: 94,
     color: '#A98AE9',

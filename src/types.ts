@@ -18,10 +18,20 @@ export type RingKind =
   | 'asset'
   | 'glossy'
   | 'glitter'
+  | 'jelly'
 
 export type GradientMode = 'solid' | 'linear' | 'radial' | 'conic'
 export type DecorationLayout = 'count' | 'spacing'
 export type AssetTintMode = 'original' | 'palette'
+export type GlitterParticleStyle = 'soft' | 'twinkle' | 'sugar' | 'luminous'
+export type MediaLayerKind = 'image' | 'video'
+export type MediaMaskMode = 'none' | 'circle' | 'ring'
+export type MediaPlacement = 'below' | 'above'
+export type MediaFitMode = 'cover' | 'contain'
+export type MediaIntroAnimation = 'none' | 'fade' | 'popup' | 'bounce' | 'zoom' | 'rotate' | 'rotate-zoom' | 'jump' | 'slide-left' | 'slide-right' | 'slide-up' | 'slide-down' | 'shake' | 'spring'
+export type MediaOutroAnimation = 'none' | 'fade' | 'shrink' | 'zoom' | 'rotate' | 'rotate-shrink' | 'slide-left' | 'slide-right' | 'slide-up' | 'slide-down' | 'bounce' | 'shake' | 'throw'
+export type MediaContinuousAnimation = 'none' | 'sway' | 'float' | 'pulse' | 'bounce' | 'rotate' | 'heartbeat' | 'brightness'
+export type AnimationEase = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
 
 export interface GradientStop {
   id: string
@@ -117,6 +127,98 @@ export interface GlitterSettings {
   animationStrength: number
   animationSmoothness: number
   sweepWidth: number
+  particleStyle: GlitterParticleStyle
+  highlightColor: string
+  glowColor: string
+  flowEnabled: boolean
+  flowDirection: 1 | -1
+}
+
+export interface JellySettings {
+  highlightColor: string
+  highlightOpacity: number
+  highlightWidth: number
+  highlightLength: number
+  highlightCount: number
+  shadowColor: string
+  shadowOpacity: number
+  volume: number
+}
+
+export interface FrameRotationSettings {
+  enabled: boolean
+  direction: 1 | -1
+  secondsPerTurn: number
+  startAngle: number
+  easing: AnimationEase
+  startTime: number
+  endTime: number
+}
+
+export interface MediaAnimationSettings {
+  intro: MediaIntroAnimation
+  introStart: number
+  introDuration: number
+  outro: MediaOutroAnimation
+  outroStart: number
+  outroDuration: number
+  continuous: MediaContinuousAnimation
+  speed: number
+  strength: number
+  ease: AnimationEase
+  moveDistance: number
+  rotateAngle: number
+  scaleAmount: number
+  bounceStrength: number
+}
+
+export interface MediaLayer {
+  id: string
+  name: string
+  kind: MediaLayerKind
+  assetId: string
+  sourceUrl: string
+  fileName: string
+  mimeType: string
+  visible: boolean
+  locked: boolean
+  placement: MediaPlacement
+  x: number
+  y: number
+  width: number
+  height: number
+  scale: number
+  rotation: number
+  opacity: number
+  fit: MediaFitMode
+  maskMode: MediaMaskMode
+  maskRadius: number
+  maskX: number
+  maskY: number
+  ringThickness: number
+  maskFrameLayerId: string
+  maskSyncRotation: boolean
+  keepFrameAbove: boolean
+  startTime: number
+  endTime: number
+  trimStart: number
+  animation: MediaAnimationSettings
+}
+
+export interface BackgroundSettings {
+  type: 'transparent' | 'color' | 'image' | 'video'
+  color: string
+  assetId: string
+  sourceUrl: string
+  fileName: string
+  mimeType: string
+  opacity: number
+  fit: MediaFitMode
+}
+
+export interface TimelineSettings {
+  duration: number
+  loop: boolean
 }
 
 export interface TwoToneFlowSettings {
@@ -151,6 +253,8 @@ export interface FrameDesign {
   twoToneFlow: TwoToneFlowSettings
   tripleRing: TripleRingSettings
   glitter: GlitterSettings
+  jelly: JellySettings
+  rotationAnimation: FrameRotationSettings
   effects: FrameEffects
   pattern: FramePattern
 }
@@ -163,13 +267,16 @@ export interface FrameLayer {
 }
 
 export interface FrameProject {
-  version: '0.30'
+  version: '0.31'
   width: 2000
   height: 2000
   autoFit: boolean
   design: FrameDesign
   layers: FrameLayer[]
   selectedLayerId: string
+  mediaLayers?: MediaLayer[]
+  background?: BackgroundSettings
+  timeline?: TimelineSettings
 }
 
 export interface FramePreset {

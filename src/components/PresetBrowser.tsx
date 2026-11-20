@@ -14,7 +14,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.29', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: '0.31', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
       if (cancelled || !ref.current) return
 
@@ -76,6 +76,7 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'glow', label: '글로우' },
   { key: 'emboss', label: '입체감' },
   { key: '3d', label: '3D' },
+  { key: 'jelly', label: '젤리 링' },
   { key: 'abstract', label: '추상' },
   { key: 'fourcolor', label: '4컬러' },
 ]
@@ -110,7 +111,8 @@ function matchesCategory(preset: FramePreset, key: string) {
     case 'twotoneflow8': return preset.category === 'TwoToneFlow8' || (preset.design.twoToneFlow.enabled && preset.design.twoToneFlow.repeatCount === 4)
     case 'glow': return preset.category === 'Glow' || preset.design.effects.glowEnabled || name.includes('glow') || name.includes('neon')
     case 'emboss': return preset.category === 'Emboss' || preset.design.effects.embossEnabled
-    case '3d': return preset.category === '3D' || preset.category === 'Emboss' || preset.design.effects.embossEnabled || kind === 'glossy' || name.includes('glossy')
+    case '3d': return preset.category === '3D' || preset.category === 'Emboss' || preset.design.effects.embossEnabled || kind === 'glossy' || kind === 'jelly' || name.includes('glossy')
+    case 'jelly': return kind === 'jelly' || name.includes('jelly')
     case 'abstract': return preset.category === 'Abstract' || name.includes('abstract') || name.includes('organic')
     case 'fourcolor': return colorCount >= 4 || name.includes('four color') || name.includes('4 color')
     default:

@@ -48,9 +48,12 @@ try {
   await page.locator('#targetColor').fill('#4466cc');
   await page.locator('#applyColor').click();
   assert.deepEqual(await current(12,14),[68,102,204,255],'Layer-local recolor should apply');
+  assert.deepEqual(await current(50,35),[18,175,150,255],
+    'Original merged pixels outside selected color area must remain untouched');
   assert.match(await page.locator('#dirtyStatus').textContent(),/저장되지/);
   await page.locator('#undo').click();
-  assert.deepEqual(await current(12,14),[235,70,105,255],'Undo restores original');
+  assert.deepEqual(await current(12,14),[18,175,150,255],
+    'Undo must restore the original Photoshop stored merged appearance, not naive red raw layer pixels');
   await page.locator('#redo').click();
   assert.deepEqual(await current(12,14),[68,102,204,255],'Redo restores chosen color');
 

@@ -251,33 +251,52 @@ function layerImage(l){
   const c=cloneCanvas(image),pc=c.getContext('2d',{willReadFrequently:true}),p=pc.getImageData(0,0,c.width,c.height);
   p.data.set(photoAdjust(p.data,l.adjust));pc.putImageData(p,0,0);return c;
 }
+function drawOriginalAndPatches(){
+  ctx.drawImage(originalComposite,0,0);
+  for(const patch of appearancePatches){
+    // ImageData copies pixels exactly and preserves Photoshop alpha channels;
+    // drawImage(source-over) would double-composite translucent edges.
+    ctx.putImageData(new ImageData(patch.data,patch.w,patch.h),patch.x,patch.y);
+  }
+}
 function render(){
   if(!documentModel)return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(previewMode==='composite'&&originalComposite){
-    ctx.drawImage(originalComposite,0,0);
-  } else {
+  if(originalComposite&&(previewMode==='composite'||previewMode==='appearance')){
+    if(previewMode==='composite')ctx.drawImage(originalComposite,0,0);
+    else drawOriginalAndPatches();
+  }else{
     for(const l of layers){if(!l.visible||!l.canvas)continue;
       ctx.save();ctx.globalAlpha=normOpacity(l.opacity);ctx.globalCompositeOperation=l.blend;
-      ctx.translate(l.x+l.w/2,l.y+l.h/2);ctx.rotate(l.rotation*Math.PI/180);ctx.scale(l.flipH?-1:1,l.flipV?-1:1);
-      ctx.drawImage(layerImage(l),-l.w/2,-l.h/2,l.w,l.h);ctx.restore();}
+      ctx.translate(l.x+l.w/2,l.y+l.h/2);
+      ctx.rotate(l.rotation*Math.PI/180);ctx.scale(l.flipH?-1:1,l.flipV?-1:1);
+      ctx.drawImage(layerImage(l),-l.w/2,-l.h/2,l.w,l.h);ctx.restore();
+    }
   }
   drawOverlay();
 }
 function setPreviewMode(mode){
-  if(mode==='composite'&&!originalComposite){notify('PSD 원본 합성 미리보기가 이 파일에 없거나 해석할 수 없습니다.');return;}
+  if((mode==='composite'||mode==='appearance')&&!originalComposite){
+    notify('이 파일에는 Photoshop 원본 합성 미리보기가 없습니다. 레이어 재구성으로 표시합니다.');
+    return;
+  }
   previewMode=mode;
   $('viewComposite').disabled=!originalComposite;
+  $('viewAppearance').disabled=!originalComposite;
   $('viewComposite').classList.toggle('selected',mode==='composite');
+  $('viewAppearance').classList.toggle('selected',mode==='appearance');
   $('viewLayers').classList.toggle('selected',mode==='layers');
   const note=$('previewStatus');
   note.hidden=false;
   note.textContent=mode==='composite'
-    ? (hasLayerEdits?'PSD 원본 미리보기 · 수정 결과는 표시되지 않음':'PSD 원본 합성 미리보기')
-    : (originalComposite?'레이어 재구성 보기 · 일부 Photoshop 효과 차이 가능':'레이어 편집 보기');
+    ?'Photoshop 저장 원본 · 편집 전 상태'
+    :mode==='appearance'
+      ?'PSD 외관 보존 편집 · 색상 변경은 원본 합성 이미지 위에 표시'
+      :(originalComposite?'레이어 재구성 보기 · Photoshop 마스크/그림자/효과가 달라질 수 있음':'레이어 편집 보기');
   render();
 }
 $('viewComposite').onclick=()=>setPreviewMode('composite');
+$('viewAppearance').onclick=()=>setPreviewMode('appearance');
 $('viewLayers').onclick=()=>setPreviewMode('layers');
 function createMaskPreview(s){
   const b=s.bounds;if(!b)return null;

@@ -5,7 +5,7 @@ import {layerConstraintAlpha} from './psd-mask-core.mjs';
 export function maskedLayerRgba(rgba,width,height,layer,byId){
   if(rgba.length!==width*height*4)throw Error('PSD 미리보기 픽셀 크기가 일치하지 않습니다.');
   const result=new Uint8ClampedArray(rgba);
-  if(!layer.maskSpecs?.length&&layer.clipBaseId==null&&!layer.maskDecodeFailed)
+  if(!layer.maskSpecs?.length&&!layer.groupMaskSpecs?.length&&layer.clipBaseId==null&&!layer.maskDecodeFailed)
     return result;
   for(let y=0;y<height;y++)for(let x=0;x<width;x++){
     const i=(y*width+x)*4;

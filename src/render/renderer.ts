@@ -231,6 +231,11 @@ function embossMaskKey(design: FrameDesign, scale: number, canvasWidth: number, 
 }
 
 function getEmbossMask(design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number) {
+  // Emboss must follow the actual ring silhouette, not semi-transparent glitter
+  // particles. Reuse the same mask as ring clipping for consistent edges.
+  if (design.kind === 'glitter' && design.glitter.surfaceStyle !== 'legacy') {
+    return surfaceRingMask(design, scale, canvasWidth, canvasHeight)
+  }
   const canCache = design.kind !== 'asset'
   const key = canCache ? embossMaskKey(design, scale, canvasWidth, canvasHeight) : ''
   if (canCache) {

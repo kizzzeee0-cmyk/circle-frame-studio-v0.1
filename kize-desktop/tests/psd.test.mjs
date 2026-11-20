@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {writePsd,readPsd,getLayerImageData} from 'ag-psd';
+import {writePsd,readPsd,getLayerImageData,initializeCanvas} from 'ag-psd';
+import {createCanvas} from '@napi-rs/canvas';
+initializeCanvas(createCanvas);
 
 // A real PSD roundtrip: verifies the decoder API used by KIZE can retrieve
 // separate bitmap layers without flattening the document.

@@ -37,6 +37,7 @@ try{
   browser=await chromium.launch({channel:'msedge',headless:true});
   const page=await browser.newPage({viewport:{width:1500,height:950}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  page.on('dialog',dialog=>dialog.accept()); // Accept explicit unsaved-work warning before opening PSD.
   await page.goto(host,{waitUntil:'networkidle'});
   const pix=(x,y)=>page.evaluate(([x,y])=>Array.from(
     document.querySelector('#renderCanvas').getContext('2d').getImageData(x,y,1,1).data),[x,y]);

@@ -1131,14 +1131,20 @@ $('applyColor').onclick=()=>{
       if(changed)updates.push({layer:l,image:{width:image.width,height:image.height,data:output},count:changed});
       total+=changed;
     }
-    if(!updates.length||(appearanceEnabled&&!newAppearancePatches.length)){
-      const reason='적용 전후 색상이 같아 화면에 변화가 없습니다. 다른 HEX를 고르거나 '+
+    const changedAppearanceIds=new Set(newAppearancePatches.map(p=>p.layerId));
+    const effectiveUpdates=appearanceEnabled
+      ?updates.filter(u=>changedAppearanceIds.has(u.layer.id)):updates;
+    const snapshotLayers=appearanceEnabled
+      ?selectedLayers.filter(l=>changedAppearanceIds.has(l.id))
+      :effectiveUpdates.map(u=>u.layer);
+    if(!snapshotLayers.length){
+      const reason='적용 전후 눈에 보이는 색상이 같아 변화가 없습니다. 다른 HEX를 고르거나 '+
         '흰색·검정 선 보호를 끄고 다시 시도해 주세요. 원본은 변경하지 않았습니다.';
       notify(reason);$('workflowStatus').textContent='변경 없음 · 선택 영역 유지 · 다른 색상 또는 보호 옵션 확인';
       return;
     }
-    checkpointBatch(updates.map(u=>u.layer));
-    for(const u of updates){
+    checkpointBatch(snapshotLayers);
+    for(const u of effectiveUpdates){
       const l=u.layer;l.canvas=pixelCanvas(u.image);
       if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
     }

@@ -243,25 +243,30 @@ function createMaskPreview(s){
 }
 function drawOverlay(){
   oc.clearRect(0,0,overlay.width,overlay.height);
+  for(const part of selectionParts){
+    const layer=layers.find(l=>l.id===part.id);
+    if(!layer?.visible||!part.bounds)continue;
+    const preview=part.preview;
+    if(!preview?.canvas)continue;
+    oc.save();
+    oc.translate(layer.x+layer.w/2,layer.y+layer.h/2);
+    oc.rotate(layer.rotation*Math.PI/180);
+    oc.scale(layer.flipH?-1:1,layer.flipV?-1:1);
+    const b=preview.bounds,sw=layer.w/part.w,sh=layer.h/part.h;
+    oc.drawImage(preview.canvas,-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
+    oc.lineWidth=Math.max(.75,1.1/zoom);
+    oc.setLineDash([4/zoom,4/zoom]);
+    oc.strokeStyle='#7354AE';
+    oc.strokeRect(-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
+    oc.restore();
+  }
   const l=sel();if(!l)return;
-  oc.save();
-  oc.translate(l.x+l.w/2,l.y+l.h/2);
+  oc.save();oc.translate(l.x+l.w/2,l.y+l.h/2);
   oc.rotate(l.rotation*Math.PI/180);
   oc.scale(l.flipH?-1:1,l.flipV?-1:1);
-  oc.lineWidth=Math.max(.8,1.5/zoom);
-  oc.setLineDash([7/zoom,5/zoom]);
-  oc.strokeStyle='#9575d1';
-  oc.strokeRect(-l.w/2,-l.h/2,l.w,l.h);
-  const p=selectionPreview;
-  if(selection?.id===l.id&&p?.canvas){
-    const {bounds:b}=p;
-    const sw=l.w/selection.w,sh=l.h/selection.h;
-    oc.drawImage(p.canvas,-l.w/2+b.x*sw,-l.h/2+b.y*sh,b.w*sw,b.h*sh);
-    oc.setLineDash([3/zoom,3/zoom]);
-    oc.strokeStyle='#7357b7';
-    oc.strokeRect(-l.w/2+b.x*sw,-l.h/2+b.y*sh,b.w*sw,b.h*sh);
-  }
-  oc.restore();
+  oc.lineWidth=Math.max(1,1.5/zoom);
+  oc.setLineDash([7/zoom,5/zoom]);oc.strokeStyle='#9476D7';
+  oc.strokeRect(-l.w/2,-l.h/2,l.w,l.h);oc.restore();
 }
 
 function refreshLayers(){

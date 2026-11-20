@@ -8,7 +8,7 @@ interface Props {
   duration: number
   onChange: (next: MediaLayer) => void
   onBatchChange: (updates: Array<Partial<MediaLayer> & { id: string }>) => void
-  onAlign: (mode: 'center-x' | 'center-y' | 'center' | 'distribute-x' | 'distribute-y') => void
+  onAlign: (mode: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom' | 'center' | 'distribute-x' | 'distribute-y') => void
   onGroup: () => void
   onUngroup: () => void
   onCustomMask: (file?: File) => void
@@ -40,12 +40,21 @@ export default function MediaPropertyPanel({ media, selectedMedia, frameLayers, 
 
     {selectedCount > 1 && <section className="property-section multi-edit-section">
       <h3>다중 선택 · 정렬 · 그룹</h3>
-      <div className="multi-edit-grid">
+      <div className="multi-edit-grid alignment-grid">
+        <button type="button" onClick={() => onAlign('left')}>왼쪽 맞춤</button>
         <button type="button" onClick={() => onAlign('center-x')}>가로 중앙</button>
+        <button type="button" onClick={() => onAlign('right')}>오른쪽 맞춤</button>
+        <button type="button" onClick={() => onAlign('top')}>위 맞춤</button>
         <button type="button" onClick={() => onAlign('center-y')}>세로 중앙</button>
-        <button type="button" onClick={() => onAlign('center')}>정중앙</button>
-        <button type="button" onClick={() => onAlign('distribute-x')}>가로 균등</button>
-        <button type="button" onClick={() => onAlign('distribute-y')}>세로 균등</button>
+        <button type="button" onClick={() => onAlign('bottom')}>아래 맞춤</button>
+        <button type="button" onClick={() => onAlign('center')}>선택 전체 정중앙</button>
+        <button type="button" onClick={() => onAlign('distribute-x')}>가로 여백 균등</button>
+        <button type="button" onClick={() => onAlign('distribute-y')}>세로 여백 균등</button>
+      </div>
+      <div className="multi-edit-grid match-grid">
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, width: media.width, height: media.height, scale: media.scale })))}>대표 크기 통일</button>
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, rotation: media.rotation })))}>대표 회전 통일</button>
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, startTime: media.startTime, endTime: media.endTime, trimStart: media.trimStart, trimEnd: media.trimEnd })))}>대표 타이밍 통일</button>
         <button type="button" onClick={onGroup}>그룹 만들기</button>
         <button type="button" onClick={onUngroup}>그룹 해제</button>
       </div>
@@ -56,7 +65,23 @@ export default function MediaPropertyPanel({ media, selectedMedia, frameLayers, 
           onBatchChange(selectedMedia.map(layer => ({ id: layer.id, opacity })))
         }} />
       </label>
-      <p className="hint">캔버스의 선택 박스를 드래그하면 선택된 모든 요소를 함께 이동·확대·축소할 수 있습니다.</p>
+      <label className="control"><span><b>선택 전체 배치</b></span>
+        <select value={media.placement} onChange={event => {
+          const placement = event.target.value as MediaLayer['placement']
+          onBatchChange(selectedMedia.map(layer => ({ id: layer.id, placement })))
+        }}>
+          <option value="below">프레임 아래</option><option value="above">프레임 위</option>
+        </select>
+      </label>
+      <label className="control"><span><b>선택 전체 블렌딩</b></span>
+        <select value={media.blendMode} onChange={event => {
+          const blendMode = event.target.value as MediaLayer['blendMode']
+          onBatchChange(selectedMedia.map(layer => ({ id: layer.id, blendMode })))
+        }}>
+          <option value="normal">일반</option><option value="multiply">곱하기</option><option value="screen">스크린</option><option value="overlay">오버레이</option><option value="soft-light">소프트 라이트</option>
+        </select>
+      </label>
+      <p className="hint">정렬은 회전된 요소의 실제 외곽 크기를 기준으로 계산합니다. 균등 배치는 중심점이 아니라 요소 사이의 실제 여백을 동일하게 맞춥니다.</p>
     </section>}
 
     <section className="property-section">
@@ -171,6 +196,18 @@ export default function MediaPropertyPanel({ media, selectedMedia, frameLayers, 
         <Slider label="영상 트림 종료" value={media.trimEnd} min={0} max={60} step={.05} suffix="s" onChange={value => patch({ trimEnd: value })} />
         <p className="hint">트림 종료가 0이면 원본 영상 끝까지 사용합니다. 프로젝트 길이가 더 길면 선택한 트림 구간이 반복됩니다.</p>
       </>}
+    </section>
+
+    <section className="property-section quick-animation-section">
+      <h3>빠른 애니메이션 프리셋</h3>
+      <div className="quick-animation-grid">
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, animation: { ...layer.animation, intro: 'fade', introStart: layer.startTime, introDuration: .35, ease: 'ease-out', continuous: 'none' } })))}>부드럽게 등장</button>
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, animation: { ...layer.animation, intro: 'popup', introStart: layer.startTime, introDuration: .42, ease: 'ease-out', bounceStrength: .8 } })))}>통통 팝업</button>
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, animation: { ...layer.animation, continuous: 'float', speed: .32, strength: .55 } })))}>잔잔한 둥실</button>
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, animation: { ...layer.animation, continuous: 'pulse', speed: .55, strength: .45 } })))}>미세 펄스</button>
+        <button type="button" onClick={() => onBatchChange(selectedMedia.map(layer => ({ id: layer.id, animation: { ...layer.animation, intro: 'none', outro: 'none', continuous: 'none' } })))}>애니메이션 제거</button>
+      </div>
+      <p className="hint">현재 선택된 모든 미디어에 한 번에 적용됩니다. 세부 시간·강도는 아래에서 다시 조절할 수 있습니다.</p>
     </section>
 
     <section className="property-section">

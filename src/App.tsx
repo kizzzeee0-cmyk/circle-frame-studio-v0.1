@@ -113,6 +113,24 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
   }
 }
 
+function mediaLayerBounds(layer: MediaLayer) {
+  const width = Math.max(1, layer.width * layer.scale)
+  const height = Math.max(1, layer.height * layer.scale)
+  const angle = layer.rotation * Math.PI / 180
+  const cos = Math.abs(Math.cos(angle))
+  const sin = Math.abs(Math.sin(angle))
+  const bw = width * cos + height * sin
+  const bh = width * sin + height * cos
+  return {
+    left: layer.x - bw / 2,
+    right: layer.x + bw / 2,
+    top: layer.y - bh / 2,
+    bottom: layer.y + bh / 2,
+    width: bw,
+    height: bh,
+  }
+}
+
 function makeLayerFromDesign(source: Partial<FrameDesign>, layerName?: string): FrameLayer {
   const design = normalizeDesign(source)
   return {
@@ -1042,20 +1060,73 @@ export default function App() {
     })
   }
 
-  const alignSelectedMedia = (mode: 'center-x' | 'center-y' | 'center' | 'distribute-x' | 'distribute-y') => {
-    const selected = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id))
+  const alignSelectedMedia = (mode: 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom' | 'center' | 'distribute-x' | 'distribute-y') => {
+    const selected = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id) && !layer.locked)
     if (!selected.length) return
-    if (mode === 'center-x' || mode === 'center') batchUpdateMedia(selected.map(layer => ({ id: layer.id, x: 0, ...(mode === 'center' ? { y: 0 } : {}) })))
-    else if (mode === 'center-y') batchUpdateMedia(selected.map(layer => ({ id: layer.id, y: 0 })))
-    else {
-      const axis = mode === 'distribute-x' ? 'x' : 'y'
-      const sorted = [...selected].sort((a,b) => a[axis] - b[axis])
-      if (sorted.length < 3) return
-      const start = sorted[0][axis]
-      const end = sorted[sorted.length - 1][axis]
-      const step = (end - start) / (sorted.length - 1)
-      batchUpdateMedia(sorted.map((layer,index) => ({ id: layer.id, [axis]: start + step * index })))
+    const entries = selected.map(layer => ({ layer, bounds: mediaLayerBounds(layer) }))
+    const left = Math.min(...entries.map(item => item.bounds.left))
+    const right = Math.max(...entries.map(item => item.bounds.right))
+    const top = Math.min(...entries.map(item => item.bounds.top))
+    const bottom = Math.max(...entries.map(item => item.bounds.bottom))
+    const centerX = (left + right) / 2
+    const centerY = (top + bottom) / 2
+
+    if (mode === 'center') {
+      const dx = -centerX
+      const dy = -centerY
+      batchUpdateMedia(entries.map(({ layer }) => ({ id: layer.id, x: layer.x + dx, y: layer.y + dy })))
+      return
     }
+    if (mode === 'left') {
+      batchUpdateMedia(entries.map(({ layer, bounds }) => ({ id: layer.id, x: layer.x + left - bounds.left })))
+      return
+    }
+    if (mode === 'right') {
+      batchUpdateMedia(entries.map(({ layer, bounds }) => ({ id: layer.id, x: layer.x + right - bounds.right })))
+      return
+    }
+    if (mode === 'top') {
+      batchUpdateMedia(entries.map(({ layer, bounds }) => ({ id: layer.id, y: layer.y + top - bounds.top })))
+      return
+    }
+    if (mode === 'bottom') {
+      batchUpdateMedia(entries.map(({ layer, bounds }) => ({ id: layer.id, y: layer.y + bottom - bounds.bottom })))
+      return
+    }
+    if (mode === 'center-x') {
+      batchUpdateMedia(entries.map(({ layer, bounds }) => ({ id: layer.id, x: layer.x + centerX - (bounds.left + bounds.right) / 2 })))
+      return
+    }
+    if (mode === 'center-y') {
+      batchUpdateMedia(entries.map(({ layer, bounds }) => ({ id: layer.id, y: layer.y + centerY - (bounds.top + bounds.bottom) / 2 })))
+      return
+    }
+
+    if (entries.length < 3) return
+    if (mode === 'distribute-x') {
+      const sorted = [...entries].sort((a,b) => a.bounds.left - b.bounds.left)
+      const totalWidth = sorted.reduce((sum,item) => sum + item.bounds.width, 0)
+      const span = sorted[sorted.length - 1].bounds.right - sorted[0].bounds.left
+      const gap = (span - totalWidth) / (sorted.length - 1)
+      let cursor = sorted[0].bounds.left
+      batchUpdateMedia(sorted.map(({ layer, bounds }) => {
+        const x = cursor + bounds.width / 2
+        cursor += bounds.width + gap
+        return { id: layer.id, x }
+      }))
+      return
+    }
+
+    const sorted = [...entries].sort((a,b) => a.bounds.top - b.bounds.top)
+    const totalHeight = sorted.reduce((sum,item) => sum + item.bounds.height, 0)
+    const span = sorted[sorted.length - 1].bounds.bottom - sorted[0].bounds.top
+    const gap = (span - totalHeight) / (sorted.length - 1)
+    let cursor = sorted[0].bounds.top
+    batchUpdateMedia(sorted.map(({ layer, bounds }) => {
+      const y = cursor + bounds.height / 2
+      cursor += bounds.height + gap
+      return { id: layer.id, y }
+    }))
   }
 
   const uploadCustomMask = async (id: string, file?: File) => {

@@ -4,6 +4,7 @@ import {colorSelection,paintSelection} from './color-tools.mjs';
 import {selectAssetRegion,growShrinkMask,maskBounds} from './selection-tools.mjs';
 import {initUpdates} from './updater.js';
 import {createArchive,readArchive} from './project-archive.mjs';
+import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
 
 const $=id=>document.getElementById(id);
 const canvas=$('renderCanvas'),ctx=canvas.getContext('2d',{alpha:true});
@@ -14,6 +15,9 @@ let unsavedChanges=false;
 // Original Photoshop composite is a read-only WYSIWYG reference. Canvas
 // reconstruction of masks, layer styles, groups and text is never assumed exact.
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
+// Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
+// still use the explicitly marked reconstructed view.
+let appearancePatches=[];
 let nextId=1;
 let selectionPreview=null,selectionParts=[];
 let panX=0,panY=0;
@@ -40,10 +44,10 @@ function sel(){return layers.find(l=>l.id===selectedId)||null;}
 function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
 function markEdited(){unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;if(previewMode==='composite')setPreviewMode('layers');}
 function updateDirtyStatus(){const el=$('dirtyStatus');if(el)el.textContent=unsavedChanges?'● 저장되지 않은 변경사항':'저장됨';}
-function checkpoint(l){if(!l)return;history.push(settingsSnapshot(l));if(history.length>12)history.shift();redoHistory=[];markEdited();}
+function checkpoint(l){if(!l)return;history.push({batch:[settingsSnapshot(l)],appearanceCount:appearancePatches.length,appearanceAdded:[]});if(history.length>12)history.shift();redoHistory=[];markEdited();}
 function checkpointBatch(list){
   if(list.length===1){checkpoint(list[0]);return;}
-  history.push({batch:list.map(settingsSnapshot)});
+  history.push({batch:list.map(settingsSnapshot),appearanceCount:appearancePatches.length,appearanceAdded:[]});
   if(history.length>12)history.shift();
   redoHistory=[];markEdited();
 }
@@ -67,7 +71,7 @@ function updateSelectionPreview(){
   updateSelectionUi();
 }
 
-function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
+function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -136,6 +140,7 @@ async function importPsd(file){
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
   originalComposite=composite?pixelCanvas(composite):null;
+  appearancePatches=[];
   previewMode=originalComposite?'composite':'layers';
   selectedId=layers.length?layers[layers.length-1].id:null;
   refreshAll();fitZoom();
@@ -198,14 +203,22 @@ async function importCompactProject(file){
       adjust:{...defaultAdjust(),...(props.adjust||{})}}));
   }
   const reference=manifest.composite?await pngBytesToCanvas(images[manifest.composite]):null;
+  const loadedPatches=[];
+  for(const item of manifest.appearancePatches||[]){
+    const bmp=await pngBytesToCanvas(images[item.bitmap]);
+    if(bmp.width!==item.w||bmp.height!==item.h)throw Error('원본 보존 편집 영역 크기가 잘못되었습니다.');
+    loadedPatches.push({x:item.x,y:item.y,w:item.w,h:item.h,layerId:item.layerId,
+      data:toImageData(bmp).data});
+  }
   openDoc(manifest.width,manifest.height,manifest.name||file.name,'KIZE');
   layers=loaded;
   nextId=Math.max(0,...loaded.map(l=>Number(l.id)||0))+1;
   originalComposite=reference;
+  appearancePatches=loadedPatches;
   selectedId=layers.at(-1)?.id||null;
   lastImportPsd=Boolean(reference);
   hasLayerEdits=Boolean(manifest.edited);
-  previewMode=(manifest.previewMode==='composite'&&reference)?'composite':'layers';
+  previewMode=reference&&['composite','appearance'].includes(manifest.previewMode)?manifest.previewMode:'layers';
   refreshAll();fitZoom();
   // Camera Raw-like photo adjustment values stay editable, source images are
   // separate from rendered previews, and original Photoshop merged pixels remain.

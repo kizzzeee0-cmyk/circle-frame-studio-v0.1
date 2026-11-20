@@ -50,9 +50,19 @@ interface Props {
 }
 
 type CategoryOption = { key: string; label: string }
+const PRESET_FAVORITES_KEY = 'circle-frame-studio-preset-favorites-v034'
+const PRIMARY_CATEGORY_KEYS = new Set(['all','favorite','mine','basic','minimal','glitter','heart','ribbon','gradient','3d'])
+
+function loadPresetFavorites() {
+  try {
+    const raw = localStorage.getItem(PRESET_FAVORITES_KEY)
+    return raw ? (JSON.parse(raw) as string[]) : []
+  } catch { return [] }
+}
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
   { key: 'all', label: '전체' },
+  { key: 'favorite', label: '★ 즐겨찾기' },
   { key: 'mine', label: '내 프리셋' },
   { key: 'basic', label: '기본' },
   { key: 'minimal', label: '미니멀' },
@@ -123,10 +133,22 @@ function matchesCategory(preset: FramePreset, key: string) {
 export default function PresetBrowser({ onSelect, userPresets, onUploadAsset, currentAssetName, currentAssetUrl }: Props) {
   const [category, setCategory] = useState('all')
   const [query, setQuery] = useState('')
+  const [showAllCategories, setShowAllCategories] = useState(false)
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(loadPresetFavorites)
+  useEffect(() => {
+    try { localStorage.setItem(PRESET_FAVORITES_KEY, JSON.stringify(favoriteIds)) } catch { /* ignore */ }
+  }, [favoriteIds])
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds])
+  const visibleCategories = useMemo(() => showAllCategories ? CATEGORY_OPTIONS : CATEGORY_OPTIONS.filter(item => PRIMARY_CATEGORY_KEYS.has(item.key)), [showAllCategories])
   const list = useMemo(() => {
     const all = [...userPresets, ...PRESETS]
-    return all.filter(x => matchesCategory(x, category) && x.name.toLowerCase().includes(query.toLowerCase()))
-  }, [category, query, userPresets])
+    const filtered = all.filter(x => {
+      const categoryMatch = category === 'favorite' ? favoriteSet.has(x.id) : matchesCategory(x, category)
+      return categoryMatch && x.name.toLowerCase().includes(query.toLowerCase())
+    })
+    return filtered.sort((a,b) => Number(favoriteSet.has(b.id)) - Number(favoriteSet.has(a.id)))
+  }, [category, query, userPresets, favoriteSet])
+  const toggleFavorite = (id: string) => setFavoriteIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [id, ...prev])
 
   const drop = (e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault()
@@ -142,7 +164,9 @@ export default function PresetBrowser({ onSelect, userPresets, onUploadAsset, cu
         </div>
       </div>
 
-      <section className="custom-frame-box">
+      <details className="custom-frame-box compact-toolbox">
+        <summary><span>내 PNG 반복 프레임</span><small>하트 · 리본 · 꽃 · 스티커 업로드</small></summary>
+        <div className="compact-toolbox-body">
         <div className="custom-frame-head">
           <div>
             <strong>내 PNG로 반복 프레임 만들기</strong>
@@ -159,24 +183,27 @@ export default function PresetBrowser({ onSelect, userPresets, onUploadAsset, cu
           <input type="file" accept="image/png,image/webp,image/svg+xml,.png,.webp,.svg" onChange={e => onUploadAsset(e.target.files?.[0])} />
         </label>
         <p>업로드 즉시 이미지가 원 둘레에 반복 배치된 특수 프레임으로 전환됩니다.</p>
-      </section>
+        </div>
+      </details>
 
       <input className="search" placeholder="프리셋 검색" value={query} onChange={e => setQuery(e.target.value)} />
-      <div className="category-chips expanded">
-        {CATEGORY_OPTIONS.map(c => (
+      <div className="category-chips compact-categories">
+        {visibleCategories.map(c => (
           <button className={c.key === category ? 'chip active' : 'chip'} key={c.key} onClick={() => setCategory(c.key)}>
             {c.label}
           </button>
         ))}
+        <button className="chip category-more-button" type="button" onClick={() => setShowAllCategories(value => !value)}>{showAllCategories ? '간단히' : '+ 더보기'}</button>
       </div>
       <div className="preset-result-meta">총 {list.length}개 프리셋</div>
       <div className="preset-grid">
         {list.map(preset => (
-          <button className="preset-card" key={preset.id} onClick={() => onSelect(preset)} title="현재 프레임으로 사용">
+          <div className={favoriteSet.has(preset.id) ? 'preset-card favorite' : 'preset-card'} key={preset.id} role="button" tabIndex={0} onClick={() => onSelect(preset)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onSelect(preset) }} title="현재 프레임으로 사용">
+            <span className="preset-favorite" role="button" tabIndex={0} title={favoriteSet.has(preset.id) ? '즐겨찾기 해제' : '즐겨찾기'} onClick={event => { event.stopPropagation(); toggleFavorite(preset.id) }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); toggleFavorite(preset.id) } }}>{favoriteSet.has(preset.id) ? '★' : '☆'}</span>
             <Thumb preset={preset} />
-            <span>{preset.name}</span>
+            <span className="preset-name">{preset.name}</span>
             <small>{preset.category}</small>
-          </button>
+          </div>
         ))}
       </div>
     </aside>

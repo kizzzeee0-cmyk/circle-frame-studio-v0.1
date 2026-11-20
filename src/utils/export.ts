@@ -1,17 +1,19 @@
 import type { FrameProject } from '../types'
 import { renderProject } from '../render/renderer'
 import { preloadProjectAssets } from './assets'
+import { preloadProjectMedia, seekProjectMedia } from './media'
 
-export type AnimatedExportFormat = 'gif' | 'webp' | 'apng'
+export type AnimatedExportFormat = 'gif' | 'webp' | 'apng' | 'webm' | 'mp4'
 export type AnimatedLoopCount = 0 | 1 | 2
 
 export interface AnimatedExportOptions {
   format: AnimatedExportFormat
   resolution: 500 | 1000 | 2000
-  fps: 12 | 15 | 20 | 24 | 30
+  fps: 12 | 15 | 20 | 24 | 30 | 60
   duration: 1 | 1.5 | 2 | 2.4 | 3 | 4
   loopCount: AnimatedLoopCount
   webpQuality: number
+  videoBitrateMbps?: number
 }
 
 export interface AnimatedExportProgress {
@@ -50,10 +52,18 @@ export function estimateAnimatedRawMemory(options: AnimatedExportOptions) {
   return options.resolution * options.resolution * 4 * getAnimatedFrameCount(options)
 }
 
+export function isVideoFormatSupported(format: 'webm' | 'mp4') {
+  if (typeof MediaRecorder === 'undefined') return false
+  const mime = format === 'mp4'
+    ? 'video/mp4;codecs=avc1.42E01E'
+    : 'video/webm;codecs=vp9'
+  return MediaRecorder.isTypeSupported(mime)
+}
+
 function assertMemoryBudget(options: AnimatedExportOptions) {
   const rawBytes = estimateAnimatedRawMemory(options)
-  if (options.format !== 'gif' && rawBytes > 320 * 1024 * 1024) {
-    throw new Error('이 설정은 브라우저 메모리를 너무 많이 사용합니다. 2000px에서는 FPS 또는 길이를 낮추거나 GIF를 선택해 주세요.')
+  if (!['gif','webm','mp4'].includes(options.format) && rawBytes > 320 * 1024 * 1024) {
+    throw new Error('이 설정은 브라우저 메모리를 너무 많이 사용합니다. 2000px에서는 FPS 또는 길이를 낮추거나 GIF/영상 출력을 선택해 주세요.')
   }
 }
 
@@ -68,6 +78,16 @@ function frameImage(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
   if (!ctx) throw new Error('Canvas 2D를 사용할 수 없습니다.')
   return ctx.getImageData(0, 0, canvas.width, canvas.height)
+}
+
+async function prepareProject(project: FrameProject) {
+  await Promise.all([preloadProjectAssets(project), preloadProjectMedia(project)])
+}
+
+async function renderTimedFrame(canvas: HTMLCanvasElement, project: FrameProject, progress: number, duration: number) {
+  const sceneTime = progress * duration
+  await seekProjectMedia(project, sceneTime)
+  renderProject(canvas, project, undefined, sceneTime * 1000, progress)
 }
 
 async function exportGif(
@@ -86,7 +106,8 @@ async function exportGif(
   const repeat = options.loopCount === 0 ? 0 : options.loopCount === 1 ? -1 : 1
 
   for (let i = 0; i < frameCount; i++) {
-    renderProject(canvas, project, undefined, 0, i / frameCount)
+    const progress = i / frameCount
+    await renderTimedFrame(canvas, project, progress, options.duration)
     const image = frameImage(canvas)
     const palette = quantize(image.data, 256, { format: 'rgba4444', oneBitAlpha: 127 })
     const index = applyPalette(image.data, palette, 'rgba4444')
@@ -100,14 +121,13 @@ async function exportGif(
       transparentIndex: Math.max(0, transparentIndex),
       dispose: 2,
     })
-
     onProgress?.({
       stage: 'render',
       current: i + 1,
       total: frameCount,
       message: 'GIF 프레임 ' + (i + 1) + ' / ' + frameCount + ' 인코딩 중',
     })
-    if (i % 3 === 2) await new Promise(resolve => setTimeout(resolve, 0))
+    if (i % 2 === 1) await new Promise(resolve => setTimeout(resolve, 0))
   }
 
   onProgress?.({ stage: 'encode', current: frameCount, total: frameCount, message: 'GIF 파일 마무리 중' })
@@ -126,7 +146,7 @@ async function collectFrames(
   const frames: Uint8Array[] = []
 
   for (let i = 0; i < frameCount; i++) {
-    renderProject(canvas, project, undefined, 0, i / frameCount)
+    await renderTimedFrame(canvas, project, i / frameCount, options.duration)
     const image = frameImage(canvas)
     frames.push(new Uint8Array(image.data))
     onProgress?.({
@@ -173,14 +193,67 @@ async function exportAnimatedWebp(
   return new Blob([result], { type: 'image/webp' })
 }
 
-export async function exportPng(project: FrameProject) {
+async function exportCanvasVideo(
+  project: FrameProject,
+  options: AnimatedExportOptions,
+  onProgress?: (progress: AnimatedExportProgress) => void,
+) {
+  const format = options.format === 'mp4' ? 'mp4' : 'webm'
+  if (!isVideoFormatSupported(format)) {
+    throw new Error(format === 'mp4'
+      ? '현재 브라우저는 MP4 MediaRecorder 인코딩을 지원하지 않습니다. WebM 또는 APNG/Animated WebP를 사용해 주세요.'
+      : '현재 브라우저는 VP9 WebM 인코딩을 지원하지 않습니다.')
+  }
+  const canvas = makeAnimationCanvas(options.resolution)
+  const fps = options.fps >= 60 ? 60 : Math.max(12, options.fps)
+  const capture = canvas.captureStream(0)
+  const track = capture.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack
+  const mimeType = format === 'mp4' ? 'video/mp4;codecs=avc1.42E01E' : 'video/webm;codecs=vp9'
+  const bitrate = Math.max(2, Math.min(80, options.videoBitrateMbps ?? (options.resolution >= 2000 ? 28 : 12))) * 1_000_000
+  const recorder = new MediaRecorder(capture, { mimeType, videoBitsPerSecond: bitrate })
+  const chunks: Blob[] = []
+
+  const stopped = new Promise<void>((resolve, reject) => {
+    recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data) }
+    recorder.onerror = () => reject(recorder.error ?? new Error('영상 인코딩 오류'))
+    recorder.onstop = () => resolve()
+  })
+
+  recorder.start()
+  const frameCount = Math.max(2, Math.round(options.duration * fps))
+  const frameDelay = 1000 / fps
+
+  for (let i = 0; i < frameCount; i++) {
+    const progress = i / frameCount
+    await renderTimedFrame(canvas, project, progress, options.duration)
+    track.requestFrame?.()
+    onProgress?.({
+      stage: 'render',
+      current: i + 1,
+      total: frameCount,
+      message: (format === 'mp4' ? 'MP4' : 'WebM') + ' 프레임 ' + (i + 1) + ' / ' + frameCount + ' 기록 중',
+    })
+    await new Promise(resolve => setTimeout(resolve, frameDelay))
+  }
+
+  recorder.stop()
+  await stopped
+  capture.getTracks().forEach(item => item.stop())
+  return new Blob(chunks, { type: mimeType })
+}
+
+export async function exportPng(project: FrameProject, sceneTimeSec = 0, resolution = 2000) {
+  const size = Math.max(256, Math.min(4096, Math.round(resolution)))
   const canvas = document.createElement('canvas')
-  canvas.width = 2000
-  canvas.height = 2000
-  await preloadProjectAssets(project)
-  renderProject(canvas, project, undefined, performance.now())
+  canvas.width = size
+  canvas.height = size
+  await prepareProject(project)
+  await seekProjectMedia(project, sceneTimeSec)
+  const duration = Math.max(.5, project.timeline?.duration ?? 3)
+  const progress = ((sceneTimeSec % duration) + duration) % duration / duration
+  renderProject(canvas, project, undefined, sceneTimeSec * 1000, progress)
   const blob = await canvasToBlob(canvas, 'image/png')
-  downloadBlob(blob, 'circle-frame-v030-' + exportDate() + '.png')
+  downloadBlob(blob, 'circle-frame-v031-' + size + 'px-' + exportDate() + '.png')
 }
 
 export async function exportAnimatedFrame(
@@ -188,20 +261,21 @@ export async function exportAnimatedFrame(
   options: AnimatedExportOptions,
   onProgress?: (progress: AnimatedExportProgress) => void,
 ) {
-  await preloadProjectAssets(project)
+  await prepareProject(project)
   let blob: Blob
   if (options.format === 'gif') blob = await exportGif(project, options, onProgress)
   else if (options.format === 'apng') blob = await exportApng(project, options, onProgress)
-  else blob = await exportAnimatedWebp(project, options, onProgress)
+  else if (options.format === 'webp') blob = await exportAnimatedWebp(project, options, onProgress)
+  else blob = await exportCanvasVideo(project, options, onProgress)
 
   const ext = options.format === 'apng' ? 'png' : options.format
   const label = options.format === 'apng' ? 'apng' : options.format
-  downloadBlob(blob, 'circle-frame-v030-' + label + '-' + options.resolution + 'px-' + exportDate() + '.' + ext)
+  downloadBlob(blob, 'circle-frame-v031-' + label + '-' + options.resolution + 'px-' + exportDate() + '.' + ext)
   onProgress?.({ stage: 'done', current: 1, total: 1, message: '저장이 완료되었습니다.' })
   return blob
 }
 
 export function downloadProject(project: FrameProject) {
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' })
-  downloadBlob(blob, 'circle-frame-project-v030.json')
+  downloadBlob(blob, 'circle-frame-project-v031.json')
 }

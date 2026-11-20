@@ -91,6 +91,13 @@ export default function MediaPropertyPanel({ media, frameLayers, duration, onCha
           <Slider label="링 두께" value={media.ringThickness} min={2} max={400} suffix="px" onChange={value => patch({ ringThickness: value })} />
         </>}
         <label className="toggle"><input type="checkbox" checked={media.maskSyncRotation} onChange={event => patch({ maskSyncRotation: event.target.checked })} /><span>프레임 회전과 마스크 동기화</span></label>
+        <label className="toggle"><input type="checkbox" checked={media.followFrameRotation} onChange={event => patch({ followFrameRotation: event.target.checked, followFrameLayerId: media.followFrameLayerId || media.maskFrameLayerId })} /><span>콘텐츠도 프레임과 함께 회전</span></label>
+        {media.followFrameRotation && <label className="control"><span><b>회전 기준 프레임</b></span>
+          <select value={media.followFrameLayerId || media.maskFrameLayerId} onChange={event => patch({ followFrameLayerId: event.target.value })}>
+            <option value="">현재 링 마스크 기준</option>
+            {frameLayers.map(layer => <option value={layer.id} key={layer.id}>{layer.name}</option>)}
+          </select>
+        </label>}
         <label className="toggle"><input type="checkbox" checked={media.keepFrameAbove} onChange={event => patch({ keepFrameAbove: event.target.checked })} /><span>클리핑 콘텐츠 위에 프레임 광택 유지</span></label>
         <p className="hint">프레임을 선택하면 단순한 원 두께가 아니라 해당 프레임의 실제 알파 실루엣을 마스크로 사용합니다.</p>
       </>}
@@ -100,7 +107,11 @@ export default function MediaPropertyPanel({ media, frameLayers, duration, onCha
       <h3>타임라인</h3>
       <Slider label="레이어 시작" value={media.startTime} min={0} max={duration} step={.05} suffix="s" onChange={value => patch({ startTime: Math.min(value, media.endTime - .01) })} />
       <Slider label="레이어 종료" value={media.endTime} min={0} max={duration} step={.05} suffix="s" onChange={value => patch({ endTime: Math.max(value, media.startTime + .01) })} />
-      {media.kind === 'video' && <Slider label="영상 시작점" value={media.trimStart} min={0} max={60} step={.05} suffix="s" onChange={value => patch({ trimStart: value })} />}
+      {media.kind === 'video' && <>
+        <Slider label="영상 트림 시작" value={media.trimStart} min={0} max={60} step={.05} suffix="s" onChange={value => patch({ trimStart: Math.min(value, media.trimEnd > 0 ? media.trimEnd - .01 : value) })} />
+        <Slider label="영상 트림 종료" value={media.trimEnd} min={0} max={60} step={.05} suffix="s" onChange={value => patch({ trimEnd: value })} />
+        <p className="hint">트림 종료가 0이면 원본 영상 끝까지 사용합니다. 프로젝트 길이가 더 길면 선택한 트림 구간이 반복됩니다.</p>
+      </>}
     </section>
 
     <section className="property-section">

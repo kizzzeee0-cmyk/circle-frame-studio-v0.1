@@ -157,7 +157,13 @@ export function createDesign(kind: RingKind = 'basic', name = 'Circle Ring'): Fr
   }
 }
 
-function p(id: string, category: string, name: string, kind: RingKind, patch: Partial<FrameDesign> = {}, pattern = {}, effects = {}): FramePreset {
+type FrameDesignPatch = Omit<Partial<FrameDesign>, 'glitter' | 'jelly' | 'rotationAnimation'> & {
+  glitter?: Partial<FrameDesign['glitter']>
+  jelly?: Partial<FrameDesign['jelly']>
+  rotationAnimation?: Partial<FrameDesign['rotationAnimation']>
+}
+
+function p(id: string, category: string, name: string, kind: RingKind, patch: FrameDesignPatch = {}, pattern = {}, effects = {}): FramePreset {
   const design = createDesign(kind, name)
   const baseGlitter = { ...design.glitter }
   const baseJelly = { ...design.jelly }
@@ -236,6 +242,79 @@ export const PRESETS: FramePreset[] = [
       highlightColor: '#FFFFFF', glowColor: '#8FE8D6', flowEnabled: true, flowDirection: 1,
     },
   }, { seed: 3104 }, { glowEnabled: true, glowColor: '#8FE8D6', glowBlur: 18, glowIntensity: .16 }),
+
+  // v0.35 — surface glitter engine. Existing legacy glitter presets remain unchanged.
+  p('glitter-surface-gradient-v035', 'Glitter', 'Gradient Surface Glitter', 'glitter', {
+    thickness: 74,
+    color: '#F3A9CA',
+    secondaryColor: '#FFF2D9',
+    glitter: {
+      surfaceStyle: 'gradient', animationMode: 'twinkle',
+      density: 620, particleSize: 1.25, particleSizeVariation: .72,
+      sparkleSize: 10.5, accentSparkleCount: 5, accentSparkleDuration: .23,
+      textureContrast: .72, surfaceHighlight: .45, rimStrength: .78,
+      sparkleRatio: .05, spread: 16, glow: 3.2, baseOpacity: .94, edgeHighlight: .82,
+      colorCount: 4, colors: ['#FFF4D6','#F7C5B0','#F4A0C9','#B7A2F2'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .56, animationStrength: .72,
+      animationSmoothness: .96, sweepWidth: .12, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#FFD7EB', flowEnabled: false, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 6, easing: 'linear' },
+  }, { seed: 35011 }, { glowEnabled: true, glowColor: '#F2B5D8', glowBlur: 7, glowIntensity: .055 }),
+
+  p('glitter-surface-fine-v035', 'Glitter', 'Fine Pearl Glitter', 'glitter', {
+    thickness: 64,
+    color: '#B9A8EF',
+    secondaryColor: '#F6F2FF',
+    glitter: {
+      surfaceStyle: 'fine', animationMode: 'twinkle',
+      density: 780, particleSize: .82, particleSizeVariation: .48,
+      sparkleSize: 7.5, accentSparkleCount: 2, accentSparkleDuration: .20,
+      textureContrast: .54, surfaceHighlight: .30, rimStrength: .82,
+      sparkleRatio: .02, spread: 12, glow: 1.8, baseOpacity: .92, edgeHighlight: .82,
+      colorCount: 3, colors: ['#FFFFFF','#D9D0FA','#A996E6','#FFFFFF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .45, animationStrength: .46,
+      animationSmoothness: .98, sweepWidth: .10, particleStyle: 'soft',
+      highlightColor: '#FFFFFF', glowColor: '#D8CEFA', flowEnabled: false, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 7, easing: 'linear' },
+  }, { seed: 35012 }),
+
+  p('glitter-surface-twinkle-v035', 'Glitter', 'Elegant Twinkle Surface', 'glitter', {
+    thickness: 70,
+    color: '#F5ABC9',
+    secondaryColor: '#FDE8F2',
+    glitter: {
+      surfaceStyle: 'twinkle', animationMode: 'twinkle',
+      density: 650, particleSize: 1.05, particleSizeVariation: .62,
+      sparkleSize: 11, accentSparkleCount: 6, accentSparkleDuration: .18,
+      textureContrast: .66, surfaceHighlight: .38, rimStrength: .76,
+      sparkleRatio: .06, spread: 15, glow: 3, baseOpacity: .93, edgeHighlight: .80,
+      colorCount: 4, colors: ['#FFFFFF','#FFD8E7','#F3A3C5','#DCC8FF'],
+      animated: true, animationStyle: 'twinkle', animationSpeed: .52, animationStrength: .68,
+      animationSmoothness: .97, sweepWidth: .12, particleStyle: 'twinkle',
+      highlightColor: '#FFFFFF', glowColor: '#F4B6D4', flowEnabled: false, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 6.5, easing: 'linear' },
+  }, { seed: 35013 }, { glowEnabled: true, glowColor: '#F0B0D1', glowBlur: 6, glowIntensity: .045 }),
+
+  p('glitter-surface-holo-v035', 'Glitter', 'Pastel Holographic Glitter', 'glitter', {
+    thickness: 72,
+    color: '#BBAAF3',
+    secondaryColor: '#F7E9FF',
+    glitter: {
+      surfaceStyle: 'holographic', animationMode: 'sweep',
+      density: 590, particleSize: 1.08, particleSizeVariation: .76,
+      sparkleSize: 9, accentSparkleCount: 3, accentSparkleDuration: .18,
+      textureContrast: .62, surfaceHighlight: .34, rimStrength: .74,
+      sparkleRatio: .03, spread: 14, glow: 2.6, baseOpacity: .94, edgeHighlight: .78,
+      colorCount: 4, colors: ['#FFD8E8','#D8C9FF','#C8F0EA','#FFF0BF'],
+      animated: true, animationStyle: 'shimmer', animationSpeed: .34, animationStrength: .52,
+      animationSmoothness: .98, sweepWidth: .10, particleStyle: 'luminous',
+      highlightColor: '#FFFFFF', glowColor: '#DDD3FF', flowEnabled: true, flowDirection: 1,
+    },
+    rotationAnimation: { enabled: false, secondsPerTurn: 8, easing: 'linear' },
+  }, { seed: 35014 }, { glowEnabled: true, glowColor: '#D9D0FF', glowBlur: 5, glowIntensity: .035 }),
 
   p('jelly-balloon-pink-v031', '3D', 'Jelly Balloon Pink', 'jelly', {
     radius: 720,

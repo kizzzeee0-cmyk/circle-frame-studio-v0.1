@@ -918,6 +918,7 @@ export default function App() {
 
   const deleteSelectedMedia = () => {
     if (!selectedMediaIds.length) return
+    if (selectedMediaIds.length > 1 && !confirm(selectedMediaIds.length + '개 요소를 삭제할까요? 실행취소(Ctrl/⌘+Z)로 되돌릴 수 있습니다.')) return
     const ids = new Set(selectedMediaIds)
     commit(draft => {
       let layers = (draft.mediaLayers ?? []).filter(layer => !ids.has(layer.id))
@@ -932,6 +933,27 @@ export default function App() {
     })
     setSelectedMediaId('')
     setSelectedMediaIds([])
+  }
+
+  const setSelectedMediaVisibility = (visible: boolean) => {
+    const ids = new Set(selectedMediaIds)
+    if (!ids.size) return
+    commit(draft => {
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => ids.has(layer.id) ? { ...layer, visible } : layer)
+      return draft
+    })
+  }
+
+  const setSelectedMediaLock = (locked: boolean) => {
+    const ids = new Set(selectedMediaIds)
+    if (!ids.size) return
+    commit(draft => {
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => ids.has(layer.id) ? { ...layer, locked } : layer)
+      for (const group of draft.mediaGroups ?? []) {
+        if (group.layerIds.length && group.layerIds.every(id => ids.has(id))) group.locked = locked
+      }
+      return draft
+    })
   }
 
   const duplicateSelectedMedia = () => {
@@ -1352,6 +1374,10 @@ export default function App() {
               setSelectedMediaId(ids[0] ?? '')
             }}
             onClearSelection={() => { setSelectedMediaIds([]); setSelectedMediaId('') }}
+            onSetSelectedVisibility={setSelectedMediaVisibility}
+            onSetSelectedLock={setSelectedMediaLock}
+            onDuplicateSelected={duplicateSelectedMedia}
+            onDeleteSelected={deleteSelectedMedia}
             onBackgroundChange={changeBackground}
             onBackgroundFile={uploadBackground}
           />

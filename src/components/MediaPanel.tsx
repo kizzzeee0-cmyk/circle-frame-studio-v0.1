@@ -21,6 +21,10 @@ interface Props {
   onToggleGroupLock: (id: string) => void
   onSelectAllMedia: () => void
   onClearSelection: () => void
+  onSetSelectedVisibility: (visible: boolean) => void
+  onSetSelectedLock: (locked: boolean) => void
+  onDuplicateSelected: () => void
+  onDeleteSelected: () => void
   onBackgroundChange: (next: BackgroundSettings) => void
   onBackgroundFile: (file?: File) => void
 }
@@ -30,10 +34,20 @@ export default function MediaPanel(props: Props) {
   const decorationInput = useRef<HTMLInputElement>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const [dragId, setDragId] = useState('')
+  const [query, setQuery] = useState('')
   const selectedSet = new Set(props.selectedMediaIds)
   const selectedGroups = new Set(props.mediaLayers.filter(layer => selectedSet.has(layer.id) && layer.groupId).map(layer => layer.groupId))
   const activeGroupId = selectedGroups.size === 1 ? [...selectedGroups][0] : ''
   const activeGroup = activeGroupId ? props.groups.find(group => group.id === activeGroupId) : undefined
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleLayers = normalizedQuery
+    ? props.mediaLayers.filter(layer => {
+        const groupName = layer.groupId ? props.groups.find(group => group.id === layer.groupId)?.name ?? '' : ''
+        return layer.name.toLowerCase().includes(normalizedQuery) ||
+          layer.kind.toLowerCase().includes(normalizedQuery) ||
+          groupName.toLowerCase().includes(normalizedQuery)
+      })
+    : props.mediaLayers
 
   const drop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -82,11 +96,23 @@ export default function MediaPanel(props: Props) {
           {props.selectedMediaIds.length > 0 && <button type="button" onClick={props.onClearSelection}>선택 해제</button>}
         </div>
       </div>
-      {props.selectedMediaIds.length > 1 && (
+      {props.mediaLayers.length > 3 && <div className="media-search-row">
+        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="레이어 이름·그룹 검색" />
+        {query && <button type="button" onClick={() => setQuery('')}>×</button>}
+      </div>}
+      {props.selectedMediaIds.length > 0 && (
         <div className="multi-selection-bar">
           <strong>{props.selectedMediaIds.length}개 선택</strong>
-          {!activeGroup && <button type="button" onClick={props.onGroupSelected}>그룹 만들기</button>}
-          {selectedGroups.size > 0 && <button type="button" onClick={props.onUngroupSelected}>그룹 해제</button>}
+          <div className="selection-batch-actions">
+            <button type="button" onClick={() => props.onSetSelectedVisibility(true)}>보이기</button>
+            <button type="button" onClick={() => props.onSetSelectedVisibility(false)}>숨기기</button>
+            <button type="button" onClick={() => props.onSetSelectedLock(true)}>잠금</button>
+            <button type="button" onClick={() => props.onSetSelectedLock(false)}>잠금 해제</button>
+            <button type="button" onClick={props.onDuplicateSelected}>복제</button>
+            <button type="button" className="danger-mini" onClick={props.onDeleteSelected}>삭제</button>
+          </div>
+          {props.selectedMediaIds.length > 1 && !activeGroup && <button type="button" onClick={props.onGroupSelected}>그룹 만들기</button>}
+          {selectedGroups.size > 0 && <button type="button" onClick={props.onUngroupSelected}>그룹 해제</button>
           {activeGroup ? (
             <div className="active-group-controls">
               <input value={activeGroup.name} onChange={event => props.onRenameGroup(activeGroup.id, event.target.value)} aria-label="그룹 이름" />
@@ -97,7 +123,9 @@ export default function MediaPanel(props: Props) {
       )}
 
       <div className="media-layer-list">
-        {props.mediaLayers.map((layer, index) => (
+        {visibleLayers.map(layer => {
+          const index = props.mediaLayers.findIndex(item => item.id === layer.id)
+          return (
           <article
             key={layer.id}
             draggable
@@ -138,8 +166,9 @@ export default function MediaPanel(props: Props) {
               <button title="삭제" onClick={event => { event.stopPropagation(); props.onDeleteMedia(layer.id) }}>×</button>
             </div>
           </article>
-        ))}
+        )})}
         {!props.mediaLayers.length && <div className="media-empty">사진이나 영상을 추가하면 여기에 레이어가 표시됩니다.</div>}
+        {!!props.mediaLayers.length && !visibleLayers.length && <div className="media-empty">검색 결과가 없습니다.</div>}
       </div>
 
       <div className="media-subhead background-head"><strong>배경</strong></div>

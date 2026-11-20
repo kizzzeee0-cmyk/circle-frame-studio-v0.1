@@ -64,9 +64,21 @@ function normalizeDesign(source: Partial<FrameDesign>): FrameDesign {
       colors: Array.isArray(source.glitter?.colors) && source.glitter.colors.length >= 4
         ? [source.glitter.colors[0], source.glitter.colors[1], source.glitter.colors[2], source.glitter.colors[3]]
         : base.glitter.colors,
-      density: Math.max(12, Math.min(720, Number(source.glitter?.density ?? base.glitter.density))),
-      particleSize: Math.max(.5, Number(source.glitter?.particleSize ?? base.glitter.particleSize)),
+      surfaceStyle: ['legacy','gradient','fine','twinkle','holographic'].includes(String(source.glitter?.surfaceStyle))
+        ? source.glitter!.surfaceStyle
+        : base.glitter.surfaceStyle,
+      animationMode: ['none','twinkle','rotate','rotate-twinkle','sweep'].includes(String(source.glitter?.animationMode))
+        ? source.glitter!.animationMode
+        : base.glitter.animationMode,
+      density: Math.max(12, Math.min(900, Number(source.glitter?.density ?? base.glitter.density))),
+      particleSize: Math.max(.35, Number(source.glitter?.particleSize ?? base.glitter.particleSize)),
+      particleSizeVariation: Math.max(0, Math.min(1, Number(source.glitter?.particleSizeVariation ?? base.glitter.particleSizeVariation))),
       sparkleSize: Math.max(1, Number(source.glitter?.sparkleSize ?? base.glitter.sparkleSize)),
+      accentSparkleCount: Math.max(0, Math.min(18, Math.round(Number(source.glitter?.accentSparkleCount ?? base.glitter.accentSparkleCount)))),
+      accentSparkleDuration: Math.max(.04, Math.min(.8, Number(source.glitter?.accentSparkleDuration ?? base.glitter.accentSparkleDuration))),
+      textureContrast: Math.max(0, Math.min(1, Number(source.glitter?.textureContrast ?? base.glitter.textureContrast))),
+      surfaceHighlight: Math.max(0, Math.min(1, Number(source.glitter?.surfaceHighlight ?? base.glitter.surfaceHighlight))),
+      rimStrength: Math.max(0, Math.min(1, Number(source.glitter?.rimStrength ?? base.glitter.rimStrength))),
       sparkleRatio: Math.max(0, Math.min(1, Number(source.glitter?.sparkleRatio ?? base.glitter.sparkleRatio))),
       spread: Math.max(1, Number(source.glitter?.spread ?? base.glitter.spread)),
       glow: Math.max(0, Number(source.glitter?.glow ?? base.glitter.glow)),

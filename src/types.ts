@@ -24,6 +24,8 @@ export type GradientMode = 'solid' | 'linear' | 'radial' | 'conic'
 export type DecorationLayout = 'count' | 'spacing'
 export type AssetTintMode = 'original' | 'palette'
 export type GlitterParticleStyle = 'soft' | 'twinkle' | 'sugar' | 'luminous'
+export type GlitterSurfaceStyle = 'legacy' | 'gradient' | 'fine' | 'twinkle' | 'holographic'
+export type GlitterAnimationMode = 'none' | 'twinkle' | 'rotate' | 'rotate-twinkle' | 'sweep'
 export type MediaLayerKind = 'image' | 'video'
 export type MediaMaskMode = 'none' | 'circle' | 'ring' | 'custom'
 export type MediaPlacement = 'below' | 'above'
@@ -113,9 +115,17 @@ export interface TripleRingSettings {
 }
 
 export interface GlitterSettings {
+  surfaceStyle: GlitterSurfaceStyle
+  animationMode: GlitterAnimationMode
   density: number
   particleSize: number
+  particleSizeVariation: number
   sparkleSize: number
+  accentSparkleCount: number
+  accentSparkleDuration: number
+  textureContrast: number
+  surfaceHighlight: number
+  rimStrength: number
   sparkleRatio: number
   spread: number
   glow: number

@@ -3,9 +3,15 @@ import type { FrameLayer, MediaLayer } from '../types'
 
 interface Props {
   media: MediaLayer
+  selectedMedia: MediaLayer[]
   frameLayers: FrameLayer[]
   duration: number
   onChange: (next: MediaLayer) => void
+  onBatchChange: (updates: Array<Partial<MediaLayer> & { id: string }>) => void
+  onAlign: (mode: 'center-x' | 'center-y' | 'center' | 'distribute-x' | 'distribute-y') => void
+  onGroup: () => void
+  onUngroup: () => void
+  onCustomMask: (file?: File) => void
   onRelink: (file?: File) => void
   onDuplicate: () => void
   onDelete: () => void
@@ -19,16 +25,39 @@ function Slider({ label, value, min, max, step = 1, suffix = '', onChange }: { l
   </label>
 }
 
-export default function MediaPropertyPanel({ media, frameLayers, duration, onChange, onRelink, onDuplicate, onDelete, onReturnFrame }: Props) {
+export default function MediaPropertyPanel({ media, selectedMedia, frameLayers, duration, onChange, onBatchChange, onAlign, onGroup, onUngroup, onCustomMask, onRelink, onDuplicate, onDelete, onReturnFrame }: Props) {
   const relinkInput = useRef<HTMLInputElement>(null)
+  const customMaskInput = useRef<HTMLInputElement>(null)
+  const selectedCount = Math.max(1, selectedMedia.length)
   const patch = (partial: Partial<MediaLayer>) => onChange({ ...media, ...partial })
   const animation = (partial: Partial<MediaLayer['animation']>) => patch({ animation: { ...media.animation, ...partial } })
 
   return <aside className="right-panel panel media-property-panel">
     <div className="panel-title-row sticky-head">
-      <div><strong>미디어 설정</strong><small>{media.kind === 'video' ? '영상 레이어' : '이미지 · PNG 레이어'}</small></div>
+      <div><strong>{selectedCount > 1 ? selectedCount + '개 미디어 선택' : '미디어 설정'}</strong><small>{selectedCount > 1 ? '다중 선택 · 일괄 편집' : media.kind === 'video' ? '영상 레이어' : '이미지 · PNG 레이어'}</small></div>
       <button type="button" className="soft-button" onClick={onReturnFrame}>프레임 설정</button>
     </div>
+
+    {selectedCount > 1 && <section className="property-section multi-edit-section">
+      <h3>다중 선택 · 정렬 · 그룹</h3>
+      <div className="multi-edit-grid">
+        <button type="button" onClick={() => onAlign('center-x')}>가로 중앙</button>
+        <button type="button" onClick={() => onAlign('center-y')}>세로 중앙</button>
+        <button type="button" onClick={() => onAlign('center')}>정중앙</button>
+        <button type="button" onClick={() => onAlign('distribute-x')}>가로 균등</button>
+        <button type="button" onClick={() => onAlign('distribute-y')}>세로 균등</button>
+        <button type="button" onClick={onGroup}>그룹 만들기</button>
+        <button type="button" onClick={onUngroup}>그룹 해제</button>
+      </div>
+      <label className="control slider-control">
+        <span><b>선택 전체 불투명도</b><em>{Math.round(media.opacity * 100)}%</em></span>
+        <input type="range" min={0} max={1} step={.01} value={media.opacity} onChange={event => {
+          const opacity = Number(event.target.value)
+          onBatchChange(selectedMedia.map(layer => ({ id: layer.id, opacity })))
+        }} />
+      </label>
+      <p className="hint">캔버스의 선택 박스를 드래그하면 선택된 모든 요소를 함께 이동·확대·축소할 수 있습니다.</p>
+    </section>}
 
     <section className="property-section">
       <h3>레이어 기본</h3>
@@ -49,6 +78,15 @@ export default function MediaPropertyPanel({ media, frameLayers, duration, onCha
       <Slider label="크기" value={media.scale} min={.05} max={3} step={.01} suffix="x" onChange={value => patch({ scale: value })} />
       <Slider label="회전" value={media.rotation} min={-360} max={360} suffix="°" onChange={value => patch({ rotation: value })} />
       <Slider label="불투명도" value={media.opacity} min={0} max={1} step={.01} onChange={value => patch({ opacity: value })} />
+      <label className="control"><span><b>블렌딩</b></span>
+        <select value={media.blendMode} onChange={event => patch({ blendMode: event.target.value as MediaLayer['blendMode'] })}>
+          <option value="normal">일반</option>
+          <option value="multiply">곱하기</option>
+          <option value="screen">스크린</option>
+          <option value="overlay">오버레이</option>
+          <option value="soft-light">소프트 라이트</option>
+        </select>
+      </label>
       <label className="control"><span><b>원본 맞춤 방식</b></span>
         <select value={media.fit} onChange={event => patch({ fit: event.target.value as MediaLayer['fit'] })}>
           <option value="cover">영역 채우기 · 비율 유지</option>
@@ -70,6 +108,7 @@ export default function MediaPropertyPanel({ media, frameLayers, duration, onCha
           <option value="none">없음 · 원본 그대로</option>
           <option value="circle">원 내부 · 정원 마스크</option>
           <option value="ring">링 영역 · 프레임 실루엣</option>
+          <option value="custom">사용자 지정 마스크</option>
         </select>
       </label>
 
@@ -77,6 +116,24 @@ export default function MediaPropertyPanel({ media, frameLayers, duration, onCha
         <Slider label="마스크 원 크기" value={media.maskRadius} min={50} max={950} suffix="px" onChange={value => patch({ maskRadius: value })} />
         <Slider label="마스크 X" value={media.maskX} min={-600} max={600} suffix="px" onChange={value => patch({ maskX: value })} />
         <Slider label="마스크 Y" value={media.maskY} min={-600} max={600} suffix="px" onChange={value => patch({ maskY: value })} />
+      </>}
+
+      {media.maskMode === 'custom' && <>
+        <button type="button" className="soft-button full" onClick={() => customMaskInput.current?.click()}>
+          {media.customMaskFileName ? '마스크 변경 · ' + media.customMaskFileName : '마스크 이미지 선택'}
+        </button>
+        <input ref={customMaskInput} hidden type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={event => onCustomMask(event.target.files?.[0])} />
+        <label className="toggle"><input type="checkbox" checked={media.customMaskInvert} onChange={event => patch({ customMaskInvert: event.target.checked })} /><span>마스크 반전</span></label>
+        <label className="control"><span><b>마스크 맞춤</b></span>
+          <select value={media.customMaskFit} onChange={event => patch({ customMaskFit: event.target.value as MediaLayer['customMaskFit'] })}>
+            <option value="cover">영역 채우기</option><option value="contain">전체 맞춤</option>
+          </select>
+        </label>
+        <Slider label="마스크 크기" value={media.customMaskScale} min={.05} max={2.5} step={.01} suffix="x" onChange={value => patch({ customMaskScale: value })} />
+        <Slider label="마스크 X" value={media.customMaskX} min={-1000} max={1000} suffix="px" onChange={value => patch({ customMaskX: value })} />
+        <Slider label="마스크 Y" value={media.customMaskY} min={-1000} max={1000} suffix="px" onChange={value => patch({ customMaskY: value })} />
+        <Slider label="마스크 회전" value={media.customMaskRotation} min={-360} max={360} suffix="°" onChange={value => patch({ customMaskRotation: value })} />
+        <p className="hint">마스크 이미지의 알파/밝기 형태를 사용해 미디어를 잘라냅니다. 투명 PNG를 사용하면 가장 정확합니다.</p>
       </>}
 
       {media.maskMode === 'ring' && <>
@@ -108,6 +165,8 @@ export default function MediaPropertyPanel({ media, frameLayers, duration, onCha
       <Slider label="레이어 시작" value={media.startTime} min={0} max={duration} step={.05} suffix="s" onChange={value => patch({ startTime: Math.min(value, media.endTime - .01) })} />
       <Slider label="레이어 종료" value={media.endTime} min={0} max={duration} step={.05} suffix="s" onChange={value => patch({ endTime: Math.max(value, media.startTime + .01) })} />
       {media.kind === 'video' && <>
+        <label className="toggle"><input type="checkbox" checked={media.audioEnabled} onChange={event => patch({ audioEnabled: event.target.checked })} /><span>영상 오디오 출력</span></label>
+        {media.audioEnabled && <Slider label="오디오 볼륨" value={Math.round(media.audioVolume * 100)} min={0} max={200} suffix="%" onChange={value => patch({ audioVolume: value / 100 })} />}
         <Slider label="영상 트림 시작" value={media.trimStart} min={0} max={60} step={.05} suffix="s" onChange={value => patch({ trimStart: Math.min(value, media.trimEnd > 0 ? media.trimEnd - .01 : value) })} />
         <Slider label="영상 트림 종료" value={media.trimEnd} min={0} max={60} step={.05} suffix="s" onChange={value => patch({ trimEnd: value })} />
         <p className="hint">트림 종료가 0이면 원본 영상 끝까지 사용합니다. 프로젝트 길이가 더 길면 선택한 트림 구간이 반복됩니다.</p>

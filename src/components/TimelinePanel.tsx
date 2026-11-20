@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type PointerEvent } from 'react'
 import type { MediaLayer } from '../types'
 
 interface Props {
@@ -7,19 +7,90 @@ interface Props {
   playing: boolean
   loop: boolean
   mediaLayers: MediaLayer[]
-  selectedMediaId: string
+  selectedMediaIds: string[]
+  primaryMediaId: string
   onTimeChange: (value: number) => void
   onTogglePlay: () => void
   onToStart: () => void
   onDurationChange: (value: number) => void
   onLoopChange: (value: boolean) => void
-  onSelectMedia: (id: string) => void
+  onTimingChange: (id: string, patch: Partial<MediaLayer>) => void
+  onSelectMedia: (id: string, additive: boolean) => void
 }
 
 export default function TimelinePanel(props: Props) {
   const [collapsed, setCollapsed] = useState(false)
+  const [timelineZoom, setTimelineZoom] = useState(1)
+  const dragRef = useRef<{
+    id: string
+    mode: 'move' | 'start' | 'end'
+    startX: number
+    startTime: number
+    endTime: number
+    introStart: number
+    outroStart: number
+    railWidth: number
+  } | null>(null)
   const duration = Math.max(.5, props.duration)
   const pct = Math.min(100, Math.max(0, (props.currentTime / duration) * 100))
+
+  const beginClipDrag = (event: PointerEvent<HTMLElement>, layer: MediaLayer, mode: 'move' | 'start' | 'end') => {
+    event.preventDefault()
+    event.stopPropagation()
+    const rail = (event.currentTarget.closest('.timeline-track-rail') as HTMLElement | null)
+    const railWidth = Math.max(1, rail?.getBoundingClientRect().width ?? 1)
+    dragRef.current = {
+      id: layer.id,
+      mode,
+      startX: event.clientX,
+      startTime: layer.startTime,
+      endTime: layer.endTime,
+      introStart: layer.animation.introStart,
+      outroStart: layer.animation.outroStart,
+      railWidth,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    props.onSelectMedia(layer.id, event.ctrlKey || event.metaKey || event.shiftKey)
+  }
+
+  const moveClipDrag = (event: PointerEvent<HTMLElement>, layer: MediaLayer) => {
+    const drag = dragRef.current
+    if (!drag || drag.id !== layer.id) return
+    const delta = (event.clientX - drag.startX) / drag.railWidth * duration * timelineZoom
+    if (drag.mode === 'move') {
+      const length = drag.endTime - drag.startTime
+      const start = Math.max(0, Math.min(duration - length, drag.startTime + delta))
+      const actualDelta = start - drag.startTime
+      props.onTimingChange(layer.id, {
+        startTime: start,
+        endTime: start + length,
+        animation: {
+          ...layer.animation,
+          introStart: Math.max(start, drag.introStart + actualDelta),
+          outroStart: Math.min(start + length, drag.outroStart + actualDelta),
+        },
+      })
+      return
+    }
+    if (drag.mode === 'start') {
+      const start = Math.max(0, Math.min(drag.endTime - .05, drag.startTime + delta))
+      props.onTimingChange(layer.id, {
+        startTime: start,
+        animation: { ...layer.animation, introStart: Math.max(start, layer.animation.introStart) },
+      })
+      return
+    }
+    const end = Math.max(drag.startTime + .05, Math.min(duration, drag.endTime + delta))
+    props.onTimingChange(layer.id, {
+      endTime: end,
+      animation: { ...layer.animation, outroStart: Math.min(end, layer.animation.outroStart) },
+    })
+  }
+
+  const endClipDrag = (event: PointerEvent<HTMLElement>) => {
+    dragRef.current = null
+    try { event.currentTarget.releasePointerCapture(event.pointerId) } catch { /* ignore */ }
+  }
 
   return <section className={collapsed ? 'timeline-panel panel collapsed' : 'timeline-panel panel'}>
     <div className="timeline-header">

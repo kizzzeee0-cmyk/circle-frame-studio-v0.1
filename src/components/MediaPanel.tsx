@@ -1,4 +1,4 @@
-import { useRef, type DragEvent } from 'react'
+import { useRef, useState, type DragEvent } from 'react'
 import type { BackgroundSettings, MediaLayer } from '../types'
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   onToggleMedia: (id: string) => void
   onToggleLock: (id: string) => void
   onMoveMedia: (id: string, direction: -1 | 1) => void
+  onReorderMedia: (id: string, targetId: string) => void
   onDuplicateMedia: (id: string) => void
   onDeleteMedia: (id: string) => void
   onBackgroundChange: (next: BackgroundSettings) => void
@@ -19,6 +20,7 @@ interface Props {
 export default function MediaPanel(props: Props) {
   const imageInput = useRef<HTMLInputElement>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
+  const [dragId, setDragId] = useState('')
 
   const drop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -62,8 +64,27 @@ export default function MediaPanel(props: Props) {
         {props.mediaLayers.map((layer, index) => (
           <article
             key={layer.id}
+            draggable
             className={layer.id === props.selectedMediaId ? 'media-layer-card active' : 'media-layer-card'}
             onClick={() => props.onSelectMedia(layer.id)}
+            onDragStart={event => {
+              setDragId(layer.id)
+              event.dataTransfer.effectAllowed = 'move'
+              event.dataTransfer.setData('text/plain', layer.id)
+            }}
+            onDragOver={event => {
+              if (dragId) {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+              }
+            }}
+            onDrop={event => {
+              event.preventDefault()
+              const sourceId = dragId || event.dataTransfer.getData('text/plain')
+              if (sourceId && sourceId !== layer.id) props.onReorderMedia(sourceId, layer.id)
+              setDragId('')
+            }}
+            onDragEnd={() => setDragId('')}
           >
             <div className="media-layer-icon">{layer.kind === 'video' ? '▶' : '▧'}</div>
             <div className="media-layer-text">

@@ -696,6 +696,17 @@ export default function App() {
     return draft
   })
 
+  const reorderMedia = (id: string, targetId: string) => commit(draft => {
+    const list = [...(draft.mediaLayers ?? [])]
+    const from = list.findIndex(layer => layer.id === id)
+    const to = list.findIndex(layer => layer.id === targetId)
+    if (from < 0 || to < 0 || from === to) return draft
+    const [layer] = list.splice(from, 1)
+    list.splice(to, 0, layer)
+    draft.mediaLayers = list
+    return draft
+  })
+
   const duplicateMedia = (id: string) => commit(draft => {
     const list = [...(draft.mediaLayers ?? [])]
     const source = list.find(layer => layer.id === id)
@@ -807,6 +818,7 @@ export default function App() {
             onToggleMedia={toggleMedia}
             onToggleLock={toggleMediaLock}
             onMoveMedia={moveMedia}
+            onReorderMedia={reorderMedia}
             onDuplicateMedia={duplicateMedia}
             onDeleteMedia={deleteMedia}
             onBackgroundChange={changeBackground}

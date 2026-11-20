@@ -823,10 +823,46 @@ export default function App() {
   const deleteMedia = (id: string) => {
     commit(draft => {
       draft.mediaLayers = (draft.mediaLayers ?? []).filter(layer => layer.id !== id)
+      draft.mediaGroups = (draft.mediaGroups ?? [])
+        .map(group => ({ ...group, layerIds: group.layerIds.filter(item => item !== id) }))
+        .filter(group => group.layerIds.length > 1)
       return draft
     })
     if (selectedMediaId === id) setSelectedMediaId('')
+    setSelectedMediaIds(prev => prev.filter(item => item !== id))
+  }
+
+  const deleteSelectedMedia = () => {
+    if (!selectedMediaIds.length) return
+    const ids = new Set(selectedMediaIds)
+    commit(draft => {
+      draft.mediaLayers = (draft.mediaLayers ?? []).filter(layer => !ids.has(layer.id))
+      draft.mediaGroups = (draft.mediaGroups ?? [])
+        .map(group => ({ ...group, layerIds: group.layerIds.filter(id => !ids.has(id)) }))
+        .filter(group => group.layerIds.length > 1)
+      return draft
+    })
+    setSelectedMediaId('')
     setSelectedMediaIds([])
+  }
+
+  const duplicateSelectedMedia = () => {
+    const originals = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id))
+    if (!originals.length) return
+    const copies = originals.map(layer => ({
+      ...structuredClone(layer),
+      id: uid('media'),
+      name: layer.name + ' Copy',
+      x: layer.x + 30,
+      y: layer.y + 30,
+      groupId: '',
+    }))
+    commit(draft => {
+      draft.mediaLayers = [...copies, ...(draft.mediaLayers ?? [])]
+      return draft
+    })
+    setSelectedMediaIds(copies.map(layer => layer.id))
+    setSelectedMediaId(copies[0]?.id ?? '')
   }
 
   const groupSelectedMedia = () => {
@@ -968,6 +1004,72 @@ export default function App() {
   const selectedMediaList = (project.mediaLayers ?? []).filter(layer => selectedMediaIds.includes(layer.id))
 
   const currentAssetLayer = project.layers.find(layer => layer.id === project.selectedLayerId)?.design ?? project.design
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const editing = !!target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      )
+      if (editing) return
+
+      const meta = event.ctrlKey || event.metaKey
+      const key = event.key.toLowerCase()
+
+      if (event.key === 'Escape') {
+        setSelectedMediaIds([])
+        setSelectedMediaId('')
+        return
+      }
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedMediaIds.length) {
+        event.preventDefault()
+        deleteSelectedMedia()
+        return
+      }
+      if (meta && key === 'a' && (project.mediaLayers?.length ?? 0) > 0) {
+        event.preventDefault()
+        const ids = (project.mediaLayers ?? []).map(layer => layer.id)
+        setSelectedMediaIds(ids)
+        setSelectedMediaId(ids[0] ?? '')
+        return
+      }
+      if (meta && key === 'd' && selectedMediaIds.length) {
+        event.preventDefault()
+        duplicateSelectedMedia()
+        return
+      }
+      if (meta && key === 'g' && selectedMediaIds.length > 1) {
+        event.preventDefault()
+        if (event.shiftKey) ungroupSelectedMedia()
+        else groupSelectedMedia()
+        return
+      }
+      if (event.code === 'Space') {
+        event.preventDefault()
+        setTimelinePlaying(value => !value)
+        return
+      }
+      if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key) && selectedMediaIds.length) {
+        event.preventDefault()
+        const step = event.shiftKey ? 10 : 1
+        const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0
+        const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0
+        commitCoalesced('keyboard-nudge', draft => {
+          draft.mediaLayers = (draft.mediaLayers ?? []).map(layer =>
+            selectedMediaIds.includes(layer.id) && !layer.locked
+              ? { ...layer, x: layer.x + dx, y: layer.y + dy }
+              : layer
+          )
+          return draft
+        })
+      }
+    }
+    window.addEventListener('keydown', onShortcut)
+    return () => window.removeEventListener('keydown', onShortcut)
+  }, [project.mediaLayers, selectedMediaIds, commitCoalesced])
 
   return (
     <div className="app-shell">

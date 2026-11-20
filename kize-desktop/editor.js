@@ -1339,7 +1339,7 @@ $('saveProject').onclick=async()=>{
     }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.9.0',
+      appVersion:'0.10.0',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,

@@ -167,7 +167,7 @@ export function installCharacterPalette({applyPalette,notify,download}){
     const str=swatches.filter(s=>!s.excluded).map(s=>s.hex).join(', ');
     navigator.clipboard?.writeText(str).then(()=>notify('대표 HEX 목록을 복사했어요.')).catch(()=>notify(str));
   };
-  for(const id of ['charPastel','charBrightness','charSaturation','charWhite','charAccent'])
+  for(const id of ['charPastel','charBrightness','charSaturation','charContrast','charWhite','charAccent'])
     $(id).oninput=rerenderPalettes;
   function jsonDownload(object,name){
     download(new Blob([JSON.stringify(object,null,2)],{type:'application/json'}),name);

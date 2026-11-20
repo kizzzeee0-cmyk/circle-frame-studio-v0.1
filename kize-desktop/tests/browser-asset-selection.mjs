@@ -24,7 +24,13 @@ const sticker=create(w,h,(x,y)=>{
 });
 const badge=create(45,35,()=>[75,130,230,255]);
 const bg=create(w,h,()=>[248,245,235,255]);
-const fixture=writePsd({width:w,height:h,children:[
+const composited=create(w,h,(x,y)=>{
+  const stickerPos=(y*w+x)*4;
+  if(sticker.data[stickerPos+3])return Array.from(sticker.data.slice(stickerPos,stickerPos+4));
+  if(x>=65&&x<110&&y>=65&&y<100)return [75,130,230,255];
+  return [248,245,235,255];
+});
+const fixture=writePsd({width:w,height:h,imageData:composited,children:[
   {name:'Stickers',left:0,top:0,right:w,bottom:h,imageData:sticker},
   {name:'Badge',left:65,top:65,right:110,bottom:100,imageData:badge},
   {name:'Background',left:0,top:0,right:w,bottom:h,imageData:bg}

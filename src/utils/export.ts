@@ -95,10 +95,25 @@ async function prepareProject(project: FrameProject) {
   await Promise.all([preloadProjectAssets(project), preloadProjectMedia(project)])
 }
 
-async function renderTimedFrame(canvas: HTMLCanvasElement, project: FrameProject, progress: number, duration: number) {
+async function renderTimedFrame(
+  canvas: HTMLCanvasElement, project: FrameProject, progress: number,
+  duration: number, opaqueVideoBackground = false,
+) {
   const sceneTime = progress * duration
   await seekProjectMedia(project, sceneTime)
   renderProject(canvas, project, undefined, sceneTime * 1000, progress)
+
+  // H.264 MP4 has no alpha channel. Compose the transparent result over a
+  // predictable white background rather than relying on encoder-specific black.
+  if (opaqueVideoBackground) {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('영상 캔버스를 사용할 수 없습니다.')
+    ctx.save()
+    ctx.globalCompositeOperation = 'destination-over'
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.restore()
+  }
 }
 
 async function exportGif(
@@ -277,7 +292,7 @@ async function exportDeterministicVideo(
       throwIfAborted(signal)
       const timestamp = i / fps
       const progress = i / frameCount
-      await renderTimedFrame(canvas, project, progress, options.duration)
+      await renderTimedFrame(canvas, project, progress, options.duration, format === 'mp4')
       await source.add(timestamp, 1 / fps, { keyFrame: i === 0 || i % Math.max(1, Math.round(fps * 2)) === 0 })
       onProgress?.({
         stage: 'render',
@@ -340,7 +355,7 @@ async function exportCanvasVideo(
     for (let i = 0; i < frameCount; i++) {
       throwIfAborted(signal)
       const progress = i / frameCount
-      await renderTimedFrame(canvas, project, progress, options.duration)
+      await renderTimedFrame(canvas, project, progress, options.duration, format === 'mp4')
       track.requestFrame?.()
       onProgress?.({
         stage: 'render',

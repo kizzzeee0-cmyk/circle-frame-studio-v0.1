@@ -1156,11 +1156,13 @@ $('applyColor').onclick=()=>{
     }else{
       previewMode='layers';
     }
-    lastColorAction='✓ '+total.toLocaleString()+'픽셀 색상 변경 완료! 다음 부분을 클릭하거나 PNG로 저장하세요.';
+    const displayChanged=appearanceEnabled
+      ?newAppearancePatches.reduce((n,p)=>n+(p.count||0),0):total;
+    lastColorAction='✓ '+displayChanged.toLocaleString()+'픽셀 범위에 색상 변경 적용! 다음 부분을 클릭하거나 PNG로 저장하세요.';
     clearSelections();refreshAll();
     notify(appearanceEnabled
-      ?total.toLocaleString()+'px 색상 변경 완료 · Photoshop 원본 외관 유지 편집 ('+newAppearancePatches.length+'개 영역)'
-      :total.toLocaleString()+'px 색상 변경 완료 · 원본 Photoshop 합성 효과는 현재 레이어 재구성에서 정확하게 재현되지 않습니다.');
+      ?displayChanged.toLocaleString()+'px 선택 범위 색상 변경 완료 · Photoshop 원본 외관 보존 ('+newAppearancePatches.length+'개 영역)'
+      :displayChanged.toLocaleString()+'px 색상 변경 완료 · PNG 내보내기로 결과를 저장할 수 있습니다.');
   }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error('KIZE appearance paint:',e);}
 };
 

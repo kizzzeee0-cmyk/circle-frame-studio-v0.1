@@ -608,6 +608,7 @@ function refreshProperties(){
     note.hidden=false;
     const maskMsg=l.maskDecodeFailed?' · 마스크 디코딩 실패(선택 제한)':
       l.unsupportedVectorMask?' · 별도 벡터 마스크 정확한 재현 불가(선택 제한)':
+      l.unsupportedGroupMask?' · 그룹 마스크 원본 정확도 미지원(선택 제한)':
       l.clippingUnresolved?' · 클리핑 기준 누락(선택 제한)':
       l.maskSpecs?.length?' · 실제 PSD 마스크 '+l.maskSpecs.length+'개 선택에 반영':
       l.clipBaseId?' · 클리핑 기준 레이어 알파 선택에 반영':'';

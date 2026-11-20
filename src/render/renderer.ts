@@ -1665,7 +1665,14 @@ function drawBackground(ctx: CanvasRenderingContext2D, project: FrameProject) {
     dw = ctx.canvas.width
     dh = dw / sourceRatio
   }
-  ctx.drawImage(source, (ctx.canvas.width - dw) / 2, (ctx.canvas.height - dh) / 2, dw, dh)
+  const projectScale = ctx.canvas.width / project.width
+  const bgScale = Math.max(.02, background.scale || 1)
+  ctx.translate(
+    ctx.canvas.width / 2 + (background.x || 0) * projectScale,
+    ctx.canvas.height / 2 + (background.y || 0) * projectScale,
+  )
+  ctx.rotate(((background.rotation || 0) * Math.PI) / 180)
+  ctx.drawImage(source, -(dw * bgScale) / 2, -(dh * bgScale) / 2, dw * bgScale, dh * bgScale)
   ctx.restore()
 }
 

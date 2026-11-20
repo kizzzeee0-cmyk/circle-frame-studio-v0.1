@@ -234,6 +234,9 @@ export interface ComposerSettings {
   snapEnabled: boolean
   snapSize: number
   showGuides: boolean
+  showCenterGuides: boolean
+  timelineSnapEnabled: boolean
+  timelineFps: 12 | 15 | 20 | 24 | 30 | 60
   performanceMode: PerformanceMode
   previewResolution: 720 | 960 | 1200
 }
@@ -247,6 +250,10 @@ export interface BackgroundSettings {
   mimeType: string
   opacity: number
   fit: MediaFitMode
+  x: number
+  y: number
+  scale: number
+  rotation: number
 }
 
 export interface TimelineSettings {

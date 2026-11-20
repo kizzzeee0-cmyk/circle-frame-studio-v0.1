@@ -180,6 +180,13 @@ export default function MediaPanel(props: Props) {
             <option value="contain">전체 맞춤</option>
           </select>
         </label>
+        <div className="background-transform-grid">
+          <label><span>X</span><input type="number" value={Math.round(props.background.x)} onChange={event => props.onBackgroundChange({ ...props.background, x: Number(event.target.value) || 0 })} /></label>
+          <label><span>Y</span><input type="number" value={Math.round(props.background.y)} onChange={event => props.onBackgroundChange({ ...props.background, y: Number(event.target.value) || 0 })} /></label>
+          <label><span>크기</span><input type="number" min={.05} max={5} step={.05} value={props.background.scale} onChange={event => props.onBackgroundChange({ ...props.background, scale: Math.max(.05, Number(event.target.value) || 1) })} /></label>
+          <label><span>회전</span><input type="number" min={-360} max={360} step={1} value={Math.round(props.background.rotation)} onChange={event => props.onBackgroundChange({ ...props.background, rotation: Number(event.target.value) || 0 })} /></label>
+        </div>
+        <button type="button" className="soft-button full" onClick={() => props.onBackgroundChange({ ...props.background, x: 0, y: 0, scale: 1, rotation: 0 })}>배경 위치·크기 초기화</button>
       </>}
     </section>
   )

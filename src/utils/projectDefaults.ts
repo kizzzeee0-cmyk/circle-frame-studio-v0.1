@@ -17,6 +17,9 @@ export function defaultComposerSettings(): ComposerSettings {
     snapEnabled: true,
     snapSize: 10,
     showGuides: true,
+    showCenterGuides: true,
+    timelineSnapEnabled: true,
+    timelineFps: 30,
     performanceMode: 'auto',
     previewResolution: 1200,
   }
@@ -32,6 +35,10 @@ export function defaultBackground(): BackgroundSettings {
     mimeType: '',
     opacity: 1,
     fit: 'cover',
+    x: 0,
+    y: 0,
+    scale: 1,
+    rotation: 0,
   }
 }
 
@@ -180,6 +187,9 @@ export function normalizeComposerSettings(source?: Partial<ComposerSettings>): C
     snapEnabled: source?.snapEnabled !== false,
     snapSize: Math.max(1, Math.min(100, Number(source?.snapSize ?? base.snapSize))),
     showGuides: source?.showGuides !== false,
+    showCenterGuides: source?.showCenterGuides !== false,
+    timelineSnapEnabled: source?.timelineSnapEnabled !== false,
+    timelineFps: [12,15,20,24,30,60].includes(Number(source?.timelineFps)) ? source!.timelineFps! : 30,
     performanceMode: ['auto','quality','performance'].includes(String(source?.performanceMode)) ? source!.performanceMode! : 'auto',
     previewResolution: [720,960,1200].includes(Number(source?.previewResolution)) ? source!.previewResolution! : 1200,
   }

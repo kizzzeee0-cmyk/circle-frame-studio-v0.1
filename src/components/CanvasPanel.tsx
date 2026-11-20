@@ -267,8 +267,13 @@ export default function CanvasPanel({
       const factor = projectPerScreen()
       let dx = (event.clientX - session.startX) * factor
       let dy = (event.clientY - session.startY) * factor
+      if (event.shiftKey) {
+        if (Math.abs(dx) >= Math.abs(dy)) dy = 0
+        else dx = 0
+      }
       const original = selectionBounds(session.layers)
-      if (original) {
+      const bypassSnap = event.ctrlKey || event.metaKey
+      if (original && !bypassSnap) {
         dx = snapMoveDelta('x', dx, original)
         dy = snapMoveDelta('y', dy, original)
       }
@@ -397,7 +402,7 @@ export default function CanvasPanel({
       <div className="canvas-meta">
         <span>{project.width} × {project.height} 출력 기준</span>
         <span>{selectedLayers.length ? selectedLayers.length + '개 선택' : 'Alt + 클릭: 스포이드'}</span>
-        <span>휠 확대 · 휠 클릭 이동 · 핸들 직접 편집</span>
+        <span>Shift 축고정/15° · Ctrl/⌘ 드래그 스냅 해제</span>
       </div>
 
       <div className="canvas-view-controls">

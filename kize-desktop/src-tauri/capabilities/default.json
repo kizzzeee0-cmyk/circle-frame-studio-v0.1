@@ -1,13 +1,22 @@
 {
   "$schema": "https://schema.tauri.app/capability/2",
   "identifier": "default",
-  "description": "KIZE editor and signed update permissions",
+  "description": "KIZE editor permissions and tightly scoped release download links",
   "windows": [
     "main"
   ],
   "permissions": [
     "core:default",
-    "updater:default",
-    "process:allow-restart"
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/download/kize-v*/*"
+        },
+        {
+          "url": "https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/tag/kize-v*"
+        }
+      ]
+    }
   ]
 }

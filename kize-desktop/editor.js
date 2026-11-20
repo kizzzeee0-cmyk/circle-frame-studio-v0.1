@@ -194,16 +194,49 @@ function setPreviewMode(mode){
 }
 $('viewComposite').onclick=()=>setPreviewMode('composite');
 $('viewLayers').onclick=()=>setPreviewMode('layers');
-function drawOverlay(){
-  oc.clearRect(0,0,overlay.width,overlay.height);const l=sel();if(!l)return;
-  oc.save();oc.lineWidth=Math.max(1,1.5/zoom);oc.setLineDash([7/zoom,5/zoom]);oc.strokeStyle='#9476D7';oc.strokeRect(l.x,l.y,l.w,l.h);oc.restore();
-  if(selection&&selection.id===l.id){
-    const {mask,w,h}=selection,ox=l.x,oy=l.y;
-    // Sparse selection indication, not resampling underlying document.
-    oc.fillStyle='rgba(165,102,235,.14)';
-    for(let y=0;y<h;y+=Math.max(1,Math.floor(3/zoom)))for(let x=0;x<w;x+=Math.max(1,Math.floor(3/zoom)))if(mask[y*w+x])oc.fillRect(ox+x,oy+y,Math.max(1,3/zoom),Math.max(1,3/zoom));
+function createMaskPreview(s){
+  const b=s.bounds;if(!b)return null;
+  const downsample=Math.min(1,1400/Math.max(b.w,b.h));
+  const w=Math.max(1,Math.ceil(b.w*downsample)),h=Math.max(1,Math.ceil(b.h*downsample));
+  const preview=blankCanvas(w,h);
+  const pc=preview.getContext('2d');
+  const image=pc.createImageData(w,h);
+  for(let yy=0;yy<h;yy++){
+    const sy=b.y+Math.min(b.h-1,Math.floor((yy+.5)/downsample));
+    for(let xx=0;xx<w;xx++){
+      const sx=b.x+Math.min(b.w-1,Math.floor((xx+.5)/downsample));
+      const strength=s.mask[sy*s.w+sx];
+      const p=(yy*w+xx)*4;
+      image.data[p]=145;image.data[p+1]=109;image.data[p+2]=221;
+      image.data[p+3]=Math.round(strength*.33);
+    }
   }
+  pc.putImageData(image,0,0);
+  return {canvas:preview,bounds:b};
 }
+function drawOverlay(){
+  oc.clearRect(0,0,overlay.width,overlay.height);
+  const l=sel();if(!l)return;
+  oc.save();
+  oc.translate(l.x+l.w/2,l.y+l.h/2);
+  oc.rotate(l.rotation*Math.PI/180);
+  oc.scale(l.flipH?-1:1,l.flipV?-1:1);
+  oc.lineWidth=Math.max(.8,1.5/zoom);
+  oc.setLineDash([7/zoom,5/zoom]);
+  oc.strokeStyle='#9575d1';
+  oc.strokeRect(-l.w/2,-l.h/2,l.w,l.h);
+  const p=selectionPreview;
+  if(selection?.id===l.id&&p?.canvas){
+    const {bounds:b}=p;
+    const sw=l.w/selection.w,sh=l.h/selection.h;
+    oc.drawImage(p.canvas,-l.w/2+b.x*sw,-l.h/2+b.y*sh,b.w*sw,b.h*sh);
+    oc.setLineDash([3/zoom,3/zoom]);
+    oc.strokeStyle='#7357b7';
+    oc.strokeRect(-l.w/2+b.x*sw,-l.h/2+b.y*sh,b.w*sw,b.h*sh);
+  }
+  oc.restore();
+}
+
 function refreshLayers(){
   const list=$('layerList');list.replaceChildren();
   const query=($('layerSearch')?.value||'').trim().toLocaleLowerCase();

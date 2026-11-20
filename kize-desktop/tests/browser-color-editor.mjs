@@ -16,7 +16,11 @@ const pixels=(w,h,fn)=>{
 };
 const bg=pixels(128,96,()=>[250,245,231,255]);
 const asset=pixels(68,68,(x,y)=>x<36?[234,80,100,255]:[60,110,230,255]);
-const fixture=writePsd({width:128,height:96,children:[
+const composited=pixels(128,96,(x,y)=>{
+  if(x>=12&&x<80&&y>=10&&y<78)return x-12<36?[234,80,100,255]:[60,110,230,255];
+  return [250,245,231,255];
+});
+const fixture=writePsd({width:128,height:96,imageData:{width:128,height:96,data:composited},children:[
   {name:'Color asset',left:12,top:10,right:80,bottom:78,imageData:asset},
   {name:'Background',left:0,top:0,right:128,bottom:96,imageData:bg},
 ]});

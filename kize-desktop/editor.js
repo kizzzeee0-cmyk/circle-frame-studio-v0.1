@@ -616,19 +616,25 @@ $('downloadFidelityReport').onclick=()=>{
 };
 function createMaskPreview(s){
   const b=s.bounds;if(!b)return null;
+  // Only the EDGE pixels receive UI color. Previously every selected pixel
+  // got a 33% violet fill, making pastel colors impossible to judge.
   const downsample=Math.min(1,1400/Math.max(b.w,b.h));
   const w=Math.max(1,Math.ceil(b.w*downsample)),h=Math.max(1,Math.ceil(b.h*downsample));
-  const preview=blankCanvas(w,h);
-  const pc=preview.getContext('2d');
-  const image=pc.createImageData(w,h);
+  const preview=blankCanvas(w,h),pc=preview.getContext('2d');
+  const image=pc.createImageData(w,h),source=s.mask,sw=s.w,sh=s.h;
+  const at=(x,y)=>x<0||y<0||x>=sw||y>=sh?0:source[y*sw+x];
   for(let yy=0;yy<h;yy++){
     const sy=b.y+Math.min(b.h-1,Math.floor((yy+.5)/downsample));
     for(let xx=0;xx<w;xx++){
       const sx=b.x+Math.min(b.w-1,Math.floor((xx+.5)/downsample));
-      const strength=s.mask[sy*s.w+sx];
+      const value=at(sx,sy);
+      if(value<8)continue;
+      const radius=Math.max(1,Math.round(1/downsample));
+      if(at(sx-radius,sy)>=8&&at(sx+radius,sy)>=8&&
+        at(sx,sy-radius)>=8&&at(sx,sy+radius)>=8)continue;
       const p=(yy*w+xx)*4;
-      image.data[p]=145;image.data[p+1]=109;image.data[p+2]=221;
-      image.data[p+3]=Math.round(strength*.33);
+      image.data[p]=62;image.data[p+1]=157;image.data[p+2]=205;
+      image.data[p+3]=Math.max(140,Math.min(230,value));
     }
   }
   pc.putImageData(image,0,0);
@@ -636,36 +642,33 @@ function createMaskPreview(s){
 }
 function drawOverlay(){
   oc.clearRect(0,0,overlay.width,overlay.height);
+  // A visible image preview must not have selection marks over it. Keep
+  // selectionParts intact so returning to edit restores the exact selection.
+  if(temporaryPreview||!$('showSelectionOutline').checked)return;
   for(const part of selectionParts){
     const layer=layers.find(l=>l.id===part.id);
-    if(!layer?.visible||!part.bounds)continue;
-    const preview=part.preview;
-    if(!preview?.canvas)continue;
+    if(!layer?.visible||!part.bounds||!part.preview?.canvas)continue;
     oc.save();
     oc.translate(layer.x+layer.w/2,layer.y+layer.h/2);
     oc.rotate(layer.rotation*Math.PI/180);
     oc.scale(layer.flipH?-1:1,layer.flipV?-1:1);
-    const b=preview.bounds,sw=layer.w/part.w,sh=layer.h/part.h;
-    oc.drawImage(preview.canvas,-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
-    oc.lineWidth=Math.max(.75,1.1/zoom);
-    oc.setLineDash([4/zoom,4/zoom]);
-    oc.strokeStyle='#7354AE';
-    oc.strokeRect(-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
+    const b=part.preview.bounds,sw=layer.w/part.w,sh=layer.h/part.h;
+    oc.drawImage(part.preview.canvas,-layer.w/2+b.x*sw,
+      -layer.h/2+b.y*sh,b.w*sw,b.h*sh);
     oc.restore();
   }
-  // Selection tint represents editable pixels, NOT the PNG layer's bounding
-  // rectangle. A single imported PNG has one full-canvas layer; drawing its
-  // entire dashed box made every click look like a whole-image selection.
+  // A layer border is a lightweight selection cue; never paint inside it.
   const l=sel();if(!l||selectionParts.length)return;
   if(documentModel?.kind==='IMAGE'&&l.x===0&&l.y===0&&
      l.w===documentModel.width&&l.h===documentModel.height)return;
   oc.save();oc.translate(l.x+l.w/2,l.y+l.h/2);
   oc.rotate(l.rotation*Math.PI/180);
   oc.scale(l.flipH?-1:1,l.flipV?-1:1);
-  oc.lineWidth=Math.max(1,1.5/zoom);
-  oc.setLineDash([7/zoom,5/zoom]);oc.strokeStyle='#9476D7';
+  oc.lineWidth=Math.max(1,1.2/zoom);
+  oc.setLineDash([6/zoom,5/zoom]);oc.strokeStyle='#56A8CC';
   oc.strokeRect(-l.w/2,-l.h/2,l.w,l.h);oc.restore();
 }
+$('showSelectionOutline').onchange=render;
 
 function refreshLayers(){
   const list=$('layerList');list.replaceChildren();

@@ -1,4 +1,4 @@
-import {readPsd, getLayerImageData} from 'ag-psd';
+import {importPsdPixels} from './psd-loader.js';
 import {regionMask,recolorPixels,photoAdjust,hexToRGB,rgbToHex,clamp} from './engine.js';
 import {initUpdates} from './updater.js';
 
@@ -31,37 +31,50 @@ function flatten(items,prefix='',hidden=false,out=[]){
 }
 function psdMeta(arr){let total=0,count=0;for(const l of arr){count++;const w=Math.max(0,(l.right||0)-(l.left||0)),h=Math.max(0,(l.bottom||0)-(l.top||0));total+=w*h;if(w*h>maxDocPixels||total>maxLayerPixels||count>maxLayers)throw Error('레이어 크기 또는 개수가 안전 제한을 넘었습니다.');}return count;}
 async function importPsd(file){
-  if(file.size>90*1024*1024)throw Error('90MB 이하 PSD 파일을 불러와 주세요.');
-  const buffer=await file.arrayBuffer(),header=new DataView(buffer);
-  if(buffer.byteLength<26||header.getUint32(0)!==0x38425053||header.getUint16(4)!==1)throw Error('PSD 파일 헤더가 올바르지 않습니다(PSB 제외).');
-  const height=header.getUint32(14),width=header.getUint32(18),bits=header.getUint16(22);
-  if(!width||!height||width>8500||height>8500||width*height>maxDocPixels||bits!==8)throw Error('8비트 PSD, 최대 8,500px 및 2,600만 픽셀까지만 지원합니다.');
-  notify('PSD 구조 및 레이어 분석 중…');
+  const start=performance.now();
+  notify('PSD 파일 해석 중…');
+  showImportReport('', 'normal');
+  const buffer=await file.arrayBuffer();
+  // Display the 'loading' status before CPU-bound PSD decoding begins.
   await new Promise(requestAnimationFrame);
-  // Read raw layer descriptors first, validate layer bounds BEFORE bitmap decoding.
-  const psd=readPsd(buffer,{useRawData:true,useRawThumbnail:true});
-  const flat=flatten(psd.children||[]);
-  psdMeta(flat);
-  const built=[];
-  let missing=0;
-  for(const pl of flat){
-    const w=Math.max(0,Math.round((pl.right||0)-(pl.left||0))),h=Math.max(0,Math.round((pl.bottom||0)-(pl.top||0)));
-    if(w===0||h===0){missing++;continue;}
-    let pix=null;
-    try{pix=getLayerImageData(pl);}catch(e){missing++;continue;}
-    let bmp;
-    if(pix?.data?.length===w*h*4 && pix.width===w && pix.height===h) bmp=pixelCanvas(pix);
-    else if(pl.text?.text)bmp=blankCanvas(w,h);
-    else {missing++;continue;}
-    built.push(newLayer({name:pl._displayName,type:pl.text?'text':(pl.placedLayer?'smart-object':'image'),x:pl.left||0,y:pl.top||0,w,h,visible:!pl.hidden&&!pl._hiddenGroup,opacity:normOpacity(pl.opacity),blend:mappedBlend(pl.blendMode),canvas:bmp,psdText:pl.text||null,textValue:pl.text?.text||'',fontFamily:pl.text?.style?.font?.name||'Arial',fontSize:Math.max(1,Math.round(pl.text?.style?.fontSize||32)),textColor:rgbToHex(pl.text?.style?.fillColor?.r??50,pl.text?.style?.fillColor?.g??50,pl.text?.style?.fillColor?.b??50)}));
+  const result=importPsdPixels(buffer,{onProgress:message=>notify(message)});
+  const {header,layers:rawLayers,composite,warnings,decodedCount,layerTotal,skippedCount}=result;
+  const built=rawLayers.map(pl=>newLayer({
+    name:pl.name,type:pl.type,x:pl.x,y:pl.y,w:pl.w,h:pl.h,
+    visible:!pl.hidden,opacity:normOpacity(pl.opacity),
+    blend:mappedBlend(pl.blendMode),canvas:pixelCanvas(pl.bitmap),
+    psdText:pl.psdText||null,textValue:pl.psdText?.text||'',
+    fontFamily:pl.psdText?.style?.font?.name||'Arial',
+    fontSize:Math.max(1,Math.round(pl.psdText?.style?.fontSize||32)),
+    textColor:rgbToHex(pl.psdText?.style?.fillColor?.r??50,pl.psdText?.style?.fillColor?.g??50,pl.psdText?.style?.fillColor?.b??50),
+  }));
+  built.reverse(); // Photoshop layer list is highest layer first.
+  if(!built.length && composite){
+    built.push(newLayer({
+      name:'통합 미리보기 (레이어 복구 필요)',type:'composite',
+      x:0,y:0,w:header.width,h:header.height,
+      canvas:pixelCanvas(composite),
+    }));
   }
-  // PSD lists topmost layer first; draw back to front.
-  built.reverse();
-  openDoc(width,height,file.name,'PSD');layers=built;lastImportPsd=true;
+  openDoc(header.width,header.height,file.name,
+    header.version===2?'PSB':'PSD');
+  layers=built;lastImportPsd=true;
   selectedId=layers.length?layers[layers.length-1].id:null;
   refreshAll();fitZoom();
-  notify('PSD '+built.length+'개 레이어 로드'+(missing?' · 지원하지 않는/빈 레이어 '+missing+'개 제외':'')+' · 일부 Photoshop 효과는 미리보기에서 다를 수 있습니다.');
+  const seconds=((performance.now()-start)/1000).toFixed(1);
+  const detail='불러오기 완료: '+decodedCount+'/'+layerTotal+'개 레이어 · '+header.bits+'비트 · '+seconds+'초'+
+    (skippedCount?' · 일부 레이어 제외 '+skippedCount+'개':'');
+  const warningMessage=warnings.length?warnings.join(' / '):'';
+  notify(detail+(warnings.length?' · 일부 항목은 별도 확인 필요':''));
+  showImportReport(detail+(warningMessage?'\n'+warningMessage:''),warnings.length?'warning':'success');
 }
+function showImportReport(message,type='normal'){
+  const el=$('importReport');if(!el)return;
+  el.textContent=message;
+  el.hidden=!message;
+  el.dataset.type=type;
+}
+
 async function importRaster(file){
   const image=await createImageBitmap(file);
   if(image.width*image.height>maxDocPixels){image.close();throw Error('이미지 크기가 제한을 넘었습니다.');}
@@ -83,7 +96,13 @@ async function importProject(file){
 $('importFile').addEventListener('change',async e=>{
   const file=e.target.files?.[0];e.target.value='';if(!file)return;
   try{if(/\.psd$/i.test(file.name))await importPsd(file);else if(/\.kize\.json$/i.test(file.name))await importProject(file);else await importRaster(file);}
-  catch(err){notify('불러오기 실패: '+err.message);console.error(err);}
+  catch(err){
+    const reason=err?.message||String(err);
+    notify('불러오기 실패: '+reason);
+    showImportReport('PSD/이미지 열기 실패\n'+reason+
+      '\n\n원인 확인을 위해 오류 메시지나 PSD 샘플 파일을 보내주시면 해당 형식에 맞춰 수정할 수 있습니다.', 'error');
+    console.error('KIZE import error:',err);
+  }
 });
 function sourceToCanvas(l){
   const source=l.photoSource;if(!source)return l.canvas;

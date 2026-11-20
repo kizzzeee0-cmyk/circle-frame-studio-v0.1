@@ -1,5 +1,6 @@
-import type { FrameDesign, FrameProject } from '../types'
+import type { FrameDesign, FrameProject, MediaLayer } from '../types'
 import { getCachedImage, getTintedImage } from '../utils/assets'
+import { getBackgroundElement, getMediaElement } from '../utils/media'
 
 const TAU = Math.PI * 2
 
@@ -20,6 +21,26 @@ function seeded(seed: number) {
 
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value))
+}
+
+function easeValue(value: number, mode: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out') {
+  const t = clamp01(value)
+  if (mode === 'ease-in') return t * t
+  if (mode === 'ease-out') return 1 - (1 - t) * (1 - t)
+  if (mode === 'ease-in-out') return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+  return t
+}
+
+function animatedFrameRotation(design: FrameDesign, sceneTimeSec: number) {
+  const motion = design.rotationAnimation
+  if (!motion?.enabled || sceneTimeSec < motion.startTime) return motion?.startAngle ?? 0
+  const end = Math.max(motion.startTime, motion.endTime)
+  const activeTime = Math.min(sceneTimeSec, end) - motion.startTime
+  const seconds = Math.max(.1, motion.secondsPerTurn)
+  const turn = activeTime / seconds
+  const whole = Math.floor(turn)
+  const fractional = easeValue(turn - whole, motion.easing)
+  return motion.startAngle + motion.direction * 360 * (whole + fractional)
 }
 
 function mixHex(a: string, b: string, amount: number) {
@@ -782,6 +803,76 @@ function drawGlossy(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: nu
 
 
 
+function drawJellyRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  design: FrameDesign,
+  rotation: number,
+  scale: number,
+) {
+  const thickness = Math.max(3, design.thickness * scale)
+  const jelly = design.jelly
+  const base = validColor(design.color, '#FF2760')
+  const light = validColor(design.secondaryColor, '#FF6F91')
+  const shadow = validColor(jelly.shadowColor, '#8A1740')
+  const highlight = validColor(jelly.highlightColor, '#FFFFFF')
+  const volume = clamp01(jelly.volume)
+
+  ctx.save()
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+
+  // dark outer body
+  ctx.strokeStyle = mixHex(base, shadow, .30 + volume * .16)
+  ctx.lineWidth = thickness
+  strokeCircle(ctx, cx, cy, radius, rotation)
+
+  // colored body layer
+  ctx.globalAlpha *= .98
+  ctx.strokeStyle = base
+  ctx.lineWidth = thickness * .91
+  strokeCircle(ctx, cx, cy, radius - thickness * .006, rotation)
+
+  // soft inner volume band
+  ctx.globalAlpha *= .78
+  ctx.strokeStyle = mixHex(base, light, .45 + volume * .20)
+  ctx.lineWidth = thickness * .63
+  strokeCircle(ctx, cx, cy, radius - thickness * .08, rotation)
+
+  // lower/right shadow gives balloon volume without blur-heavy glow
+  ctx.globalAlpha = clamp01(jelly.shadowOpacity) * (.52 + volume * .35)
+  ctx.strokeStyle = shadow
+  ctx.lineWidth = Math.max(2, thickness * .11)
+  const shadowSpan = Math.PI * .72
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius + thickness * .28, rotation + Math.PI * .08, rotation + Math.PI * .08 + shadowSpan)
+  ctx.stroke()
+
+  // long curved glossy highlights distributed around the ring
+  const count = Math.max(1, Math.min(8, Math.round(jelly.highlightCount)))
+  const span = Math.max(.06, Math.min(.42, jelly.highlightLength)) * TAU
+  ctx.globalAlpha = clamp01(jelly.highlightOpacity)
+  ctx.strokeStyle = highlight
+  ctx.lineWidth = Math.max(2, thickness * Math.max(.035, jelly.highlightWidth))
+  ctx.shadowBlur = 0
+  for (let i = 0; i < count; i++) {
+    const center = rotation - Math.PI / 2 + (i / count) * TAU - .18
+    const rr = radius - thickness * .18
+    ctx.beginPath()
+    ctx.arc(cx, cy, rr, center - span / 2, center + span / 2)
+    ctx.stroke()
+  }
+
+  // thin inner glint makes the central hole edge crisp
+  ctx.globalAlpha = .34 + volume * .18
+  ctx.strokeStyle = mixHex(light, '#FFFFFF', .60)
+  ctx.lineWidth = Math.max(1, thickness * .035)
+  strokeCircle(ctx, cx, cy, Math.max(1, radius - thickness * .43), rotation)
+  ctx.restore()
+}
+
 function angularDistance(a: number, b: number) {
   const d = Math.abs(((a - b + Math.PI) % TAU + TAU) % TAU - Math.PI)
   return Math.min(Math.PI, d)
@@ -925,9 +1016,12 @@ function drawGlitter(
     const color = colors[Math.floor(rand() * colors.length)] ?? '#FFFFFF'
     const phase = rand() * TAU
     const baseAlpha = .18 + rand() * .72
-    const isSparkle = rand() < sparkleRatio
+    const style = glitter.particleStyle ?? 'soft'
+    const styleSparkleBoost = style === 'twinkle' ? .18 : style === 'luminous' ? .06 : style === 'sugar' ? -.05 : 0
+    const isSparkle = rand() < clamp01(sparkleRatio + styleSparkleBoost)
     const motion = glitterMotion(glitter.animationStyle, angle, phase, time, animationStrength, glitter.sweepWidth, animationSmoothness)
-    const alpha = baseAlpha * (.34 + motion * .70)
+    const alphaBoost = style === 'luminous' ? .12 : style === 'sugar' ? .06 : 0
+    const alpha = baseAlpha * (.34 + motion * .70 + alphaBoost)
     // Size barely changes; brightness does most of the animation so the ring does not look like popping dots.
     const pulseSize = .88 + motion * .16
 
@@ -963,12 +1057,21 @@ function drawGlitter(
       ctx.arc(x, y, Math.max(.4, size * .065), 0, TAU)
       ctx.fill()
     } else {
-      const size = particleSize * (.28 + rand() * .92) * (.64 + motion * .48)
-      ctx.beginPath()
-      ctx.arc(x, y, Math.max(.34, size / 2), 0, TAU)
-      ctx.fill()
+      const styleSize = style === 'soft' ? .72 : style === 'sugar' ? 1.06 : style === 'luminous' ? .84 : 1
+      const size = particleSize * styleSize * (.28 + rand() * .92) * (.64 + motion * .48)
+      if (style === 'sugar') {
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate(Math.PI / 4 + phase * .2)
+        ctx.fillRect(-size * .42, -size * .42, size * .84, size * .84)
+        ctx.restore()
+      } else {
+        ctx.beginPath()
+        ctx.arc(x, y, Math.max(.34, size / 2), 0, TAU)
+        ctx.fill()
+      }
 
-      const hasPinHighlight = rand() < .28
+      const hasPinHighlight = rand() < (style === 'soft' ? .18 : .28)
       if (hasPinHighlight) {
         const pinAlpha = smoothstep(.46, .96, motion)
         ctx.globalAlpha *= pinAlpha * .58
@@ -1029,11 +1132,12 @@ function drawAttachedTriple(
   ctx.restore()
 }
 
-function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number) {
+function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number, sceneTimeSec = 0) {
   const cx = canvasWidth / 2 + design.offsetX * scale
   const cy = canvasHeight / 2 + design.offsetY * scale
   const r = design.radius * scale
-  const rot = (design.rotation * Math.PI) / 180
+  const motionRotation = animatedFrameRotation(design, sceneTimeSec)
+  const rot = ((design.rotation + motionRotation) * Math.PI) / 180
 
   ctx.lineWidth = Math.max(1, design.thickness * scale)
   ctx.lineCap = 'round'
@@ -1104,12 +1208,13 @@ function drawDesignCore(ctx: CanvasRenderingContext2D, design: FrameDesign, scal
     case 'flower': drawDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'asset': drawAssetDecorations(ctx, cx, cy, r, design, rot, scale); break
     case 'glossy': drawGlossy(ctx, cx, cy, r, design, rot, scale); break
+    case 'jelly': drawJellyRing(ctx, cx, cy, r, design, rot, scale); break
     case 'glitter': drawGlitter(ctx, cx, cy, r, design, rot, scale, animationTimeMs, animationProgress); break
     default: strokeCircle(ctx, cx, cy, r, rot)
   }
 }
 
-function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number) {
+function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: number, canvasWidth: number, canvasHeight: number, animationTimeMs = 0, animationProgress?: number, sceneTimeSec = 0) {
   if (design.opacity <= 0) return
   ctx.save()
   ctx.globalAlpha = design.opacity
@@ -1117,7 +1222,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
   if (design.effects.outlineEnabled && design.effects.outlineWidth > 0) {
     ctx.save()
     const outlined = makeOutlineDesign(design)
-    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
+    drawDesignCore(ctx, outlined, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
     ctx.restore()
   }
 
@@ -1128,7 +1233,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.shadowOffsetX = design.effects.shadowOffsetX * scale
     ctx.shadowOffsetY = design.effects.shadowOffsetY * scale
     ctx.globalAlpha *= .7
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
     ctx.restore()
   }
 
@@ -1140,7 +1245,7 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
       ctx.shadowBlur = Math.max(1, blur * multi)
       ctx.shadowColor = validColor(design.effects.glowColor, validColor(design.color))
       ctx.globalAlpha *= intensity * (.48 + multi * .42)
-      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
+      drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
       ctx.restore()
     }
   }
@@ -1149,17 +1254,17 @@ function drawDesign(ctx: CanvasRenderingContext2D, design: FrameDesign, scale: n
     ctx.save()
     ctx.filter = `blur(${(design.effects.bloom * .12) * scale}px)`
     ctx.globalAlpha *= .28
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
     ctx.restore()
   }
 
   if (design.effects.softBlur > 0) {
     ctx.save()
     ctx.filter = `blur(${design.effects.softBlur * scale}px)`
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
     ctx.restore()
   } else {
-    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress)
+    drawDesignCore(ctx, design, scale, canvasWidth, canvasHeight, animationTimeMs, animationProgress, sceneTimeSec)
   }
 
   if (design.twoToneFlow.enabled) {
@@ -1225,6 +1330,9 @@ export function estimateDesignExtent(design: FrameDesign) {
     case 'asset':
       geometry = Math.abs(r + design.pattern.decorationOffset) + Math.max(1, design.pattern.decorationSize) * 1.1
       break
+    case 'jelly':
+      geometry = r + halfLine + Math.max(2, thickness * .06)
+      break
     case 'glitter': {
       const particleExtent = Math.max(
         Math.max(1, design.thickness) / 2,
@@ -1245,6 +1353,243 @@ export function estimateDesignExtent(design: FrameDesign) {
   const offset = Math.max(Math.abs(design.offsetX), Math.abs(design.offsetY))
 
   return geometry + outline + offset + 8
+}
+
+function mediaElementSize(source: CanvasImageSource) {
+  if (source instanceof HTMLVideoElement) return { width: source.videoWidth || 1, height: source.videoHeight || 1 }
+  if (source instanceof HTMLImageElement) return { width: source.naturalWidth || source.width || 1, height: source.naturalHeight || source.height || 1 }
+  if (source instanceof HTMLCanvasElement) return { width: source.width || 1, height: source.height || 1 }
+  return { width: 1, height: 1 }
+}
+
+function mediaAnimationTransform(layer: MediaLayer, sceneTimeSec: number) {
+  const a = layer.animation
+  let opacity = 1
+  let x = 0
+  let y = 0
+  let rotation = 0
+  let scale = 1
+  let brightness = 1
+
+  const introRaw = a.intro === 'none' ? 1 : clamp01((sceneTimeSec - a.introStart) / Math.max(.01, a.introDuration))
+  const intro = easeValue(introRaw, a.ease)
+  if (a.intro !== 'none' && introRaw < 1) {
+    if (a.intro === 'fade') opacity *= intro
+    if (a.intro === 'popup' || a.intro === 'zoom') scale *= .35 + intro * .65
+    if (a.intro === 'bounce') scale *= .55 + intro * .45 + Math.sin(intro * Math.PI * 3) * (1 - intro) * .12 * a.bounceStrength
+    if (a.intro === 'rotate') rotation += (1 - intro) * -a.rotateAngle
+    if (a.intro === 'rotate-zoom') { rotation += (1 - intro) * -a.rotateAngle; scale *= .35 + intro * .65 }
+    if (a.intro === 'jump') y += (1 - intro) * a.moveDistance - Math.sin(intro * Math.PI) * a.moveDistance * .45
+    if (a.intro === 'slide-left') x -= (1 - intro) * a.moveDistance
+    if (a.intro === 'slide-right') x += (1 - intro) * a.moveDistance
+    if (a.intro === 'slide-up') y -= (1 - intro) * a.moveDistance
+    if (a.intro === 'slide-down') y += (1 - intro) * a.moveDistance
+    if (a.intro === 'shake') x += Math.sin(intro * Math.PI * 8) * (1 - intro) * a.moveDistance * .2
+    if (a.intro === 'spring') scale *= 1 + Math.sin(intro * Math.PI * 5) * (1 - intro) * .18 * a.bounceStrength
+  }
+
+  const outroRaw = a.outro === 'none' ? 0 : clamp01((sceneTimeSec - a.outroStart) / Math.max(.01, a.outroDuration))
+  const outro = easeValue(outroRaw, a.ease)
+  if (a.outro !== 'none' && outroRaw > 0) {
+    if (a.outro === 'fade') opacity *= 1 - outro
+    if (a.outro === 'shrink') scale *= 1 - outro * .82
+    if (a.outro === 'zoom') scale *= 1 + outro * a.scaleAmount
+    if (a.outro === 'rotate') rotation += outro * a.rotateAngle
+    if (a.outro === 'rotate-shrink') { rotation += outro * a.rotateAngle; scale *= 1 - outro * .82 }
+    if (a.outro === 'slide-left') x -= outro * a.moveDistance
+    if (a.outro === 'slide-right') x += outro * a.moveDistance
+    if (a.outro === 'slide-up') y -= outro * a.moveDistance
+    if (a.outro === 'slide-down') y += outro * a.moveDistance
+    if (a.outro === 'bounce') y -= Math.sin(outro * Math.PI) * a.moveDistance * .35
+    if (a.outro === 'shake') x += Math.sin(outro * Math.PI * 10) * a.moveDistance * .16
+    if (a.outro === 'throw') { x += outro * a.moveDistance; y -= Math.sin(outro * Math.PI) * a.moveDistance * .3; rotation += outro * a.rotateAngle }
+  }
+
+  const t = sceneTimeSec * Math.max(.05, a.speed)
+  const strength = Math.max(0, a.strength)
+  if (a.continuous === 'sway') rotation += Math.sin(t * TAU) * 4 * strength
+  if (a.continuous === 'float') y += Math.sin(t * TAU) * 14 * strength
+  if (a.continuous === 'pulse') scale *= 1 + Math.sin(t * TAU) * .04 * strength
+  if (a.continuous === 'bounce') y -= Math.abs(Math.sin(t * Math.PI)) * 18 * strength
+  if (a.continuous === 'rotate') rotation += t * 36 * strength
+  if (a.continuous === 'heartbeat') {
+    const beat = Math.pow(Math.max(0, Math.sin(t * TAU)), 8)
+    scale *= 1 + beat * .09 * strength
+  }
+  if (a.continuous === 'brightness') brightness = 1 + Math.sin(t * TAU) * .18 * strength
+
+  return { opacity: clamp01(opacity), x, y, rotation, scale: Math.max(.01, scale), brightness: Math.max(.1, brightness) }
+}
+
+const mediaScratchCache = new Map<string, HTMLCanvasElement>()
+function mediaScratch(width: number, height: number) {
+  const key = width + 'x' + height
+  const cached = mediaScratchCache.get(key)
+  if (cached) return cached
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  mediaScratchCache.set(key, canvas)
+  while (mediaScratchCache.size > 4) {
+    const first = mediaScratchCache.keys().next().value
+    if (typeof first === 'string') mediaScratchCache.delete(first)
+    else break
+  }
+  return canvas
+}
+
+function drawSourceIntoBox(
+  ctx: CanvasRenderingContext2D,
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+  fit: 'cover' | 'contain',
+) {
+  const size = mediaElementSize(source)
+  const sourceRatio = size.width / Math.max(1, size.height)
+  const boxRatio = width / Math.max(1, height)
+  let dw = width
+  let dh = height
+  if ((fit === 'cover' && sourceRatio > boxRatio) || (fit === 'contain' && sourceRatio < boxRatio)) {
+    dh = height
+    dw = dh * sourceRatio
+  } else {
+    dw = width
+    dh = dw / sourceRatio
+  }
+  ctx.drawImage(source, -dw / 2, -dh / 2, dw, dh)
+}
+
+function frameMaskCanvas(
+  target: FrameDesign,
+  scale: number,
+  width: number,
+  height: number,
+  animationTimeMs: number,
+  animationProgress: number | undefined,
+  sceneTimeSec: number,
+  syncRotation: boolean,
+) {
+  if (!syncRotation || !target.rotationAnimation.enabled) return getEmbossMask(target, scale, width, height)
+  const mask = document.createElement('canvas')
+  mask.width = width
+  mask.height = height
+  const mctx = mask.getContext('2d')
+  if (!mctx) return mask
+  drawDesignCore(mctx, makeEmbossMaskDesign(target), scale, width, height, animationTimeMs, animationProgress, sceneTimeSec)
+  return mask
+}
+
+function drawMediaLayer(
+  ctx: CanvasRenderingContext2D,
+  project: FrameProject,
+  layer: MediaLayer,
+  scale: number,
+  animationTimeMs: number,
+  animationProgress: number | undefined,
+  sceneTimeSec: number,
+) {
+  if (!layer.visible || layer.opacity <= 0 || sceneTimeSec < layer.startTime || sceneTimeSec > layer.endTime) return
+  const source = getMediaElement(layer)
+  if (!source) return
+  if (source instanceof HTMLVideoElement && source.readyState < 2) return
+
+  const motion = mediaAnimationTransform(layer, sceneTimeSec)
+  if (motion.opacity <= 0) return
+  const w = Math.max(1, layer.width * layer.scale * motion.scale * scale)
+  const h = Math.max(1, layer.height * layer.scale * motion.scale * scale)
+  const x = ctx.canvas.width / 2 + (layer.x + motion.x) * scale
+  const y = ctx.canvas.height / 2 + (layer.y + motion.y) * scale
+  const rotation = ((layer.rotation + motion.rotation) * Math.PI) / 180
+
+  const paint = (target: CanvasRenderingContext2D) => {
+    target.save()
+    target.translate(x, y)
+    target.rotate(rotation)
+    target.globalAlpha *= layer.opacity * motion.opacity
+    target.filter = motion.brightness !== 1 ? 'brightness(' + motion.brightness + ')' : 'none'
+    drawSourceIntoBox(target, source, w, h, layer.fit)
+    target.restore()
+  }
+
+  if (layer.maskMode === 'none') {
+    ctx.save()
+    paint(ctx)
+    ctx.restore()
+    return
+  }
+
+  if (layer.maskMode === 'circle') {
+    ctx.save()
+    const mx = ctx.canvas.width / 2 + layer.maskX * scale
+    const my = ctx.canvas.height / 2 + layer.maskY * scale
+    ctx.beginPath()
+    ctx.arc(mx, my, Math.max(1, layer.maskRadius * scale), 0, TAU)
+    ctx.clip()
+    paint(ctx)
+    ctx.restore()
+    return
+  }
+
+  const scratch = mediaScratch(ctx.canvas.width, ctx.canvas.height)
+  const sctx = scratch.getContext('2d')
+  if (!sctx) return
+  sctx.clearRect(0, 0, scratch.width, scratch.height)
+  paint(sctx)
+
+  const targetLayer = project.layers.find(item => item.id === layer.maskFrameLayerId)
+  if (targetLayer) {
+    const mask = frameMaskCanvas(targetLayer.design, scale, ctx.canvas.width, ctx.canvas.height, animationTimeMs, animationProgress, sceneTimeSec, layer.maskSyncRotation)
+    sctx.globalCompositeOperation = 'destination-in'
+    sctx.drawImage(mask, 0, 0)
+    sctx.globalCompositeOperation = 'source-over'
+  } else {
+    const mx = ctx.canvas.width / 2 + layer.maskX * scale
+    const my = ctx.canvas.height / 2 + layer.maskY * scale
+    const outer = Math.max(1, layer.maskRadius * scale)
+    const inner = Math.max(0, outer - layer.ringThickness * scale)
+    sctx.globalCompositeOperation = 'destination-in'
+    sctx.beginPath()
+    sctx.arc(mx, my, outer, 0, TAU)
+    sctx.arc(mx, my, inner, 0, TAU, true)
+    sctx.fillStyle = '#FFFFFF'
+    sctx.fill('evenodd')
+    sctx.globalCompositeOperation = 'source-over'
+  }
+
+  ctx.drawImage(scratch, 0, 0)
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, project: FrameProject) {
+  const background = project.background
+  if (!background || background.type === 'transparent' || background.opacity <= 0) return
+  ctx.save()
+  ctx.globalAlpha = clamp01(background.opacity)
+  if (background.type === 'color') {
+    ctx.fillStyle = validColor(background.color, '#FFFFFF')
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+    ctx.restore()
+    return
+  }
+  const source = getBackgroundElement(background)
+  if (!source || (source instanceof HTMLVideoElement && source.readyState < 2)) {
+    ctx.restore()
+    return
+  }
+  const size = mediaElementSize(source)
+  const sourceRatio = size.width / Math.max(1, size.height)
+  const boxRatio = ctx.canvas.width / Math.max(1, ctx.canvas.height)
+  let dw = ctx.canvas.width
+  let dh = ctx.canvas.height
+  if ((background.fit === 'cover' && sourceRatio > boxRatio) || (background.fit === 'contain' && sourceRatio < boxRatio)) {
+    dh = ctx.canvas.height
+    dw = dh * sourceRatio
+  } else {
+    dw = ctx.canvas.width
+    dh = dw / sourceRatio
+  }
+  ctx.drawImage(source, (ctx.canvas.width - dw) / 2, (ctx.canvas.height - dh) / 2, dw, dh)
+  ctx.restore()
 }
 
 function projectLayers(project: FrameProject) {
@@ -1268,7 +1613,27 @@ export function renderProject(canvas: HTMLCanvasElement, project: FrameProject, 
   const baseScale = canvas.width / project.width
   const fitScale = forcedFitScale ?? getProjectFitScale(project)
   const scale = baseScale * fitScale
+  const duration = Math.max(.1, project.timeline?.duration ?? 2)
+  const sceneTimeSec = animationProgress == null
+    ? ((animationTimeMs / 1000) % duration + duration) % duration
+    : clamp01(animationProgress) * duration
+
+  drawBackground(ctx, project)
+
+  const media = project.mediaLayers ?? []
+  for (const layer of media.filter(item => item.placement === 'below')) {
+    drawMediaLayer(ctx, project, layer, scale, animationTimeMs, animationProgress, sceneTimeSec)
+  }
+
   for (const design of projectLayers(project)) {
-    drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress)
+    drawDesign(ctx, design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress, sceneTimeSec)
+  }
+
+  for (const layer of media.filter(item => item.placement === 'above')) {
+    drawMediaLayer(ctx, project, layer, scale, animationTimeMs, animationProgress, sceneTimeSec)
+    if (layer.keepFrameAbove && layer.maskFrameLayerId) {
+      const target = project.layers.find(item => item.id === layer.maskFrameLayerId)
+      if (target?.visible) drawDesign(ctx, target.design, scale, canvas.width, canvas.height, animationTimeMs, animationProgress, sceneTimeSec)
+    }
   }
 }

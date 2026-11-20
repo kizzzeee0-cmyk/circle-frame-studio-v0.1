@@ -1,7 +1,7 @@
-name: KIZE DESIGN TOOL v0.4 - Windows Editor
+name: KIZE DESIGN TOOL - Windows Build & Startup Check
 on:
   push:
-    branches: [kize-editor-v0.4-development]
+    branches: [kize-editor-v0.4-development, kize-v0.4.1-startup-fix]
     paths:
       - 'kize-desktop/**'
       - '.github/workflows/kize-editor-v04-build.yml'
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   windows:
-    name: Build and verify the desktop editor
+    name: Build and smoke-test desktop editor
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -111,9 +111,29 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.KIZE_UPDATER_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.KIZE_UPDATER_PASSWORD }}
+          UPDATE_PUBLIC_KEY: ${{ vars.KIZE_UPDATER_PUBLIC_KEY }}
         run: |
-          npm run desktop
+          if ($env:UPDATE_PUBLIC_KEY -and $env:TAURI_SIGNING_PRIVATE_KEY) {
+            $env:VITE_KIZE_SIGNED_UPDATES='true'
+            npx tauri build --features signed-updates
+          } else {
+            $env:VITE_KIZE_SIGNED_UPDATES='false'
+            npm run desktop
+          }
           if ($LASTEXITCODE -ne 0) { throw 'Windows desktop compilation failed' }
+      - name: Smoke-test Windows app startup (detect immediate crashes)
+        shell: pwsh
+        run: |
+          $app = 'kize-desktop/src-tauri/target/release/kize_design_tool.exe'
+          if (-not (Test-Path $app)) { throw "Main app binary is missing: $app" }
+          $process = Start-Process -FilePath (Resolve-Path $app) -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            throw "KIZE quit immediately after startup (exit $($process.ExitCode)). App startup smoke test failed."
+          }
+          Write-Host 'KIZE is still running after 8 seconds: startup smoke test passed.'
+          Stop-Process -Id $process.Id -Force
       - name: Verify installer exists and size
         shell: pwsh
         run: |
@@ -127,7 +147,7 @@ jobs:
       - name: Upload Windows setup
         uses: actions/upload-artifact@v4
         with:
-          name: KIZE-DESIGN-TOOL-v0.4.0-Windows
+          name: KIZE-DESIGN-TOOL-v0.4.1-Windows
           path: kize-desktop/src-tauri/target/release/bundle/nsis/*setup.exe
           if-no-files-found: error
           retention-days: 30
@@ -145,7 +165,7 @@ jobs:
           $sigPath = "$($setup.FullName).sig"
           if (-not (Test-Path $sigPath)) { throw 'Update signature not generated' }
           $signature = (Get-Content $sigPath -Raw).Trim()
-          $version = '0.4.0'
+          $version = '0.4.1'
           $tag = "kize-v$version"
           $url = "https://github.com/kizzzeee0-cmyk/circle-frame-studio-v0.1/releases/download/$tag/$($setup.Name)"
           $json = @{ version=$version; notes='KIZE PSD editor'; platforms=@{ 'windows-x86_64'=@{url=$url;signature=$signature} } } | ConvertTo-Json -Depth 10

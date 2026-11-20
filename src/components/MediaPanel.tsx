@@ -171,7 +171,9 @@ export default function MediaPanel(props: Props) {
         {!!props.mediaLayers.length && !visibleLayers.length && <div className="media-empty">검색 결과가 없습니다.</div>}
       </div>
 
-      <div className="media-subhead background-head"><strong>배경</strong></div>
+      <details className="compact-toolbox background-toolbox">
+        <summary><span>배경</span><small>{props.background.type === 'transparent' ? '투명' : props.background.type === 'color' ? '단색' : props.background.type === 'image' ? '이미지' : '영상'}</small></summary>
+        <div className="compact-toolbox-body">
       <label className="control">
         <span><b>배경 방식</b></span>
         <select value={props.background.type} onChange={event => props.onBackgroundChange({ ...props.background, type: event.target.value as BackgroundSettings['type'] })}>
@@ -217,6 +219,8 @@ export default function MediaPanel(props: Props) {
         </div>
         <button type="button" className="soft-button full" onClick={() => props.onBackgroundChange({ ...props.background, x: 0, y: 0, scale: 1, rotation: 0 })}>배경 위치·크기 초기화</button>
       </>}
+        </div>
+      </details>
     </section>
   )
 }

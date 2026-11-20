@@ -29,6 +29,16 @@ export function validateManifest(m){
       throw Error('교체 사진의 파일명이 잘못되었습니다.');
   }
   if(m.composite&&!safe(m.composite))throw Error('원본 합성 미리보기 경로가 잘못되었습니다.');
+  if(m.appearancePatches!==undefined){
+    if(!m.composite||!Array.isArray(m.appearancePatches)||m.appearancePatches.length>256)
+      throw Error('PSD 원본 보존 편집 영역 정보가 잘못되었습니다.');
+    for(const p of m.appearancePatches){
+      if(!safe(p.bitmap)||!Number.isInteger(p.x)||!Number.isInteger(p.y)||
+        !Number.isInteger(p.w)||!Number.isInteger(p.h)||
+        p.w<=0||p.h<=0||p.x<0||p.y<0||p.x+p.w>m.width||p.y+p.h>m.height)
+        throw Error('PSD 외관 보존 패치의 좌표나 크기가 유효하지 않습니다.');
+    }
+  }
   return m;
 }
 export function createArchive(manifest,images){
@@ -45,6 +55,7 @@ export function createArchive(manifest,images){
   for(const l of manifest.layers)if(!entries[l.bitmap]||(l.photoBitmap&&!entries[l.photoBitmap]))
     throw Error('프로젝트 이미지가 누락되었습니다: '+l.name);
   if(manifest.composite&&!entries[manifest.composite])throw Error('PSD 원본 미리보기가 누락되었습니다.');
+  for(const patch of manifest.appearancePatches||[])if(!entries[patch.bitmap])throw Error('PSD 외관 보존 편집 이미지가 누락되었습니다.');
   return zipSync(entries,{level:0});
 }
 export function readArchive(input){
@@ -62,7 +73,7 @@ export function readArchive(input){
   }});
   if(!files['manifest.json'])throw Error('KIZE 프로젝트 정보를 찾지 못했습니다.');
   const manifest=validateManifest(JSON.parse(strFromU8(files['manifest.json'])));
-  const names=[...manifest.layers.flatMap(l=>[l.bitmap,...(l.photoBitmap?[l.photoBitmap]:[])]),...(manifest.composite?[manifest.composite]:[])];
+  const names=[...manifest.layers.flatMap(l=>[l.bitmap,...(l.photoBitmap?[l.photoBitmap]:[])]),...(manifest.composite?[manifest.composite]:[]),...(manifest.appearancePatches||[]).map(p=>p.bitmap)];
   for(const name of names)if(!isPng(files[name]))throw Error('레이어 이미지가 없거나 손상되었습니다: '+name);
   return {manifest,images:files};
 }

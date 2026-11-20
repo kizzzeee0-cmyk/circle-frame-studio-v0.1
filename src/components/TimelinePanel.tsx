@@ -14,6 +14,7 @@ interface Props {
   onToStart: () => void
   onDurationChange: (value: number) => void
   onLoopChange: (value: boolean) => void
+  onBeginTimingEdit: () => void
   onTimingChange: (id: string, patch: Partial<MediaLayer>) => void
   onSelectMedia: (id: string, additive: boolean) => void
 }
@@ -40,6 +41,7 @@ export default function TimelinePanel(props: Props) {
     event.stopPropagation()
     const rail = (event.currentTarget.closest('.timeline-track-rail') as HTMLElement | null)
     const railWidth = Math.max(1, rail?.getBoundingClientRect().width ?? 1)
+    props.onBeginTimingEdit()
     dragRef.current = {
       id: layer.id,
       mode,

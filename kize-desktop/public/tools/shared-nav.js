@@ -57,3 +57,56 @@
   window.addEventListener('kize:palette-saved',refresh);
   document.body.prepend(root);
 })();
+
+
+/* Actual lossless PNG handoff between locally bundled design tools.
+   IndexedDB preserves the Blob byte-for-byte and never sends it to a server. */
+(()=>{
+  const DATABASE='kize-shared-workspace-v1',STORE='assets',MAX=100*1024*1024;
+  const open=()=>new Promise((resolve,reject)=>{
+    if(!window.indexedDB)return reject(Error('이 환경은 로컬 작업물 공유 저장소를 지원하지 않습니다.'));
+    const request=indexedDB.open(DATABASE,1);
+    request.onupgradeneeded=()=>{const db=request.result;
+      if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE);
+    };
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error||Error('작업물 공유 저장소를 열 수 없습니다.'));
+  });
+  const operation=async(mode,cb)=>{
+    const db=await open();
+    try{
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction(STORE,mode);
+        const store=tx.objectStore(STORE);
+        const req=cb(store);
+        let value;
+        req.onsuccess=()=>{value=req.result;};
+        req.onerror=()=>reject(req.error||Error('작업물 처리 실패'));
+        tx.oncomplete=()=>resolve(value);
+        tx.onerror=()=>reject(tx.error||Error('작업물 저장 실패'));
+        tx.onabort=()=>reject(tx.error||Error('작업물 저장 중단'));
+      });
+    }finally{db.close();}
+  };
+  window.KIZEBridge={
+    async putAsset(blob,name='KIZE-shared.png'){
+      if(!(blob instanceof Blob)||blob.size<1||blob.size>MAX)
+        throw Error('공유 PNG가 비어 있거나 100MB 파일 제한을 초과했습니다.');
+      if(blob.type!=='image/png')throw Error('도구 사이에는 고품질 PNG만 전달합니다.');
+      const safe=String(name).replace(/[\\/:*?"<>|]/g,'-').slice(0,120);
+      await operation('readwrite',s=>s.put({blob,name:safe,savedAt:Date.now()},'handoff'));
+      return true;
+    },
+    async getAsset(){
+      const entry=await operation('readonly',s=>s.get('handoff'));
+      if(!entry)return null;
+      if(Date.now()-Number(entry.savedAt)>24*60*60*1000)return null;
+      return entry;
+    },
+    async clearAsset(){await operation('readwrite',s=>s.delete('handoff'));},
+    openTool(id){
+      const targets={editor:'/index.html',pattern:'/tools/pattern/index.html',circle:'/circle.html'};
+      if(targets[id])location.assign(targets[id]+'?handoff=1');
+    }
+  };
+})();

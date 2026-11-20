@@ -32,9 +32,12 @@ function sourceLabel(record: RecentSaveRecord) {
   return 'JSON 저장'
 }
 
-function getLayerCount(record: RecentSaveRecord) {
-  const project = record.project as { layers?: unknown[] }
-  return Array.isArray(project?.layers) ? project.layers.length : 1
+function getLayerCounts(record: RecentSaveRecord) {
+  const project = record.project as { layers?: unknown[]; mediaLayers?: unknown[] }
+  return {
+    frames: Array.isArray(project?.layers) ? project.layers.length : 1,
+    media: Array.isArray(project?.mediaLayers) ? project.mediaLayers.length : 0,
+  }
 }
 
 export default function RecentSavesModal({ open, records, loading, onClose, onLoad, onDelete, onClear }: Props) {
@@ -109,7 +112,7 @@ export default function RecentSavesModal({ open, records, loading, onClose, onLo
                   <div className="recent-card-info">
                     <strong>{record.title}</strong>
                     <span>{formatSavedAt(record.savedAt)}</span>
-                    <small>{sourceLabel(record)} · 레이어 {getLayerCount(record)}개</small>
+                    <small>{sourceLabel(record)} · 프레임 {getLayerCounts(record).frames} · 미디어 {getLayerCounts(record).media}</small>
                   </div>
                   <div className="recent-card-buttons">
                     <button type="button" className="soft-button" onClick={() => setSelectedId(record.id)}>미리보기</button>
@@ -128,12 +131,12 @@ export default function RecentSavesModal({ open, records, loading, onClose, onLo
                 <div className="recent-preview-meta">
                   <strong>{selected.title}</strong>
                   <span>{formatSavedAt(selected.savedAt)}</span>
-                  <span>{sourceLabel(selected)} · 레이어 {getLayerCount(selected)}개 · v{selected.appVersion}</span>
+                  <span>{sourceLabel(selected)} · 프레임 {getLayerCounts(selected).frames} · 미디어 {getLayerCounts(selected).media} · v{selected.appVersion}</span>
                 </div>
                 <button className="primary-button recent-load-primary" type="button" onClick={() => onLoad(selected)}>
                   이 작업 상태 불러오기
                 </button>
-                <p>레이어 ON/OFF·순서, 색상, 그라데이션, 2/4/6/8구간, 입체감, 글로우, 그림자 등 저장 당시의 전체 프로젝트 데이터를 복원합니다.</p>
+                <p>프레임·미디어 레이어, 사용자 마스크, 그룹, 타임라인, 애니메이션, 색상, 그라데이션, 입체감과 효과 설정까지 저장 당시의 편집 상태를 복원합니다. 같은 브라우저에서는 IndexedDB의 원본 미디어도 자동 연결됩니다.</p>
               </>}
             </aside>
           </div>

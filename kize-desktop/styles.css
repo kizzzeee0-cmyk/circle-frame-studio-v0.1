@@ -110,3 +110,17 @@
 #zoomActual{font-size:10px;white-space:nowrap}
 #cancelPsdImport{margin:0 8px;color:#995b74;border:1px solid #edd9e4;white-space:nowrap}
 #cancelPsdImport[hidden]{display:none}
+
+/* v0.11: an unobtrusive update cue. No auto-open modal or animation. */
+.update-control{display:flex;align-items:center;gap:6px;position:relative;min-width:0;flex-shrink:0}
+.update-control .update-status{max-width:155px;color:#7d7690;font-size:10px}
+.update-badge{border:1px solid #d3b574;background:#f8eed5;color:#7c653d;border-radius:5px;padding:3px 5px;line-height:1;font-size:9px;letter-spacing:.3px;font-weight:800}
+.update-badge[hidden],.update-details[hidden]{display:none!important}
+.update-details{position:absolute;z-index:20;right:0;top:calc(100% + 12px);width:305px;max-width:min(305px,90vw);border-radius:10px;border:1px solid #e5dfed;background:#fff;padding:14px;box-shadow:0 5px 22px #38304818;color:#60566d;white-space:normal}
+.update-details strong{font-size:12px;display:block;margin-bottom:8px}
+.update-details p{font-size:11px;line-height:1.55;margin:0 0 9px;white-space:pre-wrap;word-break:break-word;max-height:140px;overflow:auto}
+.update-details .update-caution{color:#83748c;font-size:10px;max-height:none}
+.update-buttons{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.update-buttons .primary{flex:1}
+@media(max-width:1350px){.update-control .update-status{max-width:100px}}
+@media(max-width:1120px){.update-control .update-status{display:none}}

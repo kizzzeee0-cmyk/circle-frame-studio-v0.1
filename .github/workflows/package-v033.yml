@@ -1,8 +1,6 @@
-name: Package Circle Frame Studio v0.33
+name: Package Circle Frame Studio v0.33 (manual only)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:

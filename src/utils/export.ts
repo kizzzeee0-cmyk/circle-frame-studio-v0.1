@@ -380,7 +380,7 @@ export async function exportPng(project: FrameProject, sceneTimeSec = 0, resolut
   const progress = ((sceneTimeSec % duration) + duration) % duration / duration
   renderProject(canvas, project, undefined, sceneTimeSec * 1000, progress)
   const blob = await canvasToBlob(canvas, 'image/png')
-  downloadBlob(blob, 'circle-frame-v033-' + size + 'px-' + exportDate() + '.png')
+  downloadBlob(blob, 'circle-frame-v034-' + size + 'px-' + exportDate() + '.png')
 }
 
 export async function exportAnimatedFrame(
@@ -409,12 +409,12 @@ export async function exportAnimatedFrame(
   throwIfAborted(signal)
   const ext = options.format === 'apng' ? 'png' : options.format
   const label = options.format === 'apng' ? 'apng' : options.format
-  downloadBlob(blob, 'circle-frame-v033-' + label + '-' + options.resolution + 'px-' + exportDate() + '.' + ext)
+  downloadBlob(blob, 'circle-frame-v034-' + label + '-' + options.resolution + 'px-' + exportDate() + '.' + ext)
   onProgress?.({ stage: 'done', current: 1, total: 1, message: '저장이 완료되었습니다.' })
   return blob
 }
 
 export function downloadProject(project: FrameProject) {
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' })
-  downloadBlob(blob, 'circle-frame-project-v033.json')
+  downloadBlob(blob, 'circle-frame-project-v034.json')
 }

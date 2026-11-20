@@ -861,13 +861,22 @@ $('saveProject').onclick=async()=>{
       composite='reference/psd-merged.png';
       images[composite]=await canvasToPngBytes(originalComposite);
     }
+    const appearanceManifest=[];
+    if(appearancePatches.length>256)throw Error('외관 보존 편집이 256개를 초과했습니다. PNG로 출력하거나 여러 프로젝트로 나누어 주세요.');
+    for(let i=0;i<appearancePatches.length;i++){
+      const patch=appearancePatches[i];
+      const bitmap='appearance/'+String(i).padStart(4,'0')+'.png';
+      images[bitmap]=await canvasToPngBytes(pixelCanvas({width:patch.w,height:patch.h,data:patch.data}));
+      appearanceManifest.push({bitmap,x:patch.x,y:patch.y,w:patch.w,h:patch.h,layerId:patch.layerId});
+    }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.6.0',
+      appVersion:'0.6.1',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
-      edited:hasLayerEdits,previewMode,
+      edited:hasLayerEdits,previewMode,appearanceSafe,
       layers:meta,...(composite?{composite}:{}),
+      ...(appearanceManifest.length?{appearancePatches:appearanceManifest}:{}),
     };
     const archive=createArchive(manifest,images);
     const name=(documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]+/g,'-');

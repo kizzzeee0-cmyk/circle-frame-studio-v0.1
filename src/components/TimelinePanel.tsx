@@ -22,18 +22,20 @@ export default function TimelinePanel(props: Props) {
   const [collapsed, setCollapsed] = useState(false)
   const dragRef = useRef<{
     id: string
-    mode: 'move' | 'start' | 'end'
+    mode: 'move' | 'start' | 'end' | 'intro-end' | 'outro-start'
     startX: number
     startTime: number
     endTime: number
     introStart: number
+    introDuration: number
     outroStart: number
+    outroDuration: number
     railWidth: number
   } | null>(null)
   const duration = Math.max(.5, props.duration)
   const pct = Math.min(100, Math.max(0, (props.currentTime / duration) * 100))
 
-  const beginClipDrag = (event: PointerEvent<HTMLElement>, layer: MediaLayer, mode: 'move' | 'start' | 'end') => {
+  const beginClipDrag = (event: PointerEvent<HTMLElement>, layer: MediaLayer, mode: 'move' | 'start' | 'end' | 'intro-end' | 'outro-start') => {
     event.preventDefault()
     event.stopPropagation()
     const rail = (event.currentTarget.closest('.timeline-track-rail') as HTMLElement | null)
@@ -45,7 +47,9 @@ export default function TimelinePanel(props: Props) {
       startTime: layer.startTime,
       endTime: layer.endTime,
       introStart: layer.animation.introStart,
+      introDuration: layer.animation.introDuration,
       outroStart: layer.animation.outroStart,
+      outroDuration: layer.animation.outroDuration,
       railWidth,
     }
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -76,6 +80,21 @@ export default function TimelinePanel(props: Props) {
       props.onTimingChange(layer.id, {
         startTime: start,
         animation: { ...layer.animation, introStart: Math.max(start, layer.animation.introStart) },
+      })
+      return
+    }
+    if (drag.mode === 'intro-end') {
+      const maxDuration = Math.max(.05, layer.endTime - drag.introStart)
+      const introDuration = Math.max(.05, Math.min(maxDuration, drag.introDuration + delta))
+      props.onTimingChange(layer.id, {
+        animation: { ...layer.animation, introDuration },
+      })
+      return
+    }
+    if (drag.mode === 'outro-start') {
+      const outroStart = Math.max(layer.startTime, Math.min(layer.endTime - .05, drag.outroStart + delta))
+      props.onTimingChange(layer.id, {
+        animation: { ...layer.animation, outroStart, outroDuration: Math.max(.05, layer.endTime - outroStart) },
       })
       return
     }
@@ -155,6 +174,26 @@ export default function TimelinePanel(props: Props) {
                   onPointerUp={endClipDrag}
                   onPointerCancel={endClipDrag}
                 />
+                {layer.animation.intro !== 'none' && <button
+                  type="button"
+                  className="timeline-animation-handle intro"
+                  style={{ left: Math.max(0, Math.min(100, (introWidth / Math.max(.001, width)) * 100)) + '%' }}
+                  title="등장 애니메이션 길이 조절"
+                  onPointerDown={event => beginClipDrag(event, layer, 'intro-end')}
+                  onPointerMove={event => moveClipDrag(event, layer)}
+                  onPointerUp={endClipDrag}
+                  onPointerCancel={endClipDrag}
+                />}
+                {layer.animation.outro !== 'none' && <button
+                  type="button"
+                  className="timeline-animation-handle outro"
+                  style={{ left: Math.max(0, Math.min(100, ((outroLeft - left) / Math.max(.001, width)) * 100)) + '%' }}
+                  title="퇴장 애니메이션 시작점 조절"
+                  onPointerDown={event => beginClipDrag(event, layer, 'outro-start')}
+                  onPointerMove={event => moveClipDrag(event, layer)}
+                  onPointerUp={endClipDrag}
+                  onPointerCancel={endClipDrag}
+                />}
                 <span className="timeline-clip-time">{(layer.endTime - layer.startTime).toFixed(1)}s</span>
               </div>
             </div>

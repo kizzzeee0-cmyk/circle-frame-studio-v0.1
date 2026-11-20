@@ -195,8 +195,9 @@ jobs:
           $version = [string]$pkg.version
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid KIZE release version' }
           $tag = "kize-v$version"
-          gh release view $tag --repo $env:GH_REPO --json tagName *> $null
-          if ($LASTEXITCODE -eq 0) {
+          $existing = @(gh release list --repo $env:GH_REPO --json tagName --limit 100 | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list existing GitHub Releases' }
+          if ($existing | Where-Object { $_.tagName -eq $tag }) {
             Write-Host "KIZE release $tag already published. Bump package version to release new changes."
             exit 0
           }

@@ -1026,6 +1026,7 @@ $('applyColor').onclick=()=>{
   }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error('KIZE appearance paint:',e);}
 };
 
+$('variantPreset').onchange=e=>{if(e.target.value)$('variantColors').value=e.target.value;};
 function variantPaintOptions(color,part){
   return {mode:'solid',color,
     stops:gradientStops.map(s=>({color:s.color,position:s.position})),

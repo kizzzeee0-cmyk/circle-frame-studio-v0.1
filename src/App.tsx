@@ -354,6 +354,7 @@ export default function App() {
   const [timelineTime, setTimelineTime] = useState(0)
   const [timelinePlaying, setTimelinePlaying] = useState(true)
   const [pngResolution, setPngResolution] = useState(2000)
+  const [lastAutosaveAt, setLastAutosaveAt] = useState(0)
   const undoRef = useRef<FrameProject[]>([])
   const redoRef = useRef<FrameProject[]>([])
   const coalesceRef = useRef<{ key: string; time: number }>({ key: '', time: 0 })
@@ -406,7 +407,10 @@ export default function App() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(project)) } catch { /* quota */ }
+      try {
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(project))
+        setLastAutosaveAt(Date.now())
+      } catch { /* quota */ }
     }, 650)
     return () => window.clearTimeout(timer)
   }, [project])
@@ -1151,6 +1155,69 @@ export default function App() {
     }))
   }
 
+  const splitSelectedAtPlayhead = () => {
+    const ids = new Set(selectedMediaIds)
+    const splitTime = timelineTime
+    if (!ids.size) return
+    const eligible = (project.mediaLayers ?? []).filter(layer =>
+      ids.has(layer.id) && splitTime > layer.startTime + .02 && splitTime < layer.endTime - .02,
+    )
+    if (!eligible.length) return
+
+    const newIds: string[] = []
+    commit(draft => {
+      const next: MediaLayer[] = []
+      for (const layer of draft.mediaLayers ?? []) {
+        if (!ids.has(layer.id) || splitTime <= layer.startTime + .02 || splitTime >= layer.endTime - .02) {
+          next.push(layer)
+          continue
+        }
+        const before = structuredClone(layer)
+        const after = structuredClone(layer)
+        const elapsed = splitTime - layer.startTime
+        before.endTime = splitTime
+        before.animation = { ...before.animation, outro: 'none', outroStart: splitTime, outroDuration: .05 }
+        after.id = uid('media')
+        after.name = layer.name + ' · 뒤'
+        after.startTime = splitTime
+        after.groupId = ''
+        after.animation = { ...after.animation, intro: 'none', introStart: splitTime, introDuration: .05 }
+        if (after.kind === 'video') {
+          const segmentStart = Math.max(0, layer.trimStart || 0)
+          const segmentEnd = layer.trimEnd > segmentStart ? layer.trimEnd : Infinity
+          after.trimStart = Math.min(segmentEnd === Infinity ? segmentStart + elapsed : segmentEnd - .01, segmentStart + elapsed)
+        }
+        next.push(before, after)
+        newIds.push(after.id)
+      }
+      draft.mediaLayers = next
+      return draft
+    })
+    if (newIds.length) {
+      setSelectedMediaIds(newIds)
+      setSelectedMediaId(newIds[0])
+    }
+  }
+
+  const fitSelectedToTimeline = () => {
+    const ids = new Set(selectedMediaIds)
+    if (!ids.size) return
+    const duration = Math.max(.5, project.timeline?.duration ?? 3)
+    commit(draft => {
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => ids.has(layer.id) ? {
+        ...layer,
+        startTime: 0,
+        endTime: duration,
+        animation: {
+          ...layer.animation,
+          introStart: 0,
+          outroStart: Math.max(0, duration - layer.animation.outroDuration),
+        },
+      } : layer)
+      return draft
+    })
+  }
+
   const uploadCustomMask = async (id: string, file?: File) => {
     if (!file) return
     if (!/^image\/(png|jpeg|webp)$/i.test(file.type) && !/\.(png|jpe?g|webp)$/i.test(file.name)) {
@@ -1309,6 +1376,9 @@ export default function App() {
           <button onClick={undo} title="Ctrl+Z">↶ 실행취소</button>
           <button onClick={redo} title="Ctrl+Y">↷ 다시실행</button>
           <span className="toolbar-sep" />
+          <span className={lastAutosaveAt ? 'autosave-status saved' : 'autosave-status'} title={lastAutosaveAt ? '마지막 자동 저장 ' + new Date(lastAutosaveAt).toLocaleTimeString() : '자동 저장 준비 중'}>
+            {lastAutosaveAt ? '자동 저장됨' : '자동 저장'}
+          </span>
           <button className="project-package-button" onClick={() => void handlePortableSave()}>프로젝트 저장</button>
           <button className="project-package-button" onClick={() => bundleInput.current?.click()}>프로젝트 불러오기</button>
           <input ref={bundleInput} hidden type="file" accept=".cfszip,application/zip" onChange={e => void importPortable(e.target.files?.[0])} />
@@ -1439,6 +1509,8 @@ export default function App() {
               draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => ({ ...layer, endTime: Math.min(layer.endTime, Math.max(.5, value)) }))
               return draft
             })}
+            onSplitSelected={splitSelectedAtPlayhead}
+            onFitSelected={fitSelectedToTimeline}
             onLoopChange={value => commit(draft => {
               draft.timeline = { ...(draft.timeline ?? defaultTimeline()), loop: value }
               return draft

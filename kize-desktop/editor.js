@@ -1371,4 +1371,4 @@ window.addEventListener('keydown',e=>{
   else if(key==='s'){e.preventDefault();$('saveProject').click();}
 });
 window.addEventListener('resize',()=>{if(documentModel)syncGuides();});
-initUpdates($('updateStatus'),$('checkUpdate'));
+initUpdates($('updateStatus'),$('checkUpdate'),{hasUnsavedChanges:()=>unsavedChanges});

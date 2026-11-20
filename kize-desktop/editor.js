@@ -13,7 +13,7 @@ import {protectOccludedPixels,pointIsOccluded,sourcePixelToDocument} from './vis
 import {parseVariantColors,variantFileName} from './palette-variants.mjs';
 import {paintPolicy,effectiveColor,defaultImportSelection} from './color-workflow.mjs';
 import {PALETTE_PRESETS} from './palette-presets.mjs';
-import {createPaletteMap,applyPaletteMap} from './palette-combination.mjs';
+import {installPaletteController} from './palette-controller.mjs';
 import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
@@ -27,6 +27,7 @@ let unsavedChanges=false;
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 let temporaryPreview=null,lastColorAction='';
 let palettePreviewActive=false;
+let paletteController=null;
 // Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
 // still use the explicitly marked reconstructed view.
 let appearancePatches=[],appearanceSafe=true;
@@ -234,7 +235,7 @@ async function importPsd(file){
   $('selectedLayerOnly').checked=false;
   $('variantOutputMode').value='single';
   $('variantDetails').open=false;
-  refreshVariantOutputMode();
+  paletteController?.refresh();
   // Prefer Photoshop's own merged pixels over a naive layer redraw.
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
@@ -269,7 +270,7 @@ async function importRaster(file){
   $('selectedLayerOnly').checked=false;
   $('variantOutputMode').value='combo';
   $('variantDetails').open=true;
-  selectedId=layers[0].id;refreshAll();fitZoom();refreshVariantOutputMode();
+  selectedId=layers[0].id;refreshAll();fitZoom();paletteController?.refresh();
   notify('이미지를 레이어로 불러왔습니다. 클릭하여 색상 영역을 선택하세요.');
 }
 async function importProject(file){
@@ -1229,11 +1230,12 @@ function updateVariantSwatches(){
       item.title=color===actual?'입력 HEX 그대로':'입력 '+color+' → 적용 '+actual;
       panel.append(item);
     }
-    $('variantSummary').textContent=colors.length+'가지 시안 · '+(
+    $('variantSummary').textContent=($('variantOutputMode').value==='combo'
+      ?colors.length+'색을 하나의 PNG 조합으로 적용 · ':'색상마다 PNG 하나씩 저장 · ')+(
       $('variantFinish').value==='exact'?'선택한 HEX 그대로 적용':
       $('variantFinish').value==='pastel'?'표시한 파스텔 HEX로 적용':
       '원본의 밝기/여러 색상 관계를 보존하므로 실제 픽셀 색상은 HEX와 다를 수 있음'
-    )+' · 원본 파일은 그대로 유지됩니다.';
+    )+' · ZIP 저장은 현재 화면을 변경하지 않습니다. 변경하려면 팔레트 조합 적용을 눌러 주세요.';
   }catch(error){
     $('variantSummary').textContent=error.message;
   }
@@ -1373,6 +1375,7 @@ $('previewColor').onclick=()=>{
 };
 
 $('exportVariants').onclick=async()=>{
+  if($('variantOutputMode').value==='combo')return paletteController?.exportZip();
   if(!documentModel||!selectionParts.length){notify('시안 추출 전 색상/에셋 영역을 선택해 주세요.');return;}
   if(documentModel.width*documentModel.height>8_000_000){
     notify('메모리 보호: 시안 일괄 생성은 800만 픽셀 이하에서만 지원합니다.');return;
@@ -1405,6 +1408,51 @@ $('exportVariants').onclick=async()=>{
   }catch(e){notify('시안 생성 실패: '+(e?.message||e));console.error(e);}
   finally{button.disabled=false;}
 };
+
+// The PNG palette controller is intentionally independent from PSD's legacy
+// single-swatch-per-file export. A palette preview does not modify the document.
+paletteController=installPaletteController({
+  pngSource(){
+    if(!documentModel||documentModel.kind!=='IMAGE'||layers.length!==1)return null;
+    const layer=layers[0];
+    if(!layer.visible||!layer.canvas||layer.x!==0||layer.y!==0||
+       layer.w!==documentModel.width||layer.h!==documentModel.height||
+       layer.rotation||layer.flipH||layer.flipV)return null;
+    const image=toImageData(layerImage(layer));
+    return {layerId:layer.id,rgba:image.data,width:image.width,height:image.height};
+  },
+  selectedMask(layerId,w,h){
+    const parts=selectionParts.filter(p=>p.id===layerId&&p.count);
+    if(!parts.length)return null;
+    const combined=new Uint8Array(w*h);
+    for(const part of parts){
+      if(part.mask.length!==combined.length)return null;
+      for(let i=0;i<combined.length;i++)if(part.mask[i]>combined[i])combined[i]=part.mask[i];
+    }
+    return combined;
+  },
+  showPreview(image){
+    temporaryPreview=image?pixelCanvas(image):null;
+    palettePreviewActive=Boolean(image);
+    if(image)$('previewColor').textContent='변경 미리보기';
+    render();
+  },
+  commit(layerId,image,changed){
+    const layer=layers.find(l=>l.id===layerId);
+    if(!layer||!documentModel||documentModel.kind!=='IMAGE')
+      throw Error('편집 대상 PNG가 바뀌었습니다. 다시 불러와 주세요.');
+    checkpointBatch([layer]);
+    layer.canvas=pixelCanvas(image);
+    if(layer.photoSource){layer.photoSource=null;layer.adjust=defaultAdjust();layer.type='image';}
+    temporaryPreview=null;palettePreviewActive=false;previewMode='layers';
+    lastColorAction='✓ PNG 전체 팔레트 조합 적용 · '+changed.toLocaleString()+'px';
+    clearSelections();refreshAll();
+  },
+  pngBytes:async image=>canvasToPngBytes(pixelCanvas(image)),
+  download:(blob,name)=>downloadBlob(blob,name),
+  filename:()=>documentModel?.name||'KIZE',
+  notify
+});
 
 function restoreSnapshots(snapshots){
   for(const snapshot of snapshots){

@@ -201,15 +201,47 @@ export default function CanvasPanel({
     ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
   }
 
-  const snapPosition = (value: number, axis: 'x' | 'y') => {
-    if (!settings.snapEnabled) return value
+  const snapMoveDelta = (
+    axis: 'x' | 'y',
+    proposedDelta: number,
+    original: NonNullable<ReturnType<typeof selectionBounds>>,
+  ) => {
+    if (!settings.snapEnabled) return proposedDelta
     const threshold = 14 * projectPerScreen()
-    if (Math.abs(value) <= threshold) {
-      setGuide(prev => ({ ...prev, [axis]: true }))
-      return 0
+    const selectedIds = new Set(selectedMediaIds)
+    const otherBounds = (project.mediaLayers ?? [])
+      .filter(layer => layer.visible && !selectedIds.has(layer.id))
+      .map(rotatedBounds)
+
+    const moving = axis === 'x'
+      ? [original.left + proposedDelta, original.x + proposedDelta, original.right + proposedDelta]
+      : [original.top + proposedDelta, original.y + proposedDelta, original.bottom + proposedDelta]
+
+    const targets = axis === 'x'
+      ? [0, ...otherBounds.flatMap(item => [item.left, (item.left + item.right) / 2, item.right])]
+      : [0, ...otherBounds.flatMap(item => [item.top, (item.top + item.bottom) / 2, item.bottom])]
+
+    let bestDiff = Infinity
+    let bestTarget = NaN
+    for (const movingValue of moving) {
+      for (const target of targets) {
+        const diff = target - movingValue
+        if (Math.abs(diff) < Math.abs(bestDiff)) {
+          bestDiff = diff
+          bestTarget = target
+        }
+      }
     }
+
+    if (Math.abs(bestDiff) <= threshold) {
+      if (Math.abs(bestTarget) < .001) setGuide(prev => ({ ...prev, [axis]: true }))
+      return proposedDelta + bestDiff
+    }
+
     const size = Math.max(1, settings.snapSize)
-    return Math.round(value / size) * size
+    const center = axis === 'x' ? original.x : original.y
+    const snappedCenter = Math.round((center + proposedDelta) / size) * size
+    return proposedDelta + snappedCenter - (center + proposedDelta)
   }
 
   const transformMove = (event: PointerEvent) => {
@@ -221,10 +253,11 @@ export default function CanvasPanel({
       const factor = projectPerScreen()
       let dx = (event.clientX - session.startX) * factor
       let dy = (event.clientY - session.startY) * factor
-      const targetX = snapPosition(session.centerX + dx, 'x')
-      const targetY = snapPosition(session.centerY + dy, 'y')
-      dx = targetX - session.centerX
-      dy = targetY - session.centerY
+      const original = selectionBounds(session.layers)
+      if (original) {
+        dx = snapMoveDelta('x', dx, original)
+        dy = snapMoveDelta('y', dy, original)
+      }
       onTransformMedia(session.layers.map(layer => ({ id: layer.id, x: layer.x + dx, y: layer.y + dy })))
       return
     }
@@ -321,6 +354,13 @@ export default function CanvasPanel({
         <button type="button" onClick={() => setZoom(value => Math.min(4, value + .1))}>＋</button>
         <button type="button" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>전체 보기</button>
         <label className="canvas-mini-toggle"><input type="checkbox" checked={settings.snapEnabled} onChange={event => onSettingsChange?.({ ...settings, snapEnabled: event.target.checked })} /> 스냅</label>
+        {settings.snapEnabled && <select title="스냅 간격" value={settings.snapSize} onChange={event => onSettingsChange?.({ ...settings, snapSize: Number(event.target.value) })}>
+          <option value={5}>5px</option><option value={10}>10px</option><option value={20}>20px</option>
+        </select>}
+        <label className="canvas-mini-toggle"><input type="checkbox" checked={settings.showGuides} onChange={event => onSettingsChange?.({ ...settings, showGuides: event.target.checked })} /> 가이드</label>
+        <select title="미리보기 해상도" value={settings.previewResolution} onChange={event => onSettingsChange?.({ ...settings, previewResolution: Number(event.target.value) as ComposerSettings['previewResolution'] })}>
+          <option value={720}>720</option><option value={960}>960</option><option value={1200}>1200</option>
+        </select>
         <select value={settings.performanceMode} onChange={event => onSettingsChange?.({ ...settings, performanceMode: event.target.value as ComposerSettings['performanceMode'] })}>
           <option value="auto">자동 품질</option>
           <option value="quality">고품질</option>

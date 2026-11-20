@@ -14,6 +14,7 @@ import {parseVariantColors,variantFileName} from './palette-variants.mjs';
 import {paintPolicy,effectiveColor,defaultImportSelection} from './color-workflow.mjs';
 import {PALETTE_PRESETS} from './palette-presets.mjs';
 import {installPaletteController} from './palette-controller.mjs';
+import {installCharacterPalette} from './character-palette-ui.mjs';
 import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
@@ -1502,6 +1503,23 @@ paletteController=installPaletteController({
   download:(blob,name)=>downloadBlob(blob,name),
   filename:()=>documentModel?.name||'KIZE',
   notify
+});
+
+// Character reference is analysis-only: no bitmap is added to the design
+// canvas or to the current document. Proposed palettes use the same exact
+// multi-swatch engine and can be revised before committing.
+installCharacterPalette({
+  applyPalette(colors){
+    setColorEditMode('palette');
+    $('variantOutputMode').value='combo';
+    $('variantColors').value=colors.join(', ');
+    $('variantPreset').value='';
+    $('variantColors').dispatchEvent(new Event('input',{bubbles:true}));
+    paletteController?.refresh();
+    paletteController?.preview();
+  },
+  notify,
+  download:(blob,name)=>downloadBlob(blob,name)
 });
 
 function restoreSnapshots(snapshots){

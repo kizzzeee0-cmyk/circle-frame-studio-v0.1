@@ -1,4 +1,4 @@
-import {importPsdPixels} from './psd-loader.js';
+// PSD parsing runs in a worker to avoid blocking the editor while decoding large files.
 import {regionMask,recolorPixels,photoAdjust,hexToRGB,rgbToHex,clamp} from './engine.js';
 import {initUpdates} from './updater.js';
 
@@ -9,11 +9,20 @@ const stage=$('stage'),holder=$('canvasHolder');
 let documentModel=null,layers=[],selectedId=null,selection=null,zoom=1,history=[],lastImportPsd=false,drag=null;
 let nextId=1;
 const maxDocPixels=26000000,maxLayerPixels=65000000,maxLayers=120;
+const maxPsdFileBytes=700*1024*1024;
 const defaultAdjust=()=>({exposure:0,contrast:0,saturation:0,warmth:0,highlights:0,shadows:0});
 function notify(s){$('status').textContent=s;}
 function cloneCanvas(src){const c=document.createElement('canvas');c.width=src.width;c.height=src.height;c.getContext('2d').drawImage(src,0,0);return c;}
 function blankCanvas(w,h){const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w));c.height=Math.max(1,Math.round(h));return c;}
-function pixelCanvas(p){const c=blankCanvas(p.width,p.height);c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(p.data),p.width,p.height),0,0);return c;}
+function pixelCanvas(p){
+  const c=blankCanvas(p.width,p.height);
+  let data;
+  if(p.data instanceof Uint16Array){data=new Uint8ClampedArray(p.data.length);for(let i=0;i<data.length;i++)data[i]=Math.round(p.data[i]/257);}
+  else if(p.data instanceof Float32Array){data=new Uint8ClampedArray(p.data.length);for(let i=0;i<data.length;i++)data[i]=Math.max(0,Math.min(255,Math.round(p.data[i]*255)));}
+  else data=new Uint8ClampedArray(p.data);
+  c.getContext('2d').putImageData(new ImageData(data,p.width,p.height),0,0);
+  return c;
+}
 function toImageData(c){return c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height);}
 function newLayer(obj){return {id:nextId++,name:'레이어',x:0,y:0,w:100,h:100,visible:true,opacity:1,flipH:false,flipV:false,rotation:0,blend:'source-over',type:'image',adjust:defaultAdjust(),offsetX:0,offsetY:0,scale:100,...obj};}
 function sel(){return layers.find(l=>l.id===selectedId)||null;}
@@ -30,14 +39,39 @@ function flatten(items,prefix='',hidden=false,out=[]){
   return out;
 }
 function psdMeta(arr){let total=0,count=0;for(const l of arr){count++;const w=Math.max(0,(l.right||0)-(l.left||0)),h=Math.max(0,(l.bottom||0)-(l.top||0));total+=w*h;if(w*h>maxDocPixels||total>maxLayerPixels||count>maxLayers)throw Error('레이어 크기 또는 개수가 안전 제한을 넘었습니다.');}return count;}
+async function readPsdInBackground(file){
+  if(file.size>maxPsdFileBytes)throw Error('현재 최대 파일 크기는 700MiB입니다. 600MB 파일은 크기만으로 차단하지 않습니다.');
+  if(typeof Worker==='undefined')throw Error('현재 Windows WebView2 환경이 대용량 PSD 작업 스레드를 지원하지 않습니다.');
+  notify('PSD 읽기 준비 · '+Math.round(file.size/1024/1024)+'MiB…');
+  let raw;
+  try{raw=await file.arrayBuffer();}
+  catch(e){throw Error('파일 내용을 메모리에 읽지 못했습니다. 다른 프로그램을 종료해 RAM을 확보한 뒤 다시 시도해 주세요. '+(e?.message||''));}
+  return await new Promise((resolve,reject)=>{
+    let settled=false;
+    const worker=new Worker(new URL('./psd.worker.js',import.meta.url),{type:'module'});
+    const done=(error,result)=>{
+      if(settled)return;settled=true;
+      worker.terminate();
+      if(error)reject(error);else resolve(result);
+    };
+    worker.onmessage=e=>{
+      const msg=e.data;
+      if(msg?.type==='progress'){notify(msg.message);return;}
+      if(msg?.type==='complete')done(null,msg.result);
+      if(msg?.type==='failed')done(new Error(msg.message||'PSD 해석에 실패했습니다.'));
+    };
+    worker.onerror=e=>{e.preventDefault();done(new Error('PSD 작업 스레드 실행 오류: '+(e.message||'알 수 없는 오류')));};
+    worker.onmessageerror=()=>done(new Error('큰 PSD 레이어를 메모리에서 전송할 수 없습니다. 다른 프로그램을 종료하고 다시 시도해 주세요.'));
+    try{worker.postMessage({type:'open-psd',buffer:raw},[raw]);}
+    catch(e){done(new Error('PSD 데이터를 작업 스레드로 전달하지 못했습니다: '+(e?.message||e)));}
+  });
+}
 async function importPsd(file){
   const start=performance.now();
   notify('PSD 파일 해석 중…');
   showImportReport('', 'normal');
-  const buffer=await file.arrayBuffer();
-  // Display the 'loading' status before CPU-bound PSD decoding begins.
-  await new Promise(requestAnimationFrame);
-  const result=importPsdPixels(buffer,{onProgress:message=>notify(message)});
+  // Worker parses the PSD and transfers the layer buffers back without copying.
+  const result=await readPsdInBackground(file);
   const {header,layers:rawLayers,composite,warnings,decodedCount,layerTotal,skippedCount}=result;
   const built=rawLayers.map(pl=>newLayer({
     name:pl.name,type:pl.type,x:pl.x,y:pl.y,w:pl.w,h:pl.h,
@@ -169,14 +203,60 @@ function select(id){selectedId=id;selection=null;refreshAll();}
 function setZoom(v){zoom=clamp(v,.1,8);$('zoomLabel').textContent=Math.round(zoom*100)+'%';if(documentModel){holder.style.width=Math.round(documentModel.width*zoom)+'px';holder.style.height=Math.round(documentModel.height*zoom)+'px';}}
 function fitZoom(){if(!documentModel)return;const v=Math.min((stage.clientWidth-70)/documentModel.width,(stage.clientHeight-70)/documentModel.height,1);setZoom(clamp(v,.1,8));}
 $('zoomIn').onclick=()=>setZoom(zoom*1.25);$('zoomOut').onclick=()=>setZoom(zoom/1.25);$('zoomFit').onclick=fitZoom;
-stage.addEventListener('wheel',e=>{if(e.ctrlKey&&documentModel){e.preventDefault();setZoom(zoom*(e.deltaY<0?1.15:1/1.15));}},{passive:false});
+// Wheel zoom behaves like an artboard editor: zoom around the mouse pointer.
+// Press and drag the physical mouse wheel (middle button) to pan horizontally
+// and vertically. No Ctrl key is required.
+function zoomAtPointer(nextZoom,cx,cy){
+  if(!documentModel)return;
+  const before=holder.getBoundingClientRect();
+  const imageX=(cx-before.left)/zoom;
+  const imageY=(cy-before.top)/zoom;
+  setZoom(nextZoom);
+  const after=holder.getBoundingClientRect();
+  stage.scrollLeft+=(after.left+imageX*zoom-cx);
+  stage.scrollTop+=(after.top+imageY*zoom-cy);
+}
+stage.addEventListener('wheel',e=>{
+  if(!documentModel)return;
+  e.preventDefault();
+  const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?stage.clientHeight:1);
+  const factor=Math.exp(-Math.max(-350,Math.min(350,delta))*0.0019);
+  zoomAtPointer(zoom*factor,e.clientX,e.clientY);
+},{passive:false});
+let middlePan=null;
+stage.addEventListener('pointerdown',e=>{
+  if(!documentModel||e.button!==1)return;
+  e.preventDefault();
+  middlePan={pointerId:e.pointerId,lastX:e.clientX,lastY:e.clientY};
+  stage.setPointerCapture(e.pointerId);
+  stage.classList.add('panning');
+});
+stage.addEventListener('pointermove',e=>{
+  if(!middlePan||middlePan.pointerId!==e.pointerId)return;
+  e.preventDefault();
+  stage.scrollLeft-=e.clientX-middlePan.lastX;
+  stage.scrollTop-=e.clientY-middlePan.lastY;
+  middlePan.lastX=e.clientX;middlePan.lastY=e.clientY;
+});
+function endMiddlePan(e){
+  if(!middlePan||(e&&e.pointerId!==middlePan.pointerId))return;
+  const id=middlePan.pointerId;middlePan=null;
+  stage.classList.remove('panning');
+  if(stage.hasPointerCapture(id))stage.releasePointerCapture(id);
+}
+stage.addEventListener('pointerup',endMiddlePan);
+stage.addEventListener('pointercancel',endMiddlePan);
+stage.addEventListener('lostpointercapture',endMiddlePan);
+stage.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
+stage.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
 function localPoint(e){const r=overlay.getBoundingClientRect();return{x:Math.floor((e.clientX-r.left)*overlay.width/r.width),y:Math.floor((e.clientY-r.top)*overlay.height/r.height)};}
 function hit(l,x,y){if(!l.visible||x<l.x||y<l.y||x>=l.x+l.w||y>=l.y+l.h)return false;
   const visual=layerImage(l);const px=Math.floor((x-l.x)*visual.width/l.w),py=Math.floor((y-l.y)*visual.height/l.h);if(px<0||py<0||px>=visual.width||py>=visual.height)return false;
   return visual.getContext('2d',{willReadFrequently:true}).getImageData(px,py,1,1).data[3]>0;
 }
 overlay.addEventListener('pointerdown',e=>{
-  if(!documentModel)return;
+  // Middle button belongs to panning; never trigger color selection with it.
+  if(!documentModel||e.button!==0)return;
   const pt=localPoint(e),l=layers.slice().reverse().find(l=>hit(l,pt.x,pt.y));
   if(!l)return;
   if(selectedId!==l.id)select(l.id);

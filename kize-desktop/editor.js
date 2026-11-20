@@ -7,6 +7,9 @@ const canvas=$('renderCanvas'),ctx=canvas.getContext('2d',{alpha:true});
 const overlay=$('overlayCanvas'),oc=overlay.getContext('2d');
 const stage=$('stage'),holder=$('canvasHolder');
 let documentModel=null,layers=[],selectedId=null,selection=null,zoom=1,history=[],lastImportPsd=false,drag=null;
+// Original Photoshop composite is a read-only WYSIWYG reference. Canvas
+// reconstruction of masks, layer styles, groups and text is never assumed exact.
+let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 let nextId=1;
 const maxDocPixels=26000000,maxLayerPixels=65000000,maxLayers=120;
 const maxPsdFileBytes=700*1024*1024;
@@ -27,8 +30,8 @@ function toImageData(c){return c.getContext('2d',{willReadFrequently:true}).getI
 function newLayer(obj){return {id:nextId++,name:'레이어',x:0,y:0,w:100,h:100,visible:true,opacity:1,flipH:false,flipV:false,rotation:0,blend:'source-over',type:'image',adjust:defaultAdjust(),offsetX:0,offsetY:0,scale:100,...obj};}
 function sel(){return layers.find(l=>l.id===selectedId)||null;}
 function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
-function checkpoint(l){if(!l)return;history.push(settingsSnapshot(l));if(history.length>12)history.shift();}
-function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];}
+function checkpoint(l){if(!l)return;history.push(settingsSnapshot(l));if(history.length>12)history.shift();hasLayerEdits=true;if(previewMode==='composite')setPreviewMode('layers');}
+function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];originalComposite=null;previewMode='layers';hasLayerEdits=false;stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -93,12 +96,18 @@ async function importPsd(file){
   openDoc(header.width,header.height,file.name,
     header.version===2?'PSB':'PSD');
   layers=built;lastImportPsd=true;
+  // Prefer Photoshop's own merged pixels over a naive layer redraw.
+  // This is an exact raster reference to the stored composite, not a promise
+  // that every original layer effect can be edited in this app.
+  originalComposite=composite?pixelCanvas(composite):null;
+  previewMode=originalComposite?'composite':'layers';
   selectedId=layers.length?layers[layers.length-1].id:null;
   refreshAll();fitZoom();
   const seconds=((performance.now()-start)/1000).toFixed(1);
   const detail='불러오기 완료: '+decodedCount+'/'+layerTotal+'개 레이어 · '+header.bits+'비트 · '+seconds+'초'+
     (skippedCount?' · 일부 레이어 제외 '+skippedCount+'개':'');
   const warningMessage=warnings.length?warnings.join(' / '):'';
+  if(!originalComposite){warnings.push('포토샵 원본 합성 이미지가 없어 레이어 재구성으로만 미리보기를 제공합니다. 레이어 효과가 다르게 보일 수 있습니다.');}
   notify(detail+(warnings.length?' · 일부 항목은 별도 확인 필요':''));
   showImportReport(detail+(warningMessage?'\n'+warningMessage:''),warnings.length?'warning':'success');
 }
@@ -155,12 +164,31 @@ function layerImage(l){
 function render(){
   if(!documentModel)return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  for(const l of layers){if(!l.visible||!l.canvas)continue;
-    ctx.save();ctx.globalAlpha=normOpacity(l.opacity);ctx.globalCompositeOperation=l.blend;
-    ctx.translate(l.x+l.w/2,l.y+l.h/2);ctx.rotate(l.rotation*Math.PI/180);ctx.scale(l.flipH?-1:1,l.flipV?-1:1);
-    ctx.drawImage(layerImage(l),-l.w/2,-l.h/2,l.w,l.h);ctx.restore();}
+  if(previewMode==='composite'&&originalComposite){
+    ctx.drawImage(originalComposite,0,0);
+  } else {
+    for(const l of layers){if(!l.visible||!l.canvas)continue;
+      ctx.save();ctx.globalAlpha=normOpacity(l.opacity);ctx.globalCompositeOperation=l.blend;
+      ctx.translate(l.x+l.w/2,l.y+l.h/2);ctx.rotate(l.rotation*Math.PI/180);ctx.scale(l.flipH?-1:1,l.flipV?-1:1);
+      ctx.drawImage(layerImage(l),-l.w/2,-l.h/2,l.w,l.h);ctx.restore();}
+  }
   drawOverlay();
 }
+function setPreviewMode(mode){
+  if(mode==='composite'&&!originalComposite){notify('PSD 원본 합성 미리보기가 이 파일에 없거나 해석할 수 없습니다.');return;}
+  previewMode=mode;
+  $('viewComposite').disabled=!originalComposite;
+  $('viewComposite').classList.toggle('selected',mode==='composite');
+  $('viewLayers').classList.toggle('selected',mode==='layers');
+  const note=$('previewStatus');
+  note.hidden=false;
+  note.textContent=mode==='composite'
+    ? (hasLayerEdits?'PSD 원본 미리보기 · 수정 결과는 표시되지 않음':'PSD 원본 합성 미리보기')
+    : (originalComposite?'레이어 재구성 보기 · 일부 Photoshop 효과 차이 가능':'레이어 편집 보기');
+  render();
+}
+$('viewComposite').onclick=()=>setPreviewMode('composite');
+$('viewLayers').onclick=()=>setPreviewMode('layers');
 function drawOverlay(){
   oc.clearRect(0,0,overlay.width,overlay.height);const l=sel();if(!l)return;
   oc.save();oc.lineWidth=Math.max(1,1.5/zoom);oc.setLineDash([7/zoom,5/zoom]);oc.strokeStyle='#9476D7';oc.strokeRect(l.x,l.y,l.w,l.h);oc.restore();
@@ -198,7 +226,7 @@ function refreshProperties(){
   $('textPanel').hidden=l?.type!=='text';
   $('selectionInfo').textContent=selection&&selection.id===selectedId?selection.count.toLocaleString()+'개 픽셀 선택됨':'색상 영역을 선택하지 않았습니다.';
 }
-function refreshAll(){refreshLayers();refreshProperties();render();}
+function refreshAll(){refreshLayers();refreshProperties();setPreviewMode(previewMode);}
 function select(id){selectedId=id;selection=null;refreshAll();}
 function setZoom(v){zoom=clamp(v,.1,8);$('zoomLabel').textContent=Math.round(zoom*100)+'%';if(documentModel){holder.style.width=Math.round(documentModel.width*zoom)+'px';holder.style.height=Math.round(documentModel.height*zoom)+'px';}}
 function fitZoom(){if(!documentModel)return;const v=Math.min((stage.clientWidth-70)/documentModel.width,(stage.clientHeight-70)/documentModel.height,1);setZoom(clamp(v,.1,8));}

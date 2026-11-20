@@ -202,6 +202,9 @@ export interface MediaLayer {
   startTime: number
   endTime: number
   trimStart: number
+  trimEnd: number
+  followFrameRotation: boolean
+  followFrameLayerId: string
   animation: MediaAnimationSettings
 }
 

@@ -12,6 +12,12 @@ on:
 permissions:
   contents: write
 
+# Multiple commits during development must not compete for the Windows runner.
+# Do not auto-cancel stable-branch publication after KIZE is merged.
+concurrency:
+  group: kize-windows-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/kize-v0.9.0-group-vector-mask' }}
+
 jobs:
   windows:
     name: Build and smoke-test desktop editor

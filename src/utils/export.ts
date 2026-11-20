@@ -336,26 +336,37 @@ async function exportCanvasVideo(
   const frameCount = Math.max(2, Math.round(options.duration * fps))
   const frameDelay = 1000 / fps
 
-  for (let i = 0; i < frameCount; i++) {
-    throwIfAborted(signal)
-    const progress = i / frameCount
-    await renderTimedFrame(canvas, project, progress, options.duration)
-    track.requestFrame?.()
-    onProgress?.({
-      stage: 'render',
-      current: i + 1,
-      total: frameCount,
-      message: (format === 'mp4' ? 'MP4' : 'WebM') + ' 프레임 ' + (i + 1) + ' / ' + frameCount + ' 기록 중',
-    })
-    await new Promise(resolve => setTimeout(resolve, frameDelay))
-  }
+  try {
+    for (let i = 0; i < frameCount; i++) {
+      throwIfAborted(signal)
+      const progress = i / frameCount
+      await renderTimedFrame(canvas, project, progress, options.duration)
+      track.requestFrame?.()
+      onProgress?.({
+        stage: 'render',
+        current: i + 1,
+        total: frameCount,
+        message: (format === 'mp4' ? 'MP4' : 'WebM') + ' 프레임 ' + (i + 1) + ' / ' + frameCount + ' 기록 중',
+      })
+      await new Promise(resolve => setTimeout(resolve, frameDelay))
+    }
 
-  throwIfAborted(signal)
-  recorder.stop()
-  await stopped
-  capture.getTracks().forEach(item => item.stop())
-  audioMix?.stop()
-  return new Blob(chunks, { type: mimeType })
+    throwIfAborted(signal)
+    recorder.stop()
+    await stopped
+    return new Blob(chunks, { type: mimeType })
+  } finally {
+    if (recorder.state !== 'inactive') {
+      try { recorder.stop() } catch { /* already stopping */ }
+      await Promise.race([
+        stopped.catch(() => undefined),
+        new Promise(resolve => setTimeout(resolve, 500)),
+      ])
+    }
+    capture.getTracks().forEach(item => item.stop())
+    combinedStream.getAudioTracks().forEach(item => item.stop())
+    audioMix?.stop()
+  }
 }
 
 export async function exportPng(project: FrameProject, sceneTimeSec = 0, resolution = 2000) {

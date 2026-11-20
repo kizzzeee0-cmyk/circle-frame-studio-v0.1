@@ -31,6 +31,9 @@ try {
 
   await page.goto(appUrl, { waitUntil: 'networkidle' })
   await page.getByRole('heading', { name: 'Circle Frame Studio' }).waitFor()
+  // Force the Canvas2D preview for direct pixel inspection: the automatic
+  // WebGL2 path intentionally leaves its hidden 2D canvas empty.
+  await page.locator('.canvas-view-controls select').last().selectOption('quality')
   await page.waitForFunction(() => {
     const c = document.querySelector('canvas.preview-canvas')
     return c && c.width > 0 && c.height > 0

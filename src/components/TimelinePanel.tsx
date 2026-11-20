@@ -20,7 +20,6 @@ interface Props {
 
 export default function TimelinePanel(props: Props) {
   const [collapsed, setCollapsed] = useState(false)
-  const [timelineZoom, setTimelineZoom] = useState(1)
   const dragRef = useRef<{
     id: string
     mode: 'move' | 'start' | 'end'
@@ -56,7 +55,7 @@ export default function TimelinePanel(props: Props) {
   const moveClipDrag = (event: PointerEvent<HTMLElement>, layer: MediaLayer) => {
     const drag = dragRef.current
     if (!drag || drag.id !== layer.id) return
-    const delta = (event.clientX - drag.startX) / drag.railWidth * duration * timelineZoom
+    const delta = (event.clientX - drag.startX) / drag.railWidth * duration
     if (drag.mode === 'move') {
       const length = drag.endTime - drag.startTime
       const start = Math.max(0, Math.min(duration - length, drag.startTime + delta))
@@ -102,6 +101,7 @@ export default function TimelinePanel(props: Props) {
       <div className="timeline-project-controls">
         <label>길이 <input type="number" min={.5} max={60} step={.5} value={duration} onChange={event => props.onDurationChange(Number(event.target.value))} /> s</label>
         <label><input type="checkbox" checked={props.loop} onChange={event => props.onLoopChange(event.target.checked)} /> 반복</label>
+        <span className="timeline-help">클립 이동 · 양끝 길이 조절</span>
         <button type="button" onClick={() => setCollapsed(value => !value)}>{collapsed ? '펼치기' : '접기'}</button>
       </div>
     </div>
@@ -119,15 +119,46 @@ export default function TimelinePanel(props: Props) {
           const introEnd = Math.min(layer.endTime, layer.animation.introStart + layer.animation.introDuration)
           const introWidth = Math.max(0, Math.min(width, ((introEnd - layer.startTime) / duration) * 100))
           const outroLeft = Math.max(left, (layer.animation.outroStart / duration) * 100)
-          return <button type="button" key={layer.id} className={layer.id === props.selectedMediaId ? 'timeline-track active' : 'timeline-track'} onClick={() => props.onSelectMedia(layer.id)}>
+          const selected = props.selectedMediaIds.includes(layer.id)
+          return <div
+            key={layer.id}
+            className={selected ? (layer.id === props.primaryMediaId ? 'timeline-track active primary' : 'timeline-track active') : 'timeline-track'}
+            onClick={event => props.onSelectMedia(layer.id, event.ctrlKey || event.metaKey || event.shiftKey)}
+          >
             <span>{layer.name}</span>
             <div className="timeline-track-rail">
-              <b className="timeline-clip" style={{ left: left + '%', width: width + '%' }}>
+              <div
+                className="timeline-clip"
+                style={{ left: left + '%', width: width + '%' }}
+                onPointerDown={event => beginClipDrag(event, layer, 'move')}
+                onPointerMove={event => moveClipDrag(event, layer)}
+                onPointerUp={endClipDrag}
+                onPointerCancel={endClipDrag}
+              >
                 <i className="timeline-intro" style={{ width: introWidth + '%' }} />
                 <i className="timeline-outro" style={{ left: Math.max(0, outroLeft - left) + '%', width: Math.max(0, right - outroLeft) + '%' }} />
-              </b>
+                <button
+                  type="button"
+                  className="timeline-trim-handle start"
+                  title="시작 시간 조절"
+                  onPointerDown={event => beginClipDrag(event, layer, 'start')}
+                  onPointerMove={event => moveClipDrag(event, layer)}
+                  onPointerUp={endClipDrag}
+                  onPointerCancel={endClipDrag}
+                />
+                <button
+                  type="button"
+                  className="timeline-trim-handle end"
+                  title="종료 시간 조절"
+                  onPointerDown={event => beginClipDrag(event, layer, 'end')}
+                  onPointerMove={event => moveClipDrag(event, layer)}
+                  onPointerUp={endClipDrag}
+                  onPointerCancel={endClipDrag}
+                />
+                <span className="timeline-clip-time">{(layer.endTime - layer.startTime).toFixed(1)}s</span>
+              </div>
             </div>
-          </button>
+          </div>
         })}
         {!props.mediaLayers.length && <div className="timeline-empty">미디어 레이어를 추가하면 등장·유지·퇴장 구간이 여기에 표시됩니다.</div>}
       </div>

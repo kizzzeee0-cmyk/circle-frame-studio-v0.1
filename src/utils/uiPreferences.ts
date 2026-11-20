@@ -52,6 +52,22 @@ export function useCompactSectionOrganizer(
     const sections = Array.from(root.children).filter((element): element is HTMLElement => element instanceof HTMLElement && element.classList.contains('property-section'))
     let dirty = !existing
     const cleanups: Array<() => void> = []
+    const refreshers: Array<() => void> = []
+
+    const searchRow = document.createElement('div')
+    searchRow.className = 'section-search-row'
+    const searchInput = document.createElement('input')
+    searchInput.type = 'search'
+    searchInput.placeholder = '설정 검색'
+    searchInput.setAttribute('aria-label', '설정 검색')
+    const collapseAll = document.createElement('button')
+    collapseAll.type = 'button'
+    collapseAll.textContent = '모두 접기'
+    const expandAll = document.createElement('button')
+    expandAll.type = 'button'
+    expandAll.textContent = '모두 펼치기'
+    searchRow.append(searchInput, collapseAll, expandAll)
+    root.append(searchRow)
 
     for (const section of sections) {
       const heading = section.querySelector(':scope > h3') as HTMLElement | null
@@ -81,11 +97,13 @@ export function useCompactSectionOrganizer(
       const refresh = () => {
         const favorite = panel.favorites.includes(id)
         const collapsed = panel.collapsed[id] === true
+        const searching = searchInput.value.trim().length > 0
         section.classList.toggle('favorite-section', favorite)
-        section.classList.toggle('collapsed-section', collapsed)
+        section.classList.toggle('collapsed-section', searching ? false : collapsed)
         favoriteButton.textContent = favorite ? '★' : '☆'
         collapseButton.textContent = collapsed ? '▸' : '▾'
       }
+      refreshers.push(refresh)
       const toggleFavorite = (event: Event) => {
         event.preventDefault(); event.stopPropagation()
         const index = panel.favorites.indexOf(id)
@@ -103,6 +121,36 @@ export function useCompactSectionOrganizer(
       cleanups.push(() => { favoriteButton.removeEventListener('click', toggleFavorite); collapseButton.removeEventListener('click', toggleCollapsed) })
       refresh()
     }
+    const applySearch = () => {
+      const query = searchInput.value.trim().toLowerCase()
+      for (const section of sections) {
+        const searchable = (section.textContent ?? '').toLowerCase()
+        section.classList.toggle('section-filtered-out', !!query && !searchable.includes(query))
+      }
+      for (const refresh of refreshers) refresh()
+    }
+    const setAllCollapsed = (collapsed: boolean) => {
+      for (const section of sections) {
+        const id = section.dataset.sectionId
+        if (id) panel.collapsed[id] = collapsed
+      }
+      ui.panels[panelKey] = panel
+      writeState(ui)
+      for (const refresh of refreshers) refresh()
+    }
+    const onSearch = () => applySearch()
+    const onCollapseAll = () => setAllCollapsed(true)
+    const onExpandAll = () => setAllCollapsed(false)
+    searchInput.addEventListener('input', onSearch)
+    collapseAll.addEventListener('click', onCollapseAll)
+    expandAll.addEventListener('click', onExpandAll)
+    cleanups.push(() => {
+      searchInput.removeEventListener('input', onSearch)
+      collapseAll.removeEventListener('click', onCollapseAll)
+      expandAll.removeEventListener('click', onExpandAll)
+      searchRow.remove()
+    })
+
     ui.panels[panelKey] = panel
     if (dirty) writeState(ui)
     return () => { for (const cleanup of cleanups) cleanup() }

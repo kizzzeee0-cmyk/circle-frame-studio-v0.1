@@ -421,50 +421,68 @@ function hit(l,x,y){
   if(!pt)return false;
   return l.canvas.getContext('2d',{willReadFrequently:true}).getImageData(pt.x,pt.y,1,1).data[3]>7;
 }
-function pickLayerColor(l,px,py){
-  const visual=layerImage(l);
-  const image=toImageData(visual);
-  const result=colorSelection(image.data,visual.width,visual.height,px,py,{
-    tolerance:Number($('colorTolerance').value),connected:$('connectedOnly').checked
-  });
-  if(!result.count){
-    selection=null;selectionPreview=null;refreshProperties();render();
-    notify('선택한 레이어의 투명 영역입니다. 색상이 있는 부분을 클릭해 주세요.');
+function regionAt(l,px,py,mode){
+  const visual=layerImage(l),image=toImageData(visual);
+  const options={tolerance:Number($('colorTolerance').value),connected:$('connectedOnly').checked};
+  const result=mode==='asset'
+    ?selectAssetRegion(image.data,visual.width,visual.height,px,py,options)
+    :colorSelection(image.data,visual.width,visual.height,px,py,options);
+  return {...result,mode,id:l.id,w:visual.width,h:visual.height};
+}
+function reapplyMaskAmount(part){
+  const amount=Number($('maskAdjust').value)||0;
+  part.mask=growShrinkMask(part.baseMask,part.w,part.h,amount);
+  const stats=maskBounds(part.mask,part.w,part.h);
+  part.count=stats.count;part.bounds=stats.bounds;
+  part.preview=part.bounds?createMaskPreview(part):null;
+}
+function pickLayerColor(l,px,py,additive=false){
+  const mode=$('selectionMode').value;
+  const region=regionAt(l,px,py,mode);
+  if(!region.count){
+    if(!additive)clearSelections();
+    render();notify('이 부분에서 선택 가능한 색상 영역을 찾지 못했습니다. 다른 영역이나 색상 선택 방식을 사용해 주세요.');
     return;
   }
-  selection={id:l.id,w:visual.width,h:visual.height,...result};
-  selectionPreview=createMaskPreview(selection);
-  const hex=rgbToHex(...result.sample);
-  $('pickedHex').value=hex;
-  $('pickedSwatch').style.backgroundColor=hex;
+  region.baseMask=region.mask;
+  reapplyMaskAmount(region);
+  if(!additive)selectionParts=[];
+  // Guard against duplicate Shift-click causing unintentionally stacked fill.
+  const duplicate=selectionParts.find(p=>p.id===region.id&&p.seed?.x===region.seed?.x&&p.seed?.y===region.seed?.y);
+  if(!duplicate)selectionParts.push(region);
+  updateSelectionPreview();
+  const hex=rgbToHex(...region.sample);
+  $('pickedHex').value=hex;$('pickedSwatch').style.backgroundColor=hex;
   refreshProperties();render();
-  notify('「'+l.name+'」 · '+result.count.toLocaleString()+'개 색상 픽셀 선택 · 다른 레이어는 보호됩니다.');
+  notify('선택 '+selectionParts.length+'개 영역 · '+region.count.toLocaleString()+'px · Shift+클릭으로 추가 선택');
 }
 overlay.addEventListener('pointerdown',e=>{
   if(!documentModel||e.button!==0||middlePan||spacePan)return;
-  const p=localPoint(e),selected=sel();
+  const p=localPoint(e),selected=sel(),additive=e.shiftKey;
   let layer;
   if($('selectedLayerOnly').checked&&selected){
     layer=selected;
     if(!hit(layer,p.x,p.y)){
-      notify('현재 레이어 「'+layer.name+'」에는 해당 위치의 픽셀이 없습니다. 왼쪽에서 올바른 레이어를 선택하거나 레이어 고정을 해제해 주세요.');
+      notify('현재 선택된 레이어에 이 위치의 색상이 없습니다. 필요하면 레이어 고정을 해제해 주세요.');
       return;
     }
   } else {
     layer=layers.slice().reverse().find(l=>hit(l,p.x,p.y));
-    if(!layer){notify('이 위치에 편집 가능한 레이어 픽셀이 없습니다.');return;}
+    if(!layer){notify('이 위치에서 선택 가능한 레이어를 찾지 못했습니다.');return;}
   }
-  if(layer.id!==selectedId)select(layer.id);
-  if(e.shiftKey){
+  // Alt-drag moves the selected layer; Shift-click is reserved for multi-select.
+  if(e.altKey){
+    if(layer.id!==selectedId)select(layer.id);
     checkpoint(layer);
     drag={id:layer.id,originX:layer.x,originY:layer.y,start:p};
     overlay.setPointerCapture(e.pointerId);
     return;
   }
+  if(layer.id!==selectedId)select(layer.id,additive);
   const pixel=pixelInLayer(layer,p.x,p.y);
   if(!pixel)return;
   if(previewMode==='composite')setPreviewMode('layers');
-  pickLayerColor(layer,pixel.x,pixel.y);
+  pickLayerColor(layer,pixel.x,pixel.y,additive);
 });
 overlay.addEventListener('pointermove',e=>{
   if(!drag)return;const l=sel();if(!l||drag.id!==l.id)return;
@@ -482,11 +500,32 @@ function syncGuides(){const l=sel(),on=$('guideOn').checked&&!!l&&!!documentMode
 $('guideOn').onchange=syncGuides;
 $('colorTolerance').oninput=e=>$('toleranceOut').textContent=e.target.value;
 function repickCurrentColor(){
-  const l=sel();if(!selection||!l||selection.id!==l.id||!selection.seed)return;
-  pickLayerColor(l,selection.seed.x,selection.seed.y);
+  if(!selectionParts.length)return;
+  const rebuilt=[];
+  for(const part of selectionParts){
+    const l=layers.find(x=>x.id===part.id);
+    if(!l||!part.seed)continue;
+    const fresh=regionAt(l,part.seed.x,part.seed.y,part.mode);
+    if(!fresh.count)continue;
+    fresh.baseMask=fresh.mask;
+    reapplyMaskAmount(fresh);
+    rebuilt.push(fresh);
+  }
+  selectionParts=rebuilt;updateSelectionPreview();refreshProperties();render();
 }
 $('colorTolerance').onchange=repickCurrentColor;
 $('connectedOnly').onchange=repickCurrentColor;
+$('selectionMode').onchange=()=>{
+  clearSelections();refreshProperties();render();
+  notify($('selectionMode').value==='asset'
+    ?'에셋 단위 선택: 연결된 요소의 그림자와 색상을 함께 조정할 수 있습니다.':'유사 색상 선택: 선택한 색상 계열만 변경합니다.');
+};
+$('clearSelection').onclick=()=>{clearSelections();refreshProperties();render();notify('선택한 영역을 해제했습니다.');};
+$('maskAdjust').oninput=e=>$('maskAdjustOut').textContent=(Number(e.target.value)>0?'+':'')+e.target.value+'px';
+$('maskAdjust').onchange=()=>{
+  for(const part of selectionParts)reapplyMaskAmount(part);
+  updateSelectionPreview();refreshProperties();render();
+};
 $('showHidden').onchange=refreshLayers;
 // Multi-stop linear gradient editor. Stops, their percentages and angle are
 // regular user-editable properties; no opaque "AI-picked" placeholder colors.

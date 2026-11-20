@@ -38,20 +38,28 @@ try{
  assert.equal(await page.locator('#variantOutputMode').inputValue(),'combo','PNG opens true multi-swatch combo mode');
  assert.equal(await page.locator('#variantDetails').getAttribute('open'),'','palette controls are already visible');
  assert.deepEqual(await pixel(2,2),[211,139,167,255]);
- await page.locator('#selectAllOpaque').click();
+ assert.equal(await page.locator('#modePalette').getAttribute('aria-pressed'),'true');
+ assert.equal(await page.locator('#singleEditor').isVisible(),false,'No misleading one-color picker beside palette presets');
+ await page.locator('#paletteSelectAll').click();
  const selected=await page.locator('#selectionInfo').textContent();
  assert.match(selected,/2,160개 픽셀 선택/,'Ctrl+A/all must omit transparent row');
- await page.locator('#clearSelection').click();
+ await page.locator('#paletteClearSelection').click();
  await page.keyboard.press('Control+a');
  assert.match(await page.locator('#selectionInfo').textContent(),/2,160개 픽셀 선택/);
- await page.locator('#clearSelection').click();
+ await page.locator('#paletteClearSelection').click();
  await page.locator('#variantColors').fill('#F2C4CC, #CEE5B7, #C9D4F1');
+ await page.locator('#variantColors').press('Control+Shift+a');
+ assert.match(await page.locator('#selectionInfo').textContent(),/2,160개 픽셀 선택/,
+   'Ctrl+Shift+A selects whole image even when palette HEX text has focus');
+ await page.locator('#paletteClearSelection').click();
  await page.locator('#variantFinish').selectOption('exact');
  await page.locator('#paletteScope').selectOption('all');
  await page.waitForFunction(()=>document.querySelectorAll('#paletteMapping .palette-map-item').length===3);
  assert.equal(await page.locator('#paletteMapping .palette-map-item').count(),3,
   'Three original color families map to three DISTINCT preset swatches');
  const colors=[[242,196,204,255],[206,229,183,255],[201,212,241,255]];
+ assert.equal(await page.locator('#paletteApply').isVisible(),true,
+   'Primary Apply action stays immediately beside the recommended preset picker');
  await page.locator('#palettePreview').click();
  assert.deepEqual(await pixel(2,2),colors[0],'First original color -> first target');
  assert.deepEqual(await pixel(36,2),colors[1],'Second original color -> second target');
@@ -63,12 +71,20 @@ try{
  assert.deepEqual(await pixel(2,2),colors[0],'Apply changes current PNG visibly');
  assert.deepEqual(await pixel(36,2),colors[1]);
  assert.deepEqual(await pixel(54,2),colors[2]);
- await page.locator('#undo').click();
+ await page.locator('#paletteUndo').click();
  assert.deepEqual(await pixel(2,2),[211,139,167,255],'Undo restores PNG');
- await page.locator('#redo').click();
+ await page.locator('#paletteRedo').click();
  assert.deepEqual(await pixel(36,2),colors[1],'Redo restores combo');
 
+ // Even if legacy mode was chosen previously, selecting a palette must
+ // restore real multi-swatch mode and non-destructively auto-preview it.
+ await page.locator('#variantOutputMode').selectOption('single');
  await page.locator('#variantPreset').selectOption({label:'버터옐로우 · 연두 · 크림'});
+ assert.equal(await page.locator('#variantOutputMode').inputValue(),'combo');
+ assert.equal(await page.locator('#paletteApply').isVisible(),true);
+ await page.waitForFunction(()=>document.querySelector('#palettePreview')?.textContent==='미리보기 해제');
+ assert.equal(await page.locator('#targetHex').isVisible(),false);
+ assert.equal(await page.locator('#targetColor').inputValue(),'#beb5ed','Palette never changes single-color picker');
  await page.waitForFunction(()=>document.querySelectorAll('#paletteMapping .palette-map-item').length===3);
  await page.locator('#paletteZipCount').selectOption('4');
  const beforeExport=await pixel(2,2);

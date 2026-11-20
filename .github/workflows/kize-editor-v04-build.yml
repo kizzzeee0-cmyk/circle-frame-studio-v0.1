@@ -1,7 +1,7 @@
 name: KIZE DESIGN TOOL - Windows Build & Startup Check
 on:
   push:
-    branches: [kize-v0.9.0-group-vector-mask, kize-v0.13.0-palette-combination-apply]
+    branches: [kize-v0.9.0-group-vector-mask, kize-v0.14.0-selection-palette-primary]
   pull_request:
     branches: [kize-v0.9.0-group-vector-mask]
     paths:
@@ -191,7 +191,7 @@ jobs:
       - name: Upload Windows setup
         uses: actions/upload-artifact@v4
         with:
-          name: KIZE-DESIGN-TOOL-v0.13.0-Windows
+          name: KIZE-DESIGN-TOOL-v0.14.0-Windows
           path: kize-desktop/src-tauri/target/release/bundle/nsis/*setup.exe
           if-no-files-found: error
           retention-days: 30

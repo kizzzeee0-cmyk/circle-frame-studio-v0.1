@@ -72,23 +72,31 @@ export function installPaletteController(api){
         '팔레트 '+map.source.length+'색이 각각 다른 원본 색상에 대응합니다. ZIP은 결과물 저장용이고, 화면에서 바꾸려면 ‘조합 적용’을 누르세요.';
     }catch(e){caption.textContent=e?.message||String(e);box.append(caption);}
   }
-  function schedule(){
+  function schedule({preview=false}={}){
     dismiss();
     clearTimeout(timer);
-    timer=setTimeout(()=>{timer=null;updateMapping();},180);
+    timer=setTimeout(()=>{
+      timer=null;updateMapping();
+      if(preview&&combo()&&api.canUse())previewOrApply(false);
+    },280);
   }
   function refresh(){
     const isCombo=combo();
     $('paletteComboPanel').hidden=!isCombo;
     $('exportVariants').textContent=isCombo
-      ?'팔레트 조합 PNG를 ZIP에 저장 (화면에 적용되지 않음)'
-      :'색상별 단색 시안 ZIP 저장 (색상마다 PNG 1개)';
+      ?'현재 조합을 PNG ZIP으로 저장 (화면에는 미적용)'
+      :'기존 단색 PNG 시안 ZIP 저장';
+    $('paletteApply').disabled=!isCombo;
+    $('paletteApply').title=isCombo
+      ?'현재 PNG에 팔레트 여러 색을 동시에 적용합니다.'
+      :'여러 색을 동시에 바꾸려면 변경할 방식을 전체 조합으로 선택하세요.';
     schedule();
   }
   function transform(source,plan){
     return applyPaletteMap(source.rgba,source.width,source.height,plan.map,{mask:source.mask});
   }
   function previewOrApply(commit){
+    if(!combo()){api.notify('전체 팔레트 조합 모드에서 적용해 주세요.');return;}
     if(!commit&&active){
       dismiss();api.notify('미리보기 해제 · 원본 PNG는 변경되지 않았습니다.');return;
     }
@@ -108,7 +116,7 @@ export function installPaletteController(api){
         api.commit(source.layerId,{width:source.width,height:source.height,data:result.data},result.changed);
         api.notify('팔레트 조합 적용 완료 · '+result.changed.toLocaleString()+
           '픽셀 변경 · 원본 크기와 투명도 유지 · Ctrl+Z로 되돌릴 수 있어요.');
-        schedule();
+        updateMapping();
       }
     }catch(e){api.notify('팔레트 적용: '+(e?.message||e));}
   }
@@ -171,8 +179,21 @@ export function installPaletteController(api){
     'variantSoftnessNumber','paletteScope','paletteProtectNeutrals',
     'palettePreserveTone']){
     const el=$(id);
-    el.addEventListener('input',schedule);
-    el.addEventListener('change',schedule);
+    const handler=e=>{
+      if(e.target.id==='variantPreset'&&api.canUse()){
+        // A palette preset means a MULTI-SWATCH combination, regardless of a
+        // last-used legacy "single color for each PNG" setting.
+        if($('variantOutputMode').value!=='combo'){
+          $('variantOutputMode').value='combo';
+          $('paletteComboPanel').hidden=false;
+          $('exportVariants').textContent='현재 조합을 PNG ZIP으로 저장 (화면에는 미적용)';
+          $('paletteApply').disabled=false;
+        }
+        schedule({preview:true});
+      }else schedule();
+    };
+    el.addEventListener('input',handler);
+    el.addEventListener('change',handler);
   }
   $('palettePreview').onclick=()=>previewOrApply(false);
   $('paletteApply').onclick=()=>previewOrApply(true);

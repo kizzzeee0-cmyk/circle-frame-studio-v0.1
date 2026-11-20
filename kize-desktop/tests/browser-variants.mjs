@@ -45,6 +45,10 @@ try{
    document.querySelector('#importReport')?.textContent||''),null,{timeout:60000});
  await page.locator('#zoomActual').click();
  assert.equal(await page.locator('#zoomLabel').textContent(),'100%');
+ await page.locator('#selectAllOpaque').click();
+ assert.match(await page.locator('#selectionInfo').textContent(),/2개 영역/,
+   'Ctrl+A/full selection must include visible pixels of both PSD layers');
+ await page.locator('#clearSelection').click();
  // PSD composite's original appearance stays unmodified by batch extraction.
  const pixel=async(x,y)=>page.evaluate(([x,y])=>
    Array.from(document.querySelector('#renderCanvas').getContext('2d').getImageData(x,y,1,1).data),[x,y]);
@@ -54,7 +58,8 @@ try{
  const box=await page.locator('#overlayCanvas').boundingBox();
  await page.mouse.click(box.x+6.5*box.width/w,box.y+6.5*box.height/h);
  assert.match(await page.locator('#selectionInfo').textContent(),/영역/);
- await page.locator('.variant-details summary').click();
+ await page.locator('#modePalette').click();
+ assert.equal(await page.locator('#variantOutputMode').inputValue(),'single','PSD retains advanced per-color ZIP mode');
  await page.locator('#variantColors').fill('#AA0000, #0000AA');
  const [download]=await Promise.all([page.waitForEvent('download',{timeout:60000}),
    page.locator('#exportVariants').click()]);

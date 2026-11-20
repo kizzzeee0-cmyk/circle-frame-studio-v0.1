@@ -725,10 +725,16 @@ function hit(l,x,y){
 function regionAt(l,px,py,mode){
   if(l.clippingUnresolved)throw Error('PSD 클리핑 기준 레이어를 확인하지 못했습니다. 안전한 색상 변경을 위해 선택을 차단했습니다.');
   const visual=layerImage(l),image=toImageData(visual);
+  // Treat pixels hidden by PSD masks/clipping as TRANSPARENT before flood-fill.
+  // Otherwise two visible assets may be accidentally connected through a
+  // concealed run of identical RGB pixels in the original layer bitmap.
+  const hasMatte=Boolean(l.maskSpecs?.length||l.clipBaseId);
+  const input=hasMatte?maskedLayerRgba(image.data,visual.width,visual.height,l,
+    id=>layers.find(v=>v.id===id)):image.data;
   const options={tolerance:Number($('colorTolerance').value),connected:$('connectedOnly').checked};
   const result=mode==='asset'
-    ?selectAssetRegion(image.data,visual.width,visual.height,px,py,options)
-    :colorSelection(image.data,visual.width,visual.height,px,py,options);
+    ?selectAssetRegion(input,visual.width,visual.height,px,py,options)
+    :colorSelection(input,visual.width,visual.height,px,py,options);
   const mask=constrainSelection(result.mask,visual.width,visual.height,l,
     id=>layers.find(x=>x.id===id));
   const bounds=maskBounds(mask.mask,visual.width,visual.height);

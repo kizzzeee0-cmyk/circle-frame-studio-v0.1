@@ -26,7 +26,17 @@ interface Props {
 }
 
 export default function TimelinePanel(props: Props) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      const raw = localStorage.getItem('circle-frame-studio-timeline-collapsed-v034')
+      return raw === null ? true : raw === '1'
+    } catch { return true }
+  })
+  const toggleCollapsed = () => setCollapsed(value => {
+    const next = !value
+    try { localStorage.setItem('circle-frame-studio-timeline-collapsed-v034', next ? '1' : '0') } catch { /* ignore */ }
+    return next
+  })
   const dragRef = useRef<{
     id: string
     mode: 'move' | 'start' | 'end' | 'intro-end' | 'outro-start'
@@ -139,7 +149,7 @@ export default function TimelinePanel(props: Props) {
         {props.selectedMediaIds.length > 0 && <button type="button" onClick={props.onSplitSelected} title="현재 재생 헤드 위치에서 선택 클립을 둘로 나눕니다">재생점 분할</button>}
         {props.selectedMediaIds.length > 0 && <button type="button" onClick={props.onFitSelected} title="선택 클립을 프로젝트 전체 길이에 맞춥니다">전체 길이</button>}
         <span className="timeline-help">클립 이동 · 양끝 길이 조절</span>
-        <button type="button" onClick={() => setCollapsed(value => !value)}>{collapsed ? '펼치기' : '접기'}</button>
+        <button type="button" onClick={toggleCollapsed}>{collapsed ? '펼치기' : '접기'}</button>
       </div>
     </div>
 

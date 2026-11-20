@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build"
+    "deploy": "npm run build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@upng/upng-js": "2.2.2",

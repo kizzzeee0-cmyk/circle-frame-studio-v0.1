@@ -1009,3 +1009,288 @@ body { background: #F3F0F2; }
   font-weight: 800;
   cursor: pointer;
 }
+
+
+/* v0.32 — direct manipulation, multi-select, timeline editing */
+.media-selection-head {
+  align-items: center;
+}
+.media-selection-head > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.media-selection-actions {
+  display: flex;
+  gap: 4px;
+}
+.media-selection-actions button,
+.multi-selection-bar button {
+  border: 1px solid #E4DEEC;
+  border-radius: 7px;
+  background: #FFFFFF;
+  padding: 4px 6px;
+  font-size: 8px;
+  cursor: pointer;
+}
+.multi-selection-bar {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 7px;
+  padding: 7px;
+  border: 1px solid #DDD3F2;
+  border-radius: 9px;
+  background: linear-gradient(90deg,#F5F1FF,#FFFBE9);
+}
+.multi-selection-bar strong { font-size: 9px; color: #62577E; }
+.multi-selection-bar small { text-align: right; font-size: 7.5px; color: #948C9C; }
+
+.media-layer-card {
+  grid-template-columns: 18px 28px minmax(0,1fr) auto;
+}
+.media-layer-card.primary {
+  box-shadow: inset 3px 0 0 #8D7DD3, inset 0 0 0 1px rgba(149,134,217,.07);
+}
+.media-select-box {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #D9D2E7;
+  border-radius: 5px;
+  background: #FFF;
+  color: #7362BF;
+  font-size: 9px;
+  font-weight: 900;
+}
+.media-layer-card.active .media-select-box {
+  border-color: #A99ADE;
+  background: #EEE9FF;
+}
+.media-group-badge {
+  display: inline-flex;
+  margin-top: 3px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #FFF4C9;
+  color: #8A7040;
+  font-style: normal;
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.multi-edit-section {
+  background: linear-gradient(180deg,rgba(245,241,255,.72),rgba(255,251,232,.35));
+}
+.multi-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 5px;
+  margin-bottom: 9px;
+}
+.multi-edit-grid button {
+  border: 1px solid #E2DCEB;
+  border-radius: 8px;
+  background: #FFF;
+  padding: 7px 4px;
+  font-size: 8.5px;
+  cursor: pointer;
+}
+.multi-edit-grid button:hover {
+  border-color: #BFB2E8;
+  background: #F8F5FF;
+}
+
+.checkerboard {
+  position: relative;
+}
+.checkerboard canvas {
+  position: relative;
+  z-index: 1;
+}
+.transform-box {
+  position: absolute;
+  z-index: 8;
+  border: 1.5px solid #7967CF;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.8), 0 0 12px rgba(105,88,190,.12);
+  cursor: move;
+  transform-origin: center center;
+  touch-action: none;
+}
+.transform-box.multi {
+  border-style: dashed;
+  border-color: #705FC5;
+  background: rgba(151,132,222,.025);
+}
+.transform-handle {
+  position: absolute;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  background: #7867CD;
+  box-shadow: 0 1px 5px rgba(60,45,105,.25);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.transform-handle.nw { left: -7px; top: -7px; }
+.transform-handle.ne { right: -7px; top: -7px; cursor: nesw-resize; }
+.transform-handle.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.transform-handle.se { right: -7px; bottom: -7px; }
+.transform-rotate-handle {
+  position: absolute;
+  left: 50%;
+  top: -34px;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid #FFF;
+  border-radius: 50%;
+  background: #7867CD;
+  color: #FFF;
+  box-shadow: 0 2px 7px rgba(55,42,95,.22);
+  font-size: 12px;
+  cursor: grab;
+  touch-action: none;
+}
+.transform-rotate-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  width: 1px;
+  height: 12px;
+  background: #7867CD;
+}
+.transform-count {
+  position: absolute;
+  right: -5px;
+  top: -27px;
+  min-width: 21px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #6F5EC1;
+  color: #FFF;
+  font-size: 8px;
+  font-weight: 800;
+}
+.smart-guide {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  background: #E9A8C9;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.7);
+}
+.smart-guide.vertical {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+.smart-guide.horizontal {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+.canvas-selection-chip {
+  position: absolute;
+  z-index: 9;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  transform: translate(-50%,-50%);
+  border: 1px solid #FFF;
+  border-radius: 50%;
+  background: #B5A7E8;
+  opacity: .7;
+  pointer-events: auto;
+}
+.canvas-selection-chip.primary {
+  width: 10px;
+  height: 10px;
+  background: #705FC8;
+  opacity: 1;
+}
+.canvas-mini-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 3px;
+  font-size: 8px;
+  color: #776F80;
+}
+.canvas-view-controls select {
+  border: 0;
+  border-radius: 6px;
+  background: #F6F3FB;
+  padding: 4px 5px;
+  font-size: 8px;
+  color: #6E657A;
+}
+
+.timeline-help {
+  font-size: 7.5px;
+  color: #9A92A3;
+}
+.timeline-track {
+  user-select: none;
+}
+.timeline-track.primary {
+  box-shadow: inset 2px 0 0 #8172CF;
+}
+.timeline-track-rail {
+  overflow: visible;
+}
+.timeline-clip {
+  cursor: grab;
+  touch-action: none;
+  min-width: 12px;
+}
+.timeline-clip:active { cursor: grabbing; }
+.timeline-trim-handle {
+  position: absolute;
+  z-index: 4;
+  top: -2px;
+  bottom: -2px;
+  width: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: #7665C4;
+  cursor: ew-resize;
+  opacity: 0;
+  transition: opacity .12s ease;
+  touch-action: none;
+}
+.timeline-clip:hover .timeline-trim-handle,
+.timeline-track.active .timeline-trim-handle {
+  opacity: 1;
+}
+.timeline-trim-handle.start { left: -3px; }
+.timeline-trim-handle.end { right: -3px; }
+.timeline-clip-time {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  color: #62587A;
+  font-size: 7px;
+  font-weight: 700;
+  pointer-events: none;
+  text-shadow: 0 1px rgba(255,255,255,.8);
+}
+.export-audio-toggle {
+  padding: 8px 9px;
+  border: 1px solid #E6E0EC;
+  border-radius: 9px;
+  background: #FAF9FC;
+}

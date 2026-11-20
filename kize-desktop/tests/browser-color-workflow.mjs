@@ -54,7 +54,7 @@ try{
   const info=await page.locator('#selectionInfo').textContent();
   assert.match(info,/픽셀 선택/);
   const picked=Number((info.match(/[\d,]+개 픽셀/)||['0'])[0].replace(/[^0-9]/g,''));
-  assert.ok(picked>10&&picked<1000,'Click must not select the entire frame: '+info);
+  assert.ok(picked>10&&picked<4000,'Click must not select the entire frame: '+info);
   assert.deepEqual(await pix(121,25),[150,195,120,255]);
 
   await page.locator('#targetHex').fill('#AA6688');

@@ -28,7 +28,7 @@ export function validateManifest(m){
     if(layer.photoBitmap&&!safe(layer.photoBitmap))
       throw Error('교체 사진의 파일명이 잘못되었습니다.');
     if(layer.maskFiles!==undefined){
-      if(!Array.isArray(layer.maskFiles)||layer.maskFiles.length>2)
+      if(!Array.isArray(layer.maskFiles)||layer.maskFiles.length>3)
         throw Error('PSD 레이어 마스크가 잘못되었습니다.');
       for(const mask of layer.maskFiles){
         if(!safe(mask.bitmap)||!Number.isInteger(mask.w)||!Number.isInteger(mask.h)||
@@ -36,6 +36,24 @@ export function validateManifest(m){
           mask.w<1||mask.h<1||mask.w*mask.h>40_000_000||
           ![0,255].includes(mask.defaultColor)||!Number.isFinite(mask.density))
           throw Error('PSD 레이어 마스크의 크기·좌표 또는 투명도가 잘못되었습니다.');
+      }
+    }
+  }
+  if(m.psdGroupMasks!==undefined){
+    if(!Array.isArray(m.psdGroupMasks)||m.psdGroupMasks.length>250)
+      throw Error('PSD 그룹 마스크 정보가 너무 많거나 잘못되었습니다.');
+    const keys=new Set();
+    for(const group of m.psdGroupMasks){
+      if(!group||typeof group.key!=='string'||group.key.length>200||!group.key||
+        keys.has(group.key)||!Array.isArray(group.maskFiles)||group.maskFiles.length>3)
+        throw Error('PSD 그룹 마스크 정보가 손상되었거나 중복되었습니다.');
+      keys.add(group.key);
+      for(const mask of group.maskFiles){
+        if(!safe(mask.bitmap)||!Number.isInteger(mask.w)||!Number.isInteger(mask.h)||
+          mask.w<1||mask.h<1||mask.w*mask.h>16_000_000||
+          !Number.isFinite(mask.x)||!Number.isFinite(mask.y)||
+          ![0,255].includes(mask.defaultColor)||!Number.isFinite(mask.density))
+          throw Error('PSD 그룹 마스크의 이미지 크기 또는 값이 잘못되었습니다.');
       }
     }
   }
@@ -70,6 +88,9 @@ export function createArchive(manifest,images){
       throw Error('PSD 레이어 마스크 파일이 누락되었습니다: '+l.name);
   }
   if(manifest.composite&&!entries[manifest.composite])throw Error('PSD 원본 미리보기가 누락되었습니다.');
+  for(const group of manifest.psdGroupMasks||[])
+    for(const mask of group.maskFiles||[])
+      if(!entries[mask.bitmap])throw Error('PSD 그룹 마스크 파일이 누락되었습니다: '+group.name);
   for(const patch of manifest.appearancePatches||[])if(!entries[patch.bitmap])throw Error('PSD 외관 보존 편집 이미지가 누락되었습니다.');
   return zipSync(entries,{level:0});
 }
@@ -89,7 +110,7 @@ export function readArchive(input){
   if(!files['manifest.json'])throw Error('KIZE 프로젝트 정보를 찾지 못했습니다.');
   const manifest=validateManifest(JSON.parse(strFromU8(files['manifest.json'])));
   const names=[...manifest.layers.flatMap(l=>[l.bitmap,...(l.photoBitmap?[l.photoBitmap]:[]),
-    ...(l.maskFiles||[]).map(mask=>mask.bitmap)]),...(manifest.composite?[manifest.composite]:[]),...(manifest.appearancePatches||[]).map(p=>p.bitmap)];
+    ...(l.maskFiles||[]).map(mask=>mask.bitmap)]),...(manifest.psdGroupMasks||[]).flatMap(g=>(g.maskFiles||[]).map(m=>m.bitmap)),...(manifest.composite?[manifest.composite]:[]),...(manifest.appearancePatches||[]).map(p=>p.bitmap)];
   for(const name of names)if(!isPng(files[name]))throw Error('레이어 이미지가 없거나 손상되었습니다: '+name);
   return {manifest,images:files};
 }

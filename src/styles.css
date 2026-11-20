@@ -988,3 +988,12 @@ body { background: #F3F0F2; }
 @media (max-width: 1300px) {
   .composer-workspace { grid-template-columns: 300px minmax(520px,1fr) 330px; }
 }
+
+.top-export-resolution {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #FFF;
+  padding: 7px 6px;
+  font-size: 10px;
+  color: #6F6878;
+}

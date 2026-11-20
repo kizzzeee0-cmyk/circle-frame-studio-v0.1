@@ -23,6 +23,7 @@ let originalComposite=null,previewMode='layers',hasLayerEdits=false;
 // still use the explicitly marked reconstructed view.
 let appearancePatches=[],appearanceSafe=true;
 let psdCompatibilityReport=null,lastFidelityAudit=null;
+let psdGroupMasks=[];
 const collapsedPsdGroups=new Set();
 let nextId=1;
 let selectionPreview=null,selectionParts=[];
@@ -86,7 +87,7 @@ function updateSelectionPreview(){
 }
 
 function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];appearanceSafe=true;
-  psdCompatibilityReport=null;lastFidelityAudit=null;collapsedPsdGroups.clear();
+  psdCompatibilityReport=null;lastFidelityAudit=null;psdGroupMasks=[];collapsedPsdGroups.clear();
   $('psdFidelityPanel').hidden=true;previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
@@ -131,7 +132,7 @@ async function importPsd(file){
   showImportReport('', 'normal');
   // Worker parses the PSD and transfers the layer buffers back without copying.
   const result=await readPsdInBackground(file);
-  const {header,layers:rawLayers,composite,warnings,decodedCount,layerTotal,skippedCount,compatibilityReport}=result;
+  const {header,layers:rawLayers,groupMasks=[],composite,warnings,decodedCount,layerTotal,skippedCount,compatibilityReport}=result;
   const built=rawLayers.map(pl=>newLayer({
     name:pl.name,type:pl.type,x:pl.x,y:pl.y,w:pl.w,h:pl.h,
     visible:!pl.hidden,opacity:normOpacity(pl.opacity),
@@ -140,6 +141,7 @@ async function importPsd(file){
     maskSpecs:pl.maskSpecs||[],maskDecodeFailed:Boolean(pl.maskDecodeFailed),
     unsupportedVectorMask:Boolean(pl.unsupportedVectorMask),
     unsupportedGroupMask:Boolean(pl.unsupportedGroupMask),
+    ancestorGroupKeys:pl.ancestorGroupKeys||[],
     clipBaseKey:pl.clippingBaseKey||null,clippingUnresolved:Boolean(pl.clippingUnresolved),
     sourceKey:pl.sourceKey||null,
     psdText:pl.psdText||null,textValue:pl.psdText?.text||'',
@@ -148,6 +150,13 @@ async function importPsd(file){
     textColor:rgbToHex(pl.psdText?.style?.fillColor?.r??50,pl.psdText?.style?.fillColor?.g??50,pl.psdText?.style?.fillColor?.b??50),
   }));
   built.reverse(); // Photoshop layer list is highest layer first.
+  psdGroupMasks=groupMasks;
+  const groupMap=new Map(groupMasks.map(g=>[g.key,g]));
+  for(const l of built){
+    l.groupMaskSpecs=(l.ancestorGroupKeys||[]).flatMap(k=>groupMap.get(k)?.maskSpecs||[]);
+    if((l.ancestorGroupKeys||[]).some(k=>groupMap.get(k)?.failed))
+      l.unsupportedGroupMask=true;
+  }
   const bySource=new Map(built.map(l=>[l.sourceKey,l]));
   for(const l of built){
     if(l.clipBaseKey){
@@ -251,6 +260,21 @@ async function importCompactProject(file){
       adjust:{...defaultAdjust(),...(props.adjust||{})}}));
   }
   const reference=manifest.composite?await pngBytesToCanvas(images[manifest.composite]):null;
+  const restoredGroupMasks=[];
+  for(const group of manifest.psdGroupMasks||[]){
+    const maskSpecs=[];
+    for(const entry of group.maskFiles||[]){
+      const image=await pngBytesToCanvas(images[entry.bitmap]);
+      if(image.width!==entry.w||image.height!==entry.h)
+        throw Error('그룹 마스크 크기가 프로젝트 정보와 일치하지 않습니다.');
+      const rgba=toImageData(image).data,pixels=new Uint8Array(image.width*image.height);
+      for(let k=0;k<pixels.length;k++)pixels[k]=rgba[k*4];
+      const {bitmap,...props}=entry;
+      maskSpecs.push({...props,pixels});
+    }
+    restoredGroupMasks.push({key:group.key,name:group.name,maskSpecs,
+      failed:Boolean(group.failed),vectorUnsupported:Boolean(group.vectorUnsupported)});
+  }
   const loadedPatches=[];
   for(const item of manifest.appearancePatches||[]){
     const bmp=await pngBytesToCanvas(images[item.bitmap]);
@@ -260,6 +284,12 @@ async function importCompactProject(file){
   }
   openDoc(manifest.width,manifest.height,manifest.name||file.name,'KIZE');
   layers=loaded;
+  psdGroupMasks=restoredGroupMasks;
+  const groupIndex=new Map(psdGroupMasks.map(g=>[g.key,g]));
+  for(const l of loaded){
+    l.groupMaskSpecs=(l.ancestorGroupKeys||[]).flatMap(k=>groupIndex.get(k)?.maskSpecs||[]);
+    if((l.ancestorGroupKeys||[]).some(k=>groupIndex.get(k)?.failed))l.unsupportedGroupMask=true;
+  }
   for(const l of loaded){
     if(l.clipBaseId!==undefined&&l.clipBaseId!==null){
       const base=loaded.find(a=>a.id===l.clipBaseId);
@@ -1118,7 +1148,7 @@ $('saveProject').onclick=async()=>{
         const {pixels,...maskMeta}=mask;
         maskFiles.push({...maskMeta,bitmap:maskImage});
       }
-      const {canvas,photoSource,psdText,maskSpecs,alphaPixels,...properties}=l;
+      const {canvas,photoSource,psdText,maskSpecs,groupMaskSpecs,alphaPixels,...properties}=l;
       meta.push({...properties,bitmap,...(photoBitmap?{photoBitmap}:{}),
         ...(maskFiles.length?{maskFiles}:{}),
         // Preserve editable text metadata without including binary PSD structures.
@@ -1128,6 +1158,22 @@ $('saveProject').onclick=async()=>{
     if(originalComposite){
       composite='reference/psd-merged.png';
       images[composite]=await canvasToPngBytes(originalComposite);
+    }
+    const groupManifest=[];
+    for(let i=0;i<psdGroupMasks.length;i++){
+      const group=psdGroupMasks[i],maskFiles=[];
+      for(let k=0;k<(group.maskSpecs||[]).length;k++){
+        const spec=group.maskSpecs[k],bitmap='groups/'+String(i).padStart(4,'0')+'-'+k+'.png';
+        const rgba=new Uint8ClampedArray(spec.w*spec.h*4);
+        for(let p=0;p<spec.pixels.length;p++){
+          rgba[p*4]=rgba[p*4+1]=rgba[p*4+2]=spec.pixels[p];rgba[p*4+3]=255;
+        }
+        images[bitmap]=await canvasToPngBytes(pixelCanvas({width:spec.w,height:spec.h,data:rgba}));
+        const {pixels,...meta}=spec;
+        maskFiles.push({...meta,bitmap});
+      }
+      groupManifest.push({key:group.key,name:group.name,failed:group.failed,
+        vectorUnsupported:group.vectorUnsupported,maskFiles});
     }
     const appearanceManifest=[];
     if(appearancePatches.length>256)throw Error('외관 보존 편집이 256개를 초과했습니다. PNG로 출력하거나 여러 프로젝트로 나누어 주세요.');
@@ -1139,11 +1185,12 @@ $('saveProject').onclick=async()=>{
     }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.8.0',
+      appVersion:'0.9.0',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,
       ...(psdCompatibilityReport?{psdCompatibilityReport}:{}),
+      ...(groupManifest.length?{psdGroupMasks:groupManifest}:{}),
       layers:meta,...(composite?{composite}:{}),
       ...(appearanceManifest.length?{appearancePatches:appearanceManifest}:{}),
     };

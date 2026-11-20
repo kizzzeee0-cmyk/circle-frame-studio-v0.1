@@ -341,6 +341,7 @@ export default function App() {
   const coalesceRef = useRef<{ key: string; time: number }>({ key: '', time: 0 })
   const fileInput = useRef<HTMLInputElement>(null)
   const bundleInput = useRef<HTMLInputElement>(null)
+  const mediaClipboardRef = useRef<MediaLayer[]>([])
 
   const commit = useCallback((updater: (draft: FrameProject) => FrameProject) => {
     setProject(prev => {
@@ -912,6 +913,31 @@ export default function App() {
     setSelectedMediaId(copies[0]?.id ?? '')
   }
 
+  const copySelectedMedia = () => {
+    mediaClipboardRef.current = (project.mediaLayers ?? [])
+      .filter(layer => selectedMediaIds.includes(layer.id))
+      .map(layer => structuredClone(layer))
+  }
+
+  const pasteMediaClipboard = () => {
+    if (!mediaClipboardRef.current.length) return
+    const copies = mediaClipboardRef.current.map(layer => ({
+      ...structuredClone(layer),
+      id: uid('media'),
+      name: layer.name + ' Copy',
+      x: layer.x + 24,
+      y: layer.y + 24,
+      groupId: '',
+    }))
+    commit(draft => {
+      draft.mediaLayers = [...copies, ...(draft.mediaLayers ?? [])]
+      return draft
+    })
+    mediaClipboardRef.current = copies.map(layer => structuredClone(layer))
+    setSelectedMediaIds(copies.map(layer => layer.id))
+    setSelectedMediaId(copies[0]?.id ?? '')
+  }
+
   const groupSelectedMedia = () => {
     const ids = selectedMediaIds.filter(id => (project.mediaLayers ?? []).some(layer => layer.id === id))
     if (ids.length < 2) return
@@ -1102,6 +1128,16 @@ export default function App() {
         setSelectedMediaId(ids[0] ?? '')
         return
       }
+      if (meta && key === 'c' && selectedMediaIds.length) {
+        event.preventDefault()
+        copySelectedMedia()
+        return
+      }
+      if (meta && key === 'v' && mediaClipboardRef.current.length) {
+        event.preventDefault()
+        pasteMediaClipboard()
+        return
+      }
       if (meta && key === 'd' && selectedMediaIds.length) {
         event.preventDefault()
         duplicateSelectedMedia()
@@ -1154,6 +1190,19 @@ export default function App() {
           <button className="project-package-button" onClick={() => bundleInput.current?.click()}>프로젝트 불러오기</button>
           <input ref={bundleInput} hidden type="file" accept=".cfszip,application/zip" onChange={e => void importPortable(e.target.files?.[0])} />
           <button onClick={() => setRecentOpen(true)}>최근 저장 내역</button>
+          <details className="toolbar-more shortcut-menu">
+            <summary>단축키</summary>
+            <div className="shortcut-menu-body">
+              <span><b>Ctrl/⌘ + C / V</b> 선택 요소 복사 / 붙여넣기</span>
+              <span><b>Ctrl/⌘ + D</b> 선택 요소 복제</span>
+              <span><b>Ctrl/⌘ + G</b> 그룹 · Shift 추가 시 해제</span>
+              <span><b>Delete</b> 선택 요소 삭제</span>
+              <span><b>방향키</b> 1px 이동 · Shift 10px</span>
+              <span><b>Space</b> 타임라인 재생 / 일시정지</span>
+              <span><b>Ctrl/⌘ + A</b> 미디어 전체 선택</span>
+              <span><b>Esc</b> 선택 해제</span>
+            </div>
+          </details>
           <details className="toolbar-more">
             <summary>기타</summary>
             <div>

@@ -134,7 +134,105 @@ export default function CanvasPanel({
 
   const wheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault()
-    setZoom(value => Math.max(.35, Math.min(3, value * (event.deltaY > 0 ? .90 : 1.10))))
+    setZoom(value => Math.max(.25, Math.min(4, value * (event.deltaY > 0 ? .90 : 1.10))))
+  }
+
+  const projectPerScreen = () => {
+    const rect = checkerRef.current?.getBoundingClientRect()
+    if (!rect) return 1
+    return project.width / Math.max(1, rect.width * fitScale)
+  }
+
+  const screenPointForProject = (x: number, y: number) => {
+    const rect = checkerRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    const factor = rect.width * fitScale / project.width
+    return {
+      x: rect.left + rect.width / 2 + x * factor,
+      y: rect.top + rect.height / 2 + y * factor,
+    }
+  }
+
+  const beginTransform = (event: PointerEvent, mode: 'move' | 'resize' | 'rotate') => {
+    if (!selectedLayers.length || selectedLayers.some(layer => layer.locked)) return
+    const currentBounds = selectionBounds(selectedLayers)
+    if (!currentBounds) return
+    event.preventDefault()
+    event.stopPropagation()
+    const center = screenPointForProject(currentBounds.x, currentBounds.y)
+    const dx = event.clientX - center.x
+    const dy = event.clientY - center.y
+    onBeginTransform?.()
+    transformRef.current = {
+      mode,
+      startX: event.clientX,
+      startY: event.clientY,
+      centerX: currentBounds.x,
+      centerY: currentBounds.y,
+      startDistance: Math.max(8, Math.hypot(dx, dy)),
+      startAngle: Math.atan2(dy, dx),
+      layers: selectedLayers.map(layer => ({ ...layer })),
+    }
+    ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+  }
+
+  const snapPosition = (value: number, axis: 'x' | 'y') => {
+    if (!settings.snapEnabled) return value
+    const threshold = 14 * projectPerScreen()
+    if (Math.abs(value) <= threshold) {
+      setGuide(prev => ({ ...prev, [axis]: true }))
+      return 0
+    }
+    const size = Math.max(1, settings.snapSize)
+    return Math.round(value / size) * size
+  }
+
+  const transformMove = (event: PointerEvent) => {
+    const session = transformRef.current
+    if (!session || !onTransformMedia) return
+    setGuide({ x: false, y: false })
+
+    if (session.mode === 'move') {
+      const factor = projectPerScreen()
+      let dx = (event.clientX - session.startX) * factor
+      let dy = (event.clientY - session.startY) * factor
+      const targetX = snapPosition(session.centerX + dx, 'x')
+      const targetY = snapPosition(session.centerY + dy, 'y')
+      dx = targetX - session.centerX
+      dy = targetY - session.centerY
+      onTransformMedia(session.layers.map(layer => ({ id: layer.id, x: layer.x + dx, y: layer.y + dy })))
+      return
+    }
+
+    const center = screenPointForProject(session.centerX, session.centerY)
+    const dx = event.clientX - center.x
+    const dy = event.clientY - center.y
+
+    if (session.mode === 'resize') {
+      const ratio = Math.max(.03, Math.hypot(dx, dy) / session.startDistance)
+      onTransformMedia(session.layers.map(layer => ({
+        id: layer.id,
+        x: session.centerX + (layer.x - session.centerX) * ratio,
+        y: session.centerY + (layer.y - session.centerY) * ratio,
+        scale: Math.max(.02, layer.scale * ratio),
+      })))
+      return
+    }
+
+    const angle = Math.atan2(dy, dx)
+    const delta = angle - session.startAngle
+    const degrees = delta * 180 / Math.PI
+    onTransformMedia(session.layers.map(layer => {
+      const point = rotatePoint(layer.x, layer.y, session.centerX, session.centerY, delta)
+      return { id: layer.id, x: point.x, y: point.y, rotation: layer.rotation + degrees }
+    }))
+  }
+
+  const endTransform = (event: PointerEvent) => {
+    if (!transformRef.current) return
+    transformRef.current = null
+    setGuide({ x: false, y: false })
+    try { (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId) } catch { /* ignore */ }
   }
 
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {

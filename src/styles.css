@@ -1432,3 +1432,23 @@ body { background: #F3F0F2; }
 .canvas-layer-hitbox.selected {
   box-shadow: inset 0 0 0 1px rgba(126,104,203,.18);
 }
+
+
+/* v0.32 — shortcut menu */
+.shortcut-menu > div.shortcut-menu-body {
+  min-width: 250px;
+  gap: 0;
+  padding: 7px;
+}
+.shortcut-menu-body span {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 7px;
+  border-bottom: 1px solid #F0EDF3;
+  color: #716979;
+  font-size: 8.5px;
+  white-space: nowrap;
+}
+.shortcut-menu-body span:last-child { border-bottom: 0; }
+.shortcut-menu-body b { color: #5D527A; font-size: 8px; }

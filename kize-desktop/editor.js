@@ -611,7 +611,12 @@ function drawOverlay(){
     oc.strokeRect(-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
     oc.restore();
   }
-  const l=sel();if(!l)return;
+  // Selection tint represents editable pixels, NOT the PNG layer's bounding
+  // rectangle. A single imported PNG has one full-canvas layer; drawing its
+  // entire dashed box made every click look like a whole-image selection.
+  const l=sel();if(!l||selectionParts.length)return;
+  if(documentModel?.kind==='IMAGE'&&l.x===0&&l.y===0&&
+     l.w===documentModel.width&&l.h===documentModel.height)return;
   oc.save();oc.translate(l.x+l.w/2,l.y+l.h/2);
   oc.rotate(l.rotation*Math.PI/180);
   oc.scale(l.flipH?-1:1,l.flipV?-1:1);
@@ -891,7 +896,10 @@ function pickLayerColor(l,px,py,additive=false){
   const hex=rgbToHex(...region.sample);
   $('pickedHex').value=hex;$('pickedSwatch').style.backgroundColor=hex;
   refreshProperties();render();
-  notify('선택 '+selectionParts.length+'개 영역 · '+region.count.toLocaleString()+'px · Shift+클릭으로 추가 선택');
+  const percentage=Math.round(region.count*100/(region.w*region.h));
+  notify('선택 '+selectionParts.length+'개 영역 · '+region.count.toLocaleString()+'px ('+percentage+'%) · Shift+클릭으로 추가 선택');
+  if(percentage>=55&&region.mode==='asset')
+    $('workflowStatus').textContent='선택이 매우 넓습니다. 프레임 일부만 바꾸려면 선택 범위를 ‘클릭한 색상만’으로 바꿔 주세요.';
 }
 overlay.addEventListener('pointerdown',e=>{
   if(!documentModel||e.button!==0||middlePan||spacePan)return;

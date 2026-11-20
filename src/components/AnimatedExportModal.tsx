@@ -62,6 +62,11 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
 
   useEffect(() => {
     if (!open) return
+    setOptions(prev => ({ ...prev, duration: Math.max(.5, Math.min(30, project.timeline?.duration ?? prev.duration)) }))
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
     let cancelled = false
     let raf = 0
     let start = performance.now()
@@ -212,10 +217,8 @@ export default function AnimatedExportModal({ open, project, onClose, onExported
               </select>
             </label>
 
-            <label className="control"><span><b>한 바퀴 루프 길이</b></span>
-              <select disabled={busy} value={options.duration} onChange={e => set('duration', Number(e.target.value) as AnimatedExportOptions['duration'])}>
-                {[1,1.5,2,2.4,3,4].map(value => <option key={value} value={value}>{value}초</option>)}
-              </select>
+            <label className="control"><span><b>출력 길이</b><em>{options.duration}s</em></span>
+              <input disabled={busy} type="number" min={.5} max={30} step={.5} value={options.duration} onChange={event => set('duration', Math.max(.5, Math.min(30, Number(event.target.value) || .5)))} />
             </label>
 
             <label className="control"><span><b>반복</b></span>

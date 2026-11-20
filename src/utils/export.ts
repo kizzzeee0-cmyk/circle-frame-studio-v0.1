@@ -10,7 +10,7 @@ export interface AnimatedExportOptions {
   format: AnimatedExportFormat
   resolution: 500 | 1000 | 2000
   fps: 12 | 15 | 20 | 24 | 30 | 60
-  duration: 1 | 1.5 | 2 | 2.4 | 3 | 4
+  duration: number
   loopCount: AnimatedLoopCount
   webpQuality: number
   videoBitrateMbps?: number

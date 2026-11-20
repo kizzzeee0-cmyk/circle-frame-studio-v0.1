@@ -11,6 +11,8 @@ import {maskedLayerRgba} from './masked-preview.mjs';
 import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
 import {protectOccludedPixels,pointIsOccluded,sourcePixelToDocument} from './visible-occlusion.mjs';
 import {parseVariantColors,variantFileName} from './palette-variants.mjs';
+import {paintPolicy,effectiveColor,defaultImportSelection} from './color-workflow.mjs';
+import {PALETTE_PRESETS} from './palette-presets.mjs';
 import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
@@ -22,6 +24,7 @@ let unsavedChanges=false;
 // Original Photoshop composite is a read-only WYSIWYG reference. Canvas
 // reconstruction of masks, layer styles, groups and text is never assumed exact.
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
+let temporaryPreview=null;
 // Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
 // still use the explicitly marked reconstructed view.
 let appearancePatches=[],appearanceSafe=true;
@@ -70,6 +73,8 @@ function checkpointBatch(list){
   redoHistory=[];markEdited(Boolean(originalComposite&&appearanceSafe));
 }
 function clearSelections(){
+  temporaryPreview=null;
+  if($('previewColor'))$('previewColor').textContent='변경 미리보기';
   selectionParts=[];selection=null;selectionPreview=null;
   $('pickedHex').value='—';$('pickedSwatch').style.backgroundColor='';
   updateSelectionUi();
@@ -81,7 +86,11 @@ function updateSelectionUi(){
   if($('selectionPartsCount'))$('selectionPartsCount').textContent=label;
   if($('selectionInfo'))$('selectionInfo').textContent=selectionParts.length
     ?selectionParts.length+'개 영역 · '+count.toLocaleString()+'개 픽셀 선택 · Shift+클릭으로 추가 가능'
-    :'색상/에셋 영역을 클릭해 선택하세요. Shift+클릭은 누적 선택입니다.';
+    :'이미지에서 바꾸고 싶은 색상을 클릭하세요. Shift+클릭은 누적 선택입니다.';
+  if($('workflowStatus'))$('workflowStatus').textContent=!documentModel
+    ?'① 먼저 PSD 또는 PNG 파일을 열어 주세요.'
+    :!selectionParts.length?'① 바꾸고 싶은 색을 클릭하세요. 여러 색은 Shift+클릭하세요.'
+      :'② '+selectionParts.length+'개 영역 선택 완료 ('+count.toLocaleString()+'px) · 바꿀 색 지정 후 미리보기 또는 적용';
 }
 function updateSelectionPreview(){
   selection=selectionParts.at(-1)||null;
@@ -91,7 +100,7 @@ function updateSelectionPreview(){
 
 function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];appearanceSafe=true;
   psdCompatibilityReport=null;lastFidelityAudit=null;psdGroupMasks=[];collapsedPsdGroups.clear();
-  $('psdFidelityPanel').hidden=true;previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
+  $('psdFidelityPanel').hidden=true;previewMode='layers';hasLayerEdits=false;temporaryPreview=null;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -218,6 +227,8 @@ async function importPsd(file){
   openDoc(header.width,header.height,file.name,
     header.version===2?'PSB':'PSD');
   layers=built;psdGroupMasks=groupMasks;lastImportPsd=true;
+  $('selectionMode').value=defaultImportSelection('PSD');
+  $('selectedLayerOnly').checked=false;
   // Prefer Photoshop's own merged pixels over a naive layer redraw.
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
@@ -247,7 +258,9 @@ async function importRaster(file){
   const image=await createImageBitmap(file);
   if(image.width*image.height>maxDocPixels){image.close();throw Error('이미지 크기가 제한을 넘었습니다.');}
   const c=blankCanvas(image.width,image.height);c.getContext('2d').drawImage(image,0,0);image.close();
-  openDoc(c.width,c.height,file.name,'IMAGE');layers=[newLayer({name:file.name,type:'image',canvas:c,x:0,y:0,w:c.width,h:c.height})];lastImportPsd=false;selectedId=layers[0].id;refreshAll();fitZoom();
+  openDoc(c.width,c.height,file.name,'IMAGE');layers=[newLayer({name:file.name,type:'image',canvas:c,x:0,y:0,w:c.width,h:c.height})];lastImportPsd=false;
+  $('selectionMode').value=defaultImportSelection('IMAGE');
+  $('selectedLayerOnly').checked=false;selectedId=layers[0].id;refreshAll();fitZoom();
   notify('이미지를 레이어로 불러왔습니다. 클릭하여 색상 영역을 선택하세요.');
 }
 async function importProject(file){
@@ -442,7 +455,8 @@ function drawOriginalAndPatches(){
 function render(){
   if(!documentModel)return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(originalComposite&&(previewMode==='composite'||previewMode==='appearance')){
+  if(temporaryPreview){ctx.drawImage(temporaryPreview,0,0);}
+  else if(originalComposite&&(previewMode==='composite'||previewMode==='appearance')){
     if(previewMode==='composite')ctx.drawImage(originalComposite,0,0);
     else drawOriginalAndPatches();
   }else{
@@ -456,6 +470,7 @@ function render(){
   drawOverlay();
 }
 function setPreviewMode(mode){
+  if(temporaryPreview){temporaryPreview=null;if($('previewColor'))$('previewColor').textContent='변경 미리보기';}
   if(mode==='appearance'&&!appearanceSafe){
     notify('PSD에서 위치·투명도·사진 등을 변경한 상태입니다. Photoshop 합성 효과를 그대로 보존한 편집은 색상 변경에 한정되므로 레이어 재구성 보기로 전환합니다.');
     mode='layers';
@@ -988,7 +1003,7 @@ $('addGradientStop').onclick=()=>{
 };
 refreshGradientUi();
 $('applyColor').onclick=()=>{
-  if(!selectionParts.length){notify('먼저 색상이나 에셋 영역을 클릭해 선택하세요. Shift+클릭으로 여러 영역을 추가할 수 있습니다.');return;}
+  if(!selectionParts.length){notify('① 먼저 이미지에서 바꾸고 싶은 색상을 클릭해 주세요.');return;}
   const mode=$('colorMode').value;
   const selectedLayers=layers.filter(l=>selectionParts.some(p=>p.id===l.id));
   const updates=[],newAppearancePatches=[];

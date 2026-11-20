@@ -972,6 +972,22 @@ $('exportPng').onclick=()=>{
       :'원본과 효과가 다를 수 있는 레이어 재구성 화면으로 전환했습니다. 확인 후 PNG 저장을 다시 눌러 주세요.');
     return;
   }
+  // Never silently export the approximate Photoshop layer reconstruction.
+  // Layers containing clipping/masks/styles may visually differ from the
+  // Photoshop merged reference, which is what caused damaged-looking exports.
+  const isPsd=Boolean(originalComposite)||['PSD','PSB'].includes(documentModel.kind);
+  if(isPsd&&previewMode==='layers'){
+    const count=psdCompatibilityReport?.counts?.caution||0;
+    const checked=lastFidelityAudit;
+    const info=checked?'최근 품질 검사에서 다른 픽셀 '+checked.changedPercent+'% 입니다.\n':'';
+    const agreed=confirm(
+      '현재 화면은 Photoshop 레이어를 재구성한 근사 표시입니다.\n'+
+      (count?count+'개 레이어에 마스크·효과 등의 재현 주의 요소가 있습니다.\n':'')+
+      info+'원본과 디자인이 달라진 모습으로 PNG가 저장될 수 있습니다.\n\n'+
+      '가능하면 「외관 보존 편집」으로 돌아가는 것을 권장합니다.\n'+
+      '그래도 현재 재구성 화면을 PNG로 저장하시겠습니까?');
+    if(!agreed){notify('PSD 재구성 PNG 내보내기를 취소했습니다. 원본 보존 편집 화면을 확인해 주세요.');return;}
+  }
   render();
   canvas.toBlob(blob=>{if(blob)downloadBlob(blob,(documentModel.name.replace(/\.[^.]+$/,'')||'KIZE-design')+'-edited.png');else notify('PNG 저장에 실패했습니다.');},'image/png');
 };

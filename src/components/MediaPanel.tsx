@@ -1,11 +1,13 @@
 import { useRef, useState, type DragEvent } from 'react'
-import type { BackgroundSettings, MediaLayer } from '../types'
+import type { BackgroundSettings, MediaGroup, MediaLayer } from '../types'
 
 interface Props {
   mediaLayers: MediaLayer[]
-  selectedMediaId: string
+  selectedMediaIds: string[]
+  primaryMediaId: string
+  groups: MediaGroup[]
   background: BackgroundSettings
-  onSelectMedia: (id: string) => void
+  onSelectMedia: (id: string, additive: boolean) => void
   onAddMedia: (file?: File) => void
   onToggleMedia: (id: string) => void
   onToggleLock: (id: string) => void
@@ -13,6 +15,10 @@ interface Props {
   onReorderMedia: (id: string, targetId: string) => void
   onDuplicateMedia: (id: string) => void
   onDeleteMedia: (id: string) => void
+  onGroupSelected: () => void
+  onUngroupSelected: () => void
+  onSelectAllMedia: () => void
+  onClearSelection: () => void
   onBackgroundChange: (next: BackgroundSettings) => void
   onBackgroundFile: (file?: File) => void
 }
@@ -21,6 +27,8 @@ export default function MediaPanel(props: Props) {
   const imageInput = useRef<HTMLInputElement>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const [dragId, setDragId] = useState('')
+  const selectedSet = new Set(props.selectedMediaIds)
+  const selectedGroups = new Set(props.mediaLayers.filter(layer => selectedSet.has(layer.id) && layer.groupId).map(layer => layer.groupId))
 
   const drop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -55,18 +63,29 @@ export default function MediaPanel(props: Props) {
         파일을 여기로 드래그해서 레이어 추가
       </div>
 
-      <div className="media-subhead">
-        <strong>미디어 레이어</strong>
-        <span>{props.mediaLayers.length}개</span>
+      <div className="media-subhead media-selection-head">
+        <div><strong>미디어 레이어</strong><span>{props.mediaLayers.length}개</span></div>
+        <div className="media-selection-actions">
+          <button type="button" onClick={props.onSelectAllMedia}>전체 선택</button>
+          {props.selectedMediaIds.length > 0 && <button type="button" onClick={props.onClearSelection}>선택 해제</button>}
+        </div>
       </div>
+      {props.selectedMediaIds.length > 1 && (
+        <div className="multi-selection-bar">
+          <strong>{props.selectedMediaIds.length}개 선택</strong>
+          <button type="button" onClick={props.onGroupSelected}>그룹 만들기</button>
+          {selectedGroups.size > 0 && <button type="button" onClick={props.onUngroupSelected}>그룹 해제</button>}
+          <small>Ctrl/⌘ 또는 Shift + 클릭으로 여러 개를 선택할 수 있습니다.</small>
+        </div>
+      )}
 
       <div className="media-layer-list">
         {props.mediaLayers.map((layer, index) => (
           <article
             key={layer.id}
             draggable
-            className={layer.id === props.selectedMediaId ? 'media-layer-card active' : 'media-layer-card'}
-            onClick={() => props.onSelectMedia(layer.id)}
+            className={selectedSet.has(layer.id) ? (layer.id === props.primaryMediaId ? 'media-layer-card active primary' : 'media-layer-card active') : 'media-layer-card'}
+            onClick={event => props.onSelectMedia(layer.id, event.ctrlKey || event.metaKey || event.shiftKey)}
             onDragStart={event => {
               setDragId(layer.id)
               event.dataTransfer.effectAllowed = 'move'
@@ -86,10 +105,12 @@ export default function MediaPanel(props: Props) {
             }}
             onDragEnd={() => setDragId('')}
           >
+            <div className="media-select-box" aria-hidden="true">{selectedSet.has(layer.id) ? '✓' : ''}</div>
             <div className="media-layer-icon">{layer.kind === 'video' ? '▶' : '▧'}</div>
             <div className="media-layer-text">
               <strong>{layer.name}</strong>
-              <small>{layer.maskMode === 'circle' ? '원 내부' : layer.maskMode === 'ring' ? '링 영역' : '마스크 없음'} · {layer.placement === 'below' ? '프레임 아래' : '프레임 위'}</small>
+              <small>{layer.maskMode === 'circle' ? '원 내부' : layer.maskMode === 'ring' ? '링 영역' : layer.maskMode === 'custom' ? '사용자 마스크' : '마스크 없음'} · {layer.placement === 'below' ? '프레임 아래' : '프레임 위'}</small>
+              {layer.groupId && <em className="media-group-badge">그룹 · {props.groups.find(group => group.id === layer.groupId)?.name ?? '그룹'}</em>}
             </div>
             <div className="media-layer-mini-actions">
               <button title="표시/숨김" onClick={event => { event.stopPropagation(); props.onToggleMedia(layer.id) }}>{layer.visible ? '◉' : '○'}</button>

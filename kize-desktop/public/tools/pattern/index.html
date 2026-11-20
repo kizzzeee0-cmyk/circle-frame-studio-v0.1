@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f5ff" />
+  <title>Cute Pattern Studio v2.9.1</title>
+  <link rel="stylesheet" href="styles.css?v=2.9.1" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">2000 × 2000 PATTERN BACKGROUND MAKER</div>
+        <h1>Cute Pattern Studio <span>v2.9.1</span></h1>
+        <p class="subtitle">반복 패턴 · 점선 체크 · Anchor Color · HEX/스포이드 자유 색상</p>
+      </div>
+      <div class="top-actions">
+        <button id="randomizeAll" class="ghost">🎲 전체 랜덤</button>
+        <button id="resetBtn" class="ghost">↺ 초기화</button>
+        <button id="exportBtn" class="primary">PNG 저장</button>
+        <button id="exportTileBtn" class="secondary">심리스 타일 저장</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="pattern-panel panel">
+        <div class="panel-head">
+          <div>
+            <h2 id="libraryTitle">패턴 라이브러리</h2>
+            <p id="patternCount"></p>
+          </div>
+          <input id="searchInput" type="search" placeholder="체크, 도트, 리본…" />
+        </div>
+
+        <div id="patternModePane">
+        <div class="category-strip-wrap">
+          <div class="category-strip-label">카테고리</div>
+          <div id="categoryTabs" class="tabs"></div>
+        </div>
+
+        <section class="mini-section no-border">
+          <div class="layer-tabs" id="layerTabs"></div>
+          <div class="inline-row small-gap">
+            <label class="switch-row compact"><input id="favoriteOnly" type="checkbox" /> ★ 즐겨찾기만</label>
+            <label class="switch-row compact"><input id="checkOnly" type="checkbox" /> 체크 전용</label>
+            <span id="activeLayerLabel" class="muted mini-copy"></span>
+          </div>
+          </section>
+
+        <div id="patternList" class="pattern-list"></div>
+
+        <section class="mini-section pattern-import-shortcut">
+          <div class="section-title-row">
+            <div>
+              <h3>완성 패턴 PNG 설정 복원</h3>
+              <p class="micro-copy"><b>PNG 자체를 반복 타일로 넣지 않아.</b> 이미지에서 기존 내장 패턴과 색상·크기·선 두께를 찾아 현재 편집 설정으로 다시 생성해.</p>
+            </div>
+            <button id="patternRestoreLeftBtn" class="mini-btn" type="button">패턴 PNG 불러오기</button>
+          </div>
+          <button id="patternRestoreLeftDropzone" class="pattern-restore-shortcut-dropzone" type="button">
+            <strong>프로그램에서 저장한 완성 패턴 PNG를 여기에 넣기</strong>
+            <span>예: 파스텔 격자 PNG → 파스텔 격자 선택 + 배경색·선 색상·격자 X/Y·선 두께 자동 복원</span>
+          </button>
+        </section>
+
+        <section class="mini-section asset-section">
+          <div class="section-title-row">
+            <div>
+              <h3>업로드 에셋</h3>
+              <p class="micro-copy">캐릭터·스티커·모티프 PNG/SVG를 반복 배치하는 용도야. <b>완성 패턴 이미지는 위의 설정 복원 기능을 사용해.</b></p>
+            </div>
+            <button id="uploadAssetBtn" class="mini-btn">파일 추가</button>
+          </div>
+          <input id="assetInput" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple hidden />
+          <button id="assetDropzone" class="asset-dropzone" type="button">
+            <strong>캐릭터 / 스티커 / 모티프 PNG·SVG를 추가</strong>
+            <span>완성된 격자·체크·도트 패턴 PNG를 여기에 넣으면 안 돼. 그런 파일은 바로 위의 “완성 패턴 PNG 설정 복원”으로 불러와.</span>
+          </button>
+          <div id="assetList" class="asset-list"></div>
+        </section>
+        </div>
+      </aside>
+
+      <section class="preview-panel panel">
+        <div class="preview-toolbar">
+          <div class="selected-copy">
+            <span id="selectedCategory" class="pill"></span>
+            <strong id="selectedName"></strong>
+            <small id="selectedDesc"></small>
+          </div>
+          <div class="preview-toolbar-actions">
+            <span id="canvasSizeText" class="canvas-size-badge">2000×2000px</span>
+            <div class="zoom-box">
+              <button id="zoomOut" title="축소">−</button>
+              <span id="zoomText">100%</span>
+              <button id="zoomIn" title="확대">＋</button>
+            </div>
+          </div>
+        </div>
+        <div id="canvasStage" class="canvas-stage">
+          <canvas id="previewCanvas" width="1000" height="1000"></canvas>
+        </div>
+        <div class="preview-extras"><div class="profile-preview-card"><div class="profile-preview-head"><strong>원형 프사 미리보기</strong><span>원형 크롭에서 어떻게 보이는지 바로 확인</span></div><canvas id="circlePreviewCanvas" width="260" height="260"></canvas></div><div class="preview-note">미리보기는 현재 설정한 <b>배경색 + 패턴 레이어 조합</b>을 그대로 보여주고, 저장 시에도 같은 방식으로 다시 그립니다. 심리스 타일 저장은 가장자리 반복을 위해 <b>불규칙함을 자동으로 0</b>으로 맞춰 내보냅니다.</div></div>
+      </section>
+
+      <aside class="control-panel panel">
+        <div class="control-scroll">
+          <section id="layerEditorSection" class="control-section">
+            <div class="section-title-row">
+              <h2>레이어 편집</h2>
+              <button id="duplicateLayerBtn" class="mini-btn">레이어 추가</button>
+            </div>
+            <div id="layerSummary" class="layer-summary"></div>
+            <div id="layerEditor"></div>
+          </section>
+
+          <section id="backgroundEditorSection" class="control-section">
+            <div class="section-title-row">
+              <h2>배경</h2>
+              <div class="inline-row small-gap"><label class="switch-row"><input id="transparentBg" type="checkbox" /> 투명 배경</label><label class="switch-row"><input id="backgroundOnly" type="checkbox" /> 배경만 송출</label></div>
+            </div>
+            <label>배경 모드
+              <select id="bgMode">
+                <option value="solid">단색</option>
+                <option value="linear">그라데이션</option>
+                <option value="watercolor">수채화 그라데이션</option>
+              </select>
+            </label>
+            <div class="color-grid compact-grid" id="bgColorGrid"></div>
+            <div id="gradientControls" class="conditional">
+              <label>그라데이션 각도 <span id="gradientAngleVal"></span>
+                <input id="gradientAngle" type="range" min="0" max="360" value="135" />
+              </label>
+            </div>
+            <div id="watercolorControls" class="conditional" style="display:none">
+              <label>수채화 스타일
+                <select id="watercolorStyle">
+                  <option value="mist">안개빛 블렌드 · 아주 은은하게</option>
+                  <option value="cloud">구름 물감 · 부드러운 얼룩 번짐</option>
+                  <option value="bloom">번짐 레이어 · 물감이 겹쳐지는 느낌</option>
+                  <option value="aqua">아쿠아 워시 · 한쪽에 맑게 퍼지는 느낌</option>
+                  <option value="pearl">밀키 펄 · 흰 물감이 섞인 듯한 느낌</option>
+                  <option value="blotch">소프트 얼룩 · 흐릿한 물감 얼룩이 보이는 느낌</option>
+                  <option value="wash">브러시 워시 · 넓은 붓질이 겹치는 느낌</option>
+                  <option value="corner">코너 워시 · 모서리에 물감이 모이는 느낌</option>
+                </select>
+              </label>
+              <div class="watercolor-style-buttons">
+                <button type="button" class="mini-btn" data-watercolor-style="mist">안개빛</button>
+                <button type="button" class="mini-btn" data-watercolor-style="cloud">구름</button>
+                <button type="button" class="mini-btn" data-watercolor-style="bloom">번짐</button>
+                <button type="button" class="mini-btn" data-watercolor-style="aqua">아쿠아</button>
+                <button type="button" class="mini-btn" data-watercolor-style="pearl">밀키</button>
+                <button type="button" class="mini-btn" data-watercolor-style="blotch">얼룩</button>
+                <button type="button" class="mini-btn" data-watercolor-style="wash">워시</button>
+                <button type="button" class="mini-btn" data-watercolor-style="corner">코너</button>
+                <button type="button" class="mini-btn" data-watercolor-style="aquaMilk">아쿠아 밀키</button>
+                <button type="button" class="mini-btn" data-watercolor-style="aquaSparkle">아쿠아 스파클</button>
+                <button type="button" class="mini-btn" data-watercolor-style="aquaFrost">아쿠아 프로스트</button>
+                <button type="button" class="mini-btn" data-watercolor-style="wateryCloud">워터 클라우드</button>
+              </div>
+              <label>물감 번짐 <span id="watercolorSpreadVal">62%</span>
+                <input id="watercolorSpread" type="range" min="10" max="100" value="62" />
+              </label>
+              <label>물감 크기 <span id="watercolorScaleVal">58%</span>
+                <input id="watercolorScale" type="range" min="15" max="100" value="58" />
+              </label>
+              <label>불규칙함 <span id="watercolorIrregularVal">72%</span>
+                <input id="watercolorIrregular" type="range" min="0" max="100" value="72" />
+              </label>
+              <label>얼룩 존재감 <span id="watercolorDefinitionVal">52%</span>
+                <input id="watercolorDefinition" type="range" min="0" max="100" value="52" />
+              </label>
+              <label>빛가루 / 반짝임 <span id="watercolorSparkleVal">28%</span>
+                <input id="watercolorSparkle" type="range" min="0" max="100" value="28" />
+              </label>
+              <label class="switch-row compact"><input id="watercolorTexture" type="checkbox" checked /> 종이/물감 질감 추가</label>
+              <div class="micro-copy">너무 흐린 블러부터 흐릿한 얼룩, 붓질, 모서리 워시까지 스타일마다 물감의 모양과 배치를 다르게 만들었어. 「얼룩 존재감」으로 흐릿한 얼룩의 윤곽도 조절할 수 있어.</div>
+            </div>
+            <div class="vignette-box">
+              <div class="section-title-row"><strong>컬러 비네트</strong><label class="switch-row compact"><input id="vignetteEnabled" type="checkbox" /> 사용</label></div>
+              <div id="vignetteControls" class="conditional" style="display:none">
+                <div class="color-row"><div class="color-label">비네트 색상</div><input id="vignetteColor" type="color" value="#6F55C9" /><input id="vignetteColorText" type="text" value="#6F55C9" maxlength="7" /></div>
+                <label>비네트 범위 <span id="vignetteRangeVal">72%</span><input id="vignetteRange" type="range" min="0" max="100" value="72" /></label>
+                <label>강도 <span id="vignetteStrengthVal">28%</span><input id="vignetteStrength" type="range" min="0" max="100" value="28" /></label>
+                <label>부드러움 <span id="vignetteSoftnessVal">28%</span><input id="vignetteSoftness" type="range" min="0" max="100" value="28" /></label>
+                <div class="micro-copy">범위가 낮을수록 색이 중앙 쪽까지 들어오고, 높을수록 가장자리 위주로 적용돼. 부드러움으로 색이 퍼지는 폭을 조절할 수 있어.</div>
+                <button id="resetVignetteBtn" class="mini-btn" type="button">비네트 설정 초기화</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="gradientOverlaySection" class="control-section">
+            <div class="section-title-row">
+              <div>
+                <h2>양방향 그라데이션 오버레이</h2>
+                <p class="micro-copy">현재 패턴 위에 세로 방향 색상 레이어를 최대 2개까지 독립적으로 합성해.</p>
+              </div>
+            </div>
+            <div id="gradientOverlayEditor" class="gradient-overlay-list"></div>
+          </section>
+
+          <section id="patternRestoreSection" class="control-section pattern-restore-section">
+            <div class="section-title-row">
+              <div>
+                <h2>이미지에서 패턴 불러오기</h2>
+                <p class="micro-copy">원본 이미지를 배경으로 쓰는 기능이 아니라, 이미지의 반복 구조와 색상을 분석해 현재 편집 가능한 내장 패턴 설정으로 다시 생성해.</p>
+              </div>
+              <button id="patternRestorePickBtn" class="mini-btn" type="button">PNG 분석</button>
+            </div>
+            <input id="patternRestoreInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+            <div id="patternRestoreDropzone" class="pattern-restore-dropzone">
+              <img id="patternRestorePreview" alt="분석할 패턴 이미지 미리보기" hidden />
+              <div class="pattern-restore-drop-copy">
+                <strong>PNG / JPG / WEBP를 끌어놓거나 클릭</strong>
+                <span>v2.9.1 이후 저장 PNG는 메타데이터의 실제 설정값을 우선 복원해. 메타데이터가 없으면 색상 영역·반복 주기·선 두께·간격을 분석한 뒤 기존 프리셋으로 재생성해.</span>
+              </div>
+            </div>
+
+            <div class="pattern-restore-manual">
+              <label>
+                <span>패턴 종류 직접 선택</span>
+                <select id="patternRestorePresetSelect">
+                  <option value="">자동 인식 결과 사용</option>
+                </select>
+              </label>
+              <button id="patternRestoreReanalyzeBtn" class="mini-btn" type="button">선택한 패턴으로 재분석</button>
+              <p class="micro-copy">자동 유형이 틀렸을 때 종류만 지정하면 색상·크기·두께·간격은 해당 패턴 구조를 기준으로 다시 자동 추출해.</p>
+            </div>
+
+            <div id="patternRestoreStatus" class="micro-copy pattern-restore-status">이미지를 첨부하면 분석 결과가 여기에 표시돼.</div>
+            <div id="patternRestoreResult" class="pattern-restore-result"></div>
+
+            <div class="pattern-restore-compare">
+              <div class="section-title-row">
+                <div>
+                  <h3>원본 / 복원 비교</h3>
+                  <p class="micro-copy">복원 결과는 현재 프로그램 렌더러로 다시 생성한 화면이야.</p>
+                </div>
+                <div class="preset-actions">
+                  <button class="mini-btn" type="button" data-restore-compare="original">원본</button>
+                  <button class="mini-btn" type="button" data-restore-compare="restored">복원</button>
+                  <button class="mini-btn active" type="button" data-restore-compare="overlay">겹쳐보기</button>
+                </div>
+              </div>
+              <canvas id="patternRestoreCompareCanvas"></canvas>
+            </div>
+
+            <div class="micro-copy pattern-restore-note">복원 뒤 캔버스 크기와 패턴 크기는 완전히 독립적으로 편집돼. 캔버스를 2048×298에서 2320×338로 변경해도 복원된 체크/격자 크기는 그대로 유지되고 반복 영역만 늘어나.</div>
+          </section>
+
+          <section id="referenceColorSection" class="control-section reference-dock">
+            <div class="section-title-row">
+              <div>
+                <h2>참고 이미지 스포이드</h2>
+                <p class="micro-copy">이미지를 확대해서 직접 클릭하고, 뽑은 색을 현재 작업의 색상 항목에 바로 적용해.</p>
+              </div>
+              <div class="preset-actions reference-dock-actions">
+                <button id="referenceDockToggle" class="mini-btn reference-dock-toggle" type="button">접기</button>
+                <button id="uploadReferenceBtn" class="mini-btn" type="button">이미지 선택</button>
+                <button id="replaceReferenceBtn" class="mini-btn" type="button" disabled>교체</button>
+                <button id="deleteReferenceBtn" class="mini-btn" type="button" disabled>삭제</button>
+              </div>
+            </div>
+            <input id="referenceInput" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+
+            <div id="referenceDropzone" class="reference-dropzone">
+              <div id="referenceEmpty" class="reference-empty">
+                <strong>JPG / JPEG / PNG / WEBP 이미지를 끌어놓거나 클릭해서 첨부</strong>
+                <span>이미지를 올려도 현재 작업 중인 패턴·레이어·색상 설정은 초기화되지 않아.</span>
+              </div>
+              <div id="referenceViewport" class="reference-viewport" hidden>
+                <canvas id="referenceCanvas"></canvas>
+                <canvas id="referenceMagnifier" class="reference-magnifier" width="120" height="120"></canvas>
+              </div>
+            </div>
+
+            <div id="referenceZoomBar" class="reference-zoom-bar" hidden>
+              <button id="referenceZoomOut" class="mini-btn" type="button">−</button>
+              <input id="referenceZoomRange" type="range" min="25" max="800" value="100" />
+              <button id="referenceZoomIn" class="mini-btn" type="button">＋</button>
+              <span id="referenceZoomText">100%</span>
+              <button id="referenceResetView" class="mini-btn" type="button">화면 맞춤</button>
+              <span class="micro-copy">휠 확대 · 드래그 이동 · 클릭 색상 추출</span>
+            </div>
+
+            <div id="referenceSelectedPanel" class="reference-selected-panel">
+              <div id="referenceSelectedSwatch" class="reference-selected-swatch"></div>
+              <div class="reference-selected-copy">
+                <strong id="referenceSelectedHex">선택한 색상 없음</strong>
+                <span id="referenceSelectedRgb">이미지를 클릭하면 HEX / RGB가 표시돼.</span>
+                <small id="referenceActiveTarget">활성 색상 입력: 없음</small>
+              </div>
+            </div>
+
+            <div class="reference-apply-card">
+              <div class="section-title-row">
+                <h3>추출 색상 적용</h3>
+                <button id="applyReferenceToActive" class="mini-btn" type="button" disabled>현재 활성 색상칸</button>
+              </div>
+              <div class="reference-apply-grid">
+                <button type="button" data-reference-apply="background">배경색</button>
+                <button type="button" data-reference-apply="anchor">대표색 · Anchor</button>
+                <button type="button" data-reference-apply="pattern1">패턴 색상 1</button>
+                <button type="button" data-reference-apply="pattern2">패턴 색상 2</button>
+                <button type="button" data-reference-apply="pattern3">패턴 색상 3</button>
+                <button type="button" data-reference-apply="line">선 / 외곽선</button>
+              </div>
+            </div>
+
+            <div class="reference-palette-block">
+              <div class="section-title-row">
+                <div>
+                  <h3>자동 추출 팔레트</h3>
+                  <p class="micro-copy">서로 너무 비슷한 색은 제외하고 사용하기 좋은 대표색 5개를 우선 표시해.</p>
+                </div>
+              </div>
+              <div id="referencePalette" class="reference-palette-grid"></div>
+            </div>
+
+            <div class="reference-palette-block">
+              <div class="section-title-row">
+                <div>
+                  <h3>최근 추출 색상</h3>
+                  <p class="micro-copy">최근 스포이드 색상 최대 10개를 저장해 두고 다시 사용할 수 있어.</p>
+                </div>
+                <button id="clearRecentReferenceColors" class="mini-btn" type="button">전체 초기화</button>
+              </div>
+              <div id="recentReferenceColors" class="recent-reference-colors"></div>
+            </div>
+          </section>
+
+          
+
+          
+
+          <section class="control-section">
+            <div class="section-title-row">
+              <h2>즐겨찾기 & 내 프리셋</h2>
+              <button id="savePresetBtn" class="mini-btn">현재 설정 저장</button>
+            </div>
+            <div id="favoritePreview" class="chip-list"></div>
+            <div id="savedPresetList" class="saved-preset-list"></div>
+          </section>
+
+          <section class="control-section">
+            <div class="section-title-row">
+              <div>
+                <h2>캔버스 & 출력</h2>
+                <p class="micro-copy">가로·세로를 원하는 픽셀로 입력하면 중앙 미리보기 비율도 바로 바뀌고, PNG도 같은 크기로 저장돼.</p>
+              </div>
+            </div>
+            <div class="export-grid">
+              <label>캔버스 가로(px)<input id="exportW" type="number" min="16" max="8000" step="1" value="2000" /></label>
+              <label>캔버스 세로(px)<input id="exportH" type="number" min="16" max="8000" step="1" value="2000" /></label>
+            </div>
+            <label class="switch-row"><input id="lockSquare" type="checkbox" /> 정사각형으로 함께 변경</label>
+            <p class="micro-copy canvas-export-note">16~8000px 범위에서 자유롭게 설정 가능 · 입력 중 숫자를 지우거나 다시 타이핑해도 값이 강제로 바뀌지 않아 · 예: 2500×300 / 2320×338 / 80×209</p>
+            <div class="tile-grid">
+              <label>타일 가로(px)<input id="tileW" type="number" min="16" max="4000" step="1" value="512" /></label>
+              <label>타일 세로(px)<input id="tileH" type="number" min="16" max="4000" step="1" value="512" /></label>
+            </div>
+            <label class="switch-row"><input id="lockTileSquare" type="checkbox" checked /> 타일 정사각형 고정</label>
+            <button id="exportBtn2" class="primary wide">현재 캔버스 크기로 PNG 저장</button>
+            <button id="exportTileBtn2" class="secondary wide">심리스 타일 PNG 저장</button>
+            <p class="micro-copy transparent-export-note">투명 배경에서는 배경·비네트·그라데이션 오버레이를 저장하지 않고 패턴 픽셀만 깨끗한 알파 PNG로 내보내.</p>
+          </section>
+
+          <section class="control-section info-box">
+            <h3>v2.9.1 이미지에서 패턴 불러오기 고도화</h3>
+            <p>NEW · 기본 체크 계열의 기본 간격을 0으로 통일 · 파스텔 체크/미니 체크/깅엄 등은 칸 사이가 뜨지 않게 시작</p><p>NEW · 패턴 이미지 복원 · 이 프로그램에서 저장한 PNG는 설정 데이터로 색상·패턴·크기·캔버스를 정확 복원</p><p>NEW · 이전 PNG/JPG/WEBP는 픽셀 분석으로 배경/팔레트/패턴 종류/크기/회전을 추정하고 상위 후보를 표시</p><p>① 완성형 디자인 배경 영역을 제거하고 기존 패턴 편집 중심 구조로 복원</p>
+            <p>② 「점선 체크 / Dashed Grid」 추가 · 선 색/투명도/두께/점선 길이·간격/격자 X·Y/회전/오프셋 편집</p>
+            <p>③ 대표색은 가장 진한 Anchor Color로 사용 · HEX/컬러 피커/스포이드 자유 지정 + 기존 7색 빠른 선택 유지</p>
+            <p>④ 밝은 보조색과 흰색 영역은 기존 명암 관계를 유지한 옅은 틴트로 자동 변환</p>
+            <p>⑤ 좌측 패턴 라이브러리 마우스 휠 스크롤 동작 안정화</p>
+            <p>⑥ 상단 패턴 카테고리 탭 복구 · 점선 체크 전체 크기 조절 수정</p>
+            <p>⑦ 카테고리 행을 라이브러리 최상단에 고정 · 흰색 점선 사용 시 배경이 자동으로 흰색에 가까워지던 문제 수정</p>
+            <p>⑧ 레이어드 패브릭 플래드: 중간 진함 이상 영역 전체에 45° 해칭 적용 · ON/OFF + 불투명도 조절</p>
+            <p>⑨ 도트·하트·별·리본·구름 등 단순 모양 패턴: 반복 요소 색상 1색 통일 · 크기 완전 동일 고정</p>
+            <p>⑩ 단순 모양 패턴의 개별 방향도 완전히 동일하게 고정 · 전체 회전은 레이어 회전으로 일괄 조절</p>
+            <p>⑪ 하트·도트·별·리본 등 단순 모양 패턴을 A줄/B줄 2줄 세트로 반복 · B줄 기본 반 칸 엇갈림 · 각 줄 X/Y/각도 개별 조절</p>
+            <p>⑫ 양방향 그라데이션 오버레이 2개 추가 · 위→아래/아래→위 · 색상/시작/끝/퍼짐/불투명도 독립 조절</p>
+            <p>⑬ 신규 그래픽 배경 스타일 5종 추가 · 코너 집중형 / 사선 흐름형 / 프레임형 / 중앙 여백형 / 전체 분산형</p>
+            <p>⑭ 원·링·둥근 막대·점·점선·스트라이프·체크·스파클을 조합하는 벡터형 랜덤 구성 · 중앙 여백/도형 크기/밀도/요소 세트 조절</p>
+            <p>⑮ 그래픽 요소 분산 균형 개선 · 한곳에 뭉치지 않고 가장자리 전체에 고르게 배치</p>
+            <p>⑯ 원·링 프레임 / 롱 캡슐 프레임 / 점선 프레임 / 스트라이프 프레임 / 밸런스 믹스 5종 추가</p>
+            <p>⑰ 작은 장식/큰 프레임/캡슐/원·링 크기 독립 조절 · 대표색은 가장 진한 색으로 유지하고 연한색+화이트 자동 조합</p>
+            <p>⑱ 하트·버블 그래픽 기능 제거 · 기존 그래픽 배경 스타일은 그대로 유지</p>
+            <p>⑲ 노갭 3톤 체크 해칭 추가 · 두 번째로 진한 영역에만 45° 사선 해칭 적용 · ON/OFF 및 불투명도 조절</p>
+            <p>⑳ 노갭 3톤 배경 비침 해칭 · 사선을 위에 그리지 않고 해당 부분을 투명하게 뚫어 실제 배경색이 보이도록 변경</p>
+            <p>노갭 3톤 줄별 교차 해칭 · 1줄과 2줄의 사선 방향이 번갈아 반복</p>
+            <p>참고 이미지 업로드 + 이미지 스포이드 · 확대/축소/드래그 이동/픽셀 확대창/HEX·RGB 표시</p>
+            <p>자동 추출 팔레트 5색 + 최근 추출 10색 · 배경/Anchor/패턴 1·2·3/선 색상에 즉시 적용</p>
+            <p>하트 점선 다이아 격자 추가 · 45° 점선 격자 교차점에 작은 하트 반복 · 하트 색/불투명도/크기/간격 조절</p>
+            <p>하트 주변 자동 여백 · 하트가 있는 교차점에서는 점선을 자동으로 끊어 상하좌우에 작은 빈 공간 확보</p>
+            <p>레퍼런스 플래드 7종 추가 · 스티치/윈도우/멀티밴드/빅셀/파인심/더블밴드/대각 우븐 체크</p>
+            <p>대표색은 각 패턴의 가장 진한 Anchor Color로 사용 · 중간톤/연한톤/거의 흰색은 자동 생성</p>
+            <p>선택한 Anchor Color = 실제 가장 진한 체크색 · 스포이드 HEX가 미리보기의 최고 농도 영역에 그대로 표시</p>
+            <p>진한 기준색 연동 / 소프트 투명 두 방식 공존 · 중간톤·연한톤도 대표색과 같은 색상 결로 함께 조정</p>
+            <p>45° 사선 해칭 두께 소폭 증가 · 노갭 3톤 / 레이어드 패브릭 / 레퍼런스 플래드에 적용</p>
+          </section>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="patterns.js?v=2.9.1"></script>
+  <script src="app.js?v=2.9.1"></script>
+</body>
+</html>

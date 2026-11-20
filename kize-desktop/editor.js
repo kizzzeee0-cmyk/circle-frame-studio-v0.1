@@ -1550,7 +1550,7 @@ async function receiveSharedAsset(){
     await importRaster(file);
     await bridge.clearAsset();
     const url=new URL(location.href);url.searchParams.delete('handoff');
-    history.replaceState(null,'',url.pathname+url.search+url.hash);
+    window.history.replaceState(null,'',url.pathname+url.search+url.hash);
     notify('큐트 패턴에서 '+file.name+' 원본 크기 PNG를 가져왔어요. 색상 편집을 시작하세요.');
   }catch(error){notify('도구 간 PNG 불러오기 실패: '+(error?.message||error));}
 }

@@ -1877,3 +1877,184 @@ body { background: #F3F0F2; }
   padding: 1px 5px;
   font-size: 7px;
 }
+
+
+/* v0.37 — one-time update spotlight */
+.update-spotlight-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(41, 36, 52, .42);
+  backdrop-filter: blur(4px);
+}
+.update-spotlight {
+  width: min(820px, calc(100vw - 56px));
+  max-height: calc(100vh - 56px);
+  overflow: auto;
+  border: 1px solid #DED7EC;
+  border-radius: 18px;
+  background: #FFF;
+  box-shadow: 0 28px 80px rgba(43, 34, 66, .26);
+  padding: 22px;
+}
+.update-spotlight-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #EEEAF3;
+}
+.update-spotlight-eyebrow {
+  display: inline-flex;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #FFF3C9;
+  color: #8E6E20;
+  font-size: 9px;
+  font-weight: 800;
+  margin-bottom: 7px;
+}
+.update-spotlight h2 {
+  margin: 0;
+  max-width: 610px;
+  font-size: 20px;
+  letter-spacing: -.35px;
+  color: #403A49;
+}
+.update-spotlight-top p {
+  margin: 8px 0 0;
+  max-width: 640px;
+  color: #807889;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+.update-version-pill {
+  flex: none;
+  border: 1px solid #D7CDEF;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #F5F1FF;
+  color: #67589B;
+  font-size: 9px;
+  font-weight: 850;
+}
+.update-highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.update-highlight-card {
+  border: 1px solid #E8E3EE;
+  border-radius: 12px;
+  background: #FCFBFD;
+  padding: 11px 12px;
+}
+.update-highlight-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.update-highlight-card-head > span {
+  flex: none;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #F1ECFF;
+  color: #7563B0;
+  font-size: 7px;
+  font-weight: 850;
+}
+.update-highlight-card-head b {
+  font-size: 10.5px;
+  color: #4F4858;
+}
+.update-highlight-card p {
+  margin: 6px 0 0;
+  color: #8A8391;
+  font-size: 9px;
+  line-height: 1.55;
+}
+.update-try-section {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #E9DFBE;
+  border-radius: 12px;
+  background: linear-gradient(90deg,#FFFBEC,#FAF7FF);
+}
+.update-try-section > div:first-child {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.update-try-section > div:first-child b { font-size: 10.5px; color: #5B5267; }
+.update-try-section > div:first-child span { font-size: 8.5px; color: #948B9A; }
+.update-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 7px;
+}
+.update-action-grid button {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid #DDD4EA;
+  border-radius: 10px;
+  background: #FFF;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+.update-action-grid button:hover { border-color: #BFAFE2; background: #FAF8FF; }
+.update-action-grid button b { font-size: 9.5px; color: #5D5278; }
+.update-action-grid button span { font-size: 8px; color: #958D9E; line-height: 1.4; }
+.update-spotlight-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 15px;
+}
+.update-spotlight-footer > span {
+  color: #9A929F;
+  font-size: 8.5px;
+}
+.update-confirm-button {
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--accent);
+  color: #FFF;
+  padding: 8px 15px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.shortcut-update-button {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid #DED7EA;
+  border-radius: 7px;
+  background: #F8F5FF;
+  color: #6B5E91;
+  padding: 6px 7px;
+  font-size: 8.5px;
+  cursor: pointer;
+}
+.shortcut-update-button:hover { background: #F1ECFF; }
+.glitter-motion-switches {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 3px 6px;
+  padding: 6px 7px;
+  margin: 6px 0;
+  border: 1px solid #ECE6F2;
+  border-radius: 8px;
+  background: #FCFBFD;
+}
+.glitter-motion-switches .toggle { margin: 2px 0; }
+@media (max-width: 1250px) {
+  .update-highlight-grid,
+  .update-action-grid { grid-template-columns: 1fr; }
+}

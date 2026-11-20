@@ -416,10 +416,13 @@ export default function PropertyPanel({
               <option value={1}>시계 방향</option><option value={-1}>반시계 방향</option>
             </select>
           </label>
+          {(design.glitter.orbitEnabled || design.glitter.highlightSweepEnabled) && (
+            <Slider label="움직임 1주기" value={design.glitter.loopDuration} min={.5} max={12} step={.1} suffix="s" onChange={n => { nestedGlitter({ loopDuration: n }); onTimelineDurationChange(n) }} />
+          )}
 
           {design.glitter.surfaceStyle !== 'legacy' && (
             <div className="glitter-engine-note">
-              <b>Glitter Engine v0.36</b>
+              <b>Glitter Engine · Orbit / Reflection</b>
               <span>{design.glitter.surfaceStyle === 'orbit'
                 ? '고정 링 없이 입자 자체가 원형을 만들며 원둘레를 따라 연속적으로 흐릅니다.'
                 : design.glitter.surfaceStyle === 'reflection'
@@ -447,8 +450,7 @@ export default function PropertyPanel({
               <Slider label="궤도 퍼짐" value={design.glitter.orbitSpread} min={1} max={80} step={.5} suffix="px" onChange={n => nestedGlitter({ orbitSpread: n })} />
               <Slider label="궤도 입자 밀도" value={design.glitter.orbitDensity} min={48} max={1200} onChange={n => nestedGlitter({ orbitDensity: Math.round(n) })} />
               <Slider label="흐름 잔광 길이" value={Math.round(design.glitter.orbitTrail * 100)} min={0} max={100} suffix="%" onChange={n => nestedGlitter({ orbitTrail: n / 100 })} />
-              <Slider label="반복 길이" value={design.glitter.loopDuration} min={.5} max={12} step={.1} suffix="s" onChange={n => { nestedGlitter({ loopDuration: n }); onTimelineDurationChange(n) }} />
-              <p className="hint">반복 길이를 바꾸면 프로젝트 타임라인도 같은 길이로 맞춰 루프 시작·끝이 자연스럽게 연결되도록 합니다. 현재 타임라인: {timelineDuration.toFixed(1)}s</p>
+              <p className="hint">기본 영역의 ‘움직임 1주기’를 바꾸면 프로젝트 타임라인도 같은 길이로 맞춰 루프 시작·끝을 자연스럽게 연결합니다. 현재 타임라인: {timelineDuration.toFixed(1)}s</p>
               <Slider label="강조 반짝임 개수" value={design.glitter.accentSparkleCount} min={0} max={18} onChange={n => nestedGlitter({ accentSparkleCount: Math.round(n) })} />
               <Slider label="강조 반짝임 크기" value={design.glitter.sparkleSize} min={3} max={28} step={.5} suffix="px" onChange={n => nestedGlitter({ sparkleSize: n })} />
               <Slider label="반짝임 유지 폭" value={Math.round(design.glitter.accentSparkleDuration * 100)} min={5} max={60} suffix="%" onChange={n => nestedGlitter({ accentSparkleDuration: n / 100 })} />

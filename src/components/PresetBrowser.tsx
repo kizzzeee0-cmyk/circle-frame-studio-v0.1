@@ -3,6 +3,7 @@ import type { FramePreset, FrameProject } from '../types'
 import { PRESETS } from '../presets'
 import { renderProject } from '../render/renderer'
 import { preloadProjectAssets } from '../utils/assets'
+import { APP_VERSION } from '../updateNotes'
 
 function Thumb({ preset }: { preset: FramePreset }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -14,7 +15,7 @@ function Thumb({ preset }: { preset: FramePreset }) {
       design.radius = 650
       design.offsetX = 0
       design.offsetY = 0
-      const project: FrameProject = { version: '0.35', width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
+      const project: FrameProject = { version: APP_VERSION, width: 2000, height: 2000, autoFit: false, design, layers: [{ id: 'thumb', name: design.name, visible: true, design }], selectedLayerId: 'thumb' }
       await preloadProjectAssets(project)
       if (cancelled || !ref.current) return
 
@@ -26,8 +27,8 @@ function Thumb({ preset }: { preset: FramePreset }) {
       let last = 0
       const tick = (time: number) => {
         if (cancelled || !ref.current) return
-        // 24fps is still lightweight at 96×96 but looks much less stepped than the old 12fps preview.
-        if (time - last > 41) {
+        // v0.37: animated thumbnails use ~30fps so Orbit/Reflection motion is easier to recognize.
+        if (time - last > 33) {
           renderProject(ref.current, project, 1, time)
           last = time
         }

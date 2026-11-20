@@ -741,26 +741,41 @@ function oppositeSnapshots(source){
   return source.map(s=>{const l=layers.find(x=>x.id===s.id);return l?settingsSnapshot(l):null;}).filter(Boolean);
 }
 $('undo').onclick=()=>{
-  const last=history.pop();
-  if(!last){notify('되돌릴 작업이 없습니다.');return;}
-  const originals=last.batch||[last];
-  const current=oppositeSnapshots(originals);
-  redoHistory.push({batch:current});
+  const last=history.pop();if(!last){notify('되돌릴 작업이 없습니다.');return;}
+  const originals=last.batch||[last],current=oppositeSnapshots(originals);
+  const added=last.appearanceAdded||[];
+  if(added.length){
+    const actual=appearancePatches.slice(-added.length);
+    if(actual.some((patch,i)=>patch!==added[i])){
+      notify('PSD 외관 편집 기록 순서가 맞지 않아 안전하게 실행 취소할 수 없습니다.');
+      history.push(last);return;
+    }
+    appearancePatches.splice(-added.length,added.length);
+  }
+  const afterSafe=appearanceSafe;
+  appearanceSafe=last.appearanceSafeBefore??appearanceSafe;
+  redoHistory.push({batch:current,appearanceAdded:added,appearanceSafeBefore:afterSafe});
   if(redoHistory.length>12)redoHistory.shift();
+  if(added.length&&originalComposite&&appearanceSafe)previewMode='appearance';
+  else if(!appearanceSafe)previewMode='layers';
   restoreSnapshots(originals);
   unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;
-  notify(originals.length>1?'여러 레이어의 편집을 되돌렸습니다.':'마지막 편집을 되돌렸습니다.');
+  notify('편집을 되돌렸습니다. Photoshop 원본 외관 편집 기록도 함께 복원했습니다.');
 };
 $('redo').onclick=()=>{
-  const record=redoHistory.pop();
-  if(!record){notify('다시 실행할 작업이 없습니다.');return;}
-  const redo=record.batch||[record];
-  const current=oppositeSnapshots(redo);
-  history.push({batch:current});
+  const record=redoHistory.pop();if(!record){notify('다시 실행할 작업이 없습니다.');return;}
+  const redo=record.batch||[record],current=oppositeSnapshots(redo);
+  const beforeSafe=appearanceSafe;
+  appearanceSafe=record.appearanceSafeBefore??appearanceSafe;
+  const added=record.appearanceAdded||[];
+  appearancePatches.push(...added);
+  history.push({batch:current,appearanceAdded:added,appearanceSafeBefore:beforeSafe});
   if(history.length>12)history.shift();
+  if(added.length&&originalComposite&&appearanceSafe)previewMode='appearance';
+  else if(!appearanceSafe)previewMode='layers';
   restoreSnapshots(redo);
   unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;
-  notify('편집을 다시 적용했습니다.');
+  notify('편집을 다시 적용했습니다. Photoshop 외관 보존 색상도 함께 반영했습니다.');
 };
 for(const [id,key] of [['propX','x'],['propY','y'],['propW','w'],['propH','h']]){
   $(id).onchange=e=>{const l=sel();if(!l)return;checkpoint(l);const v=Number(e.target.value);if(Number.isFinite(v)){l[key]=key==='w'||key==='h'?clamp(Math.round(v),1,20000):Math.round(v);}refreshAll();syncGuides();};

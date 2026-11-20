@@ -93,7 +93,10 @@ try{
   assert.match(await page.locator('#selectionPartsCount').textContent(),/2개 레이어/);
   await page.locator('#applyColor').click();
   assert.ok((await pixel(18,24))[2]>(await pixel(18,24))[0]);
-  assert.ok((await pixel(80,80))[0]>75,'Second layer recolored too');
+  const secondLayerPixel=await pixel(80,80);
+  const viewMode=await page.locator('#previewStatus').textContent();
+  assert.ok(secondLayerPixel[0]>75,'Second layer recolored too: '+JSON.stringify({secondLayerPixel,viewMode,
+    status:await page.locator('#status').textContent()}));
   await page.locator('#undo').click();
   assert.deepEqual(await pixel(18,24),[170,200,70,255]);
   assert.deepEqual(await pixel(80,80),[75,130,230,255]);

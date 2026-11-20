@@ -55,3 +55,50 @@ test('clipping PSD layer maps to an unmoved base below in same sibling group',()
  assert.equal(clipped.clippingUnresolved,false);
  assert.equal(clipped.compatibility.clipping,true);
 });
+
+const point=(x,y)=>({linked:true,points:[x,y,x,y,x,y]});
+test('real PSD vector mask path survives write/read and becomes a safe pixel matte',()=>{
+  const w=24,h=20;
+  const vectorMask={fillStartsWithAllPixels:false,paths:[{
+    open:false,operation:'combine',fillRule:'even-odd',
+    knots:[point(3,2),point(13,2),point(13,12),point(3,12)]
+  }]};
+  const file=writePsd({width:w,height:h,
+    imageData:bitmap(w,h,()=>[245,240,230,255]),
+    children:[{name:'Vector flower',left:0,top:0,right:w,bottom:h,vectorMask,
+      imageData:bitmap(w,h,()=>[180,100,220,255])}]});
+  const parsed=importPsdPixels(file,{createCanvas});
+  const layer=parsed.layers[0];
+  assert.equal(layer.unsupportedVectorMask,false);
+  assert.equal(layer.maskDecodeFailed,false);
+  assert.ok(layer.maskSpecs.length>0);
+  const spec=layer.maskSpecs.at(-1);
+  assert.equal(spec.pixels[7*w+8],255);
+  assert.equal(spec.pixels[17*w+8],0);
+});
+test('PSD parent group bitmap mask is decoded once and shared by all child layers',()=>{
+  const w=24,h=20;
+  const file=writePsd({width:w,height:h,
+    imageData:bitmap(w,h,()=>[245,240,230,255]),
+    children:[{
+      name:'Masked group',children:[
+        {name:'Heart',left:0,top:0,right:w,bottom:h,
+         imageData:bitmap(w,h,()=>[230,120,120,255])},
+        {name:'Star',left:0,top:0,right:w,bottom:h,
+         imageData:bitmap(w,h,()=>[120,120,230,255])}
+      ],
+      mask:{left:0,top:0,right:w,bottom:h,defaultColor:0,
+        imageData:bitmap(w,h,(x)=>[x<12?255:0,0,0,255])}
+    }]});
+  const parsed=importPsdPixels(file,{createCanvas});
+  const group=parsed.groupMasks.find(g=>g.name==='Masked group');
+  assert.ok(group,'Group mask metadata returned');
+  assert.equal(group.failed,false,'Group mask should decode');
+  assert.equal(group.maskSpecs.length,1,'Mask decoded only once for the group');
+  assert.equal(group.maskSpecs[0].pixels[7*w+2],255);
+  assert.equal(group.maskSpecs[0].pixels[7*w+20],0);
+  for(const child of parsed.layers){
+    assert.equal(child.unsupportedGroupMask,false);
+    assert.deepEqual(child.ancestorGroupKeys,[group.key]);
+  }
+});

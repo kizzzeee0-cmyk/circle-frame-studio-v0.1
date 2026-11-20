@@ -25,3 +25,39 @@
 .main-grid{min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr)}
 .center-pane{height:100%;min-height:0;overflow:hidden}
 .stage{height:0;flex:1 1 0%;min-height:0;overflow:auto}
+
+/* v0.5 PSD layer finder, compact thumbnails and precise gradient controls */
+.layer-options{padding:0 12px 12px;border-bottom:1px solid #efebf3;display:flex;flex-direction:column;gap:9px}
+.layer-options input[type=search]{width:100%;border:1px solid #e9e2ef;border-radius:8px;background:#fbf9fd;color:#554963;padding:10px 11px;font-size:11px;outline:none}
+.layer-options input[type=search]:focus{border-color:#a796de;box-shadow:0 0 0 3px #a18bda1c}
+.active-layer-info{background:#f4f0fb;border-radius:7px;padding:9px;color:#735fa5;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;max-width:100%}
+.layer{cursor:pointer;min-height:65px;transition:background .11s}
+.layer:focus-visible{outline:2px solid #9782d1;outline-offset:-2px}
+.layer-thumb{width:40px;height:40px;flex:none;border:1px solid #e9e5ee;border-radius:7px;background-image:linear-gradient(45deg,#f5f1f7 25%,transparent 25%),linear-gradient(-45deg,#f5f1f7 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#f5f1f7 75%),linear-gradient(-45deg,transparent 75%,#f5f1f7 75%);background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0}
+.layer .layer-path{display:block;font-size:9px;color:#aba0b4;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 0 2px}
+.layer-hidden{opacity:.53}
+.eye{border:0;border-radius:5px;padding:4px;font-size:15px;min-width:24px;line-height:20px;cursor:pointer}
+.eye:hover{background:#ede6fa;color:#6e5ba3}
+.picked-swatch{display:inline-block;width:26px;height:26px;border-radius:7px;border:1px solid #dbd5e5;vertical-align:middle;background:linear-gradient(45deg,#eee 25%,#fff 25%,#fff 75%,#eee 75%);flex:none}
+.color-chip-row{display:flex!important;align-items:center;gap:8px;margin-bottom:13px!important}
+.color-chip-row input{flex:1;width:30px!important;min-width:0;margin-top:0!important}
+.color-conn,.shading-check{display:flex!important;align-items:center;margin-top:12px!important;white-space:normal!important;line-height:1.5}
+.selection-details{border:1px solid #e6e0ee;border-radius:8px;padding:10px;margin:12px 0 16px;background:#faf9fd;color:#8a789b;font-size:10px;line-height:1.55}
+.divider-lite{height:1px;background:#efebf3;margin:14px 0}
+#colorPanel select{width:100%;margin-top:6px;padding:10px 12px;border:1px solid #e8e1ed;border-radius:8px;color:#62546f;background:#faf9fc;font-size:11px}
+#solidControls input[type=color]{margin-top:5px}
+.gradient-preview{height:28px;border:1px solid #e4dfeb;border-radius:8px;margin:10px 0 12px}
+.gradient-stops{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.gradient-stop{display:flex;align-items:center;gap:8px;border:1px solid #ebe5f1;background:#fcfbfe;padding:7px;border-radius:8px}
+.gradient-stop input[type=color]{width:44px!important;height:32px!important;flex:none;margin:0!important}
+.gradient-stop input[type=number]{flex:1;min-width:0;max-width:70px;margin:0!important;text-align:right}
+.gradient-percent{font-size:11px;color:#9a91a4;margin-left:-5px}
+.stop-remove{border:0;border-radius:7px;background:#f2eef6;font-size:17px;color:#947dad;min-width:25px;height:27px}
+.stop-remove:hover{background:#e7dff4;color:#7a66a1}
+.stop-remove:disabled{opacity:.35}
+#gradientControls[hidden],#solidControls[hidden]{display:none!important}
+#gradientAngle{width:100%;accent-color:#9280d1}
+#applyColor{font-weight:800}
+.stage{user-select:none}
+.stage.hand-ready,.stage.hand-ready *{cursor:grab!important}
+.stage.panning,.stage.panning *{cursor:grabbing!important}

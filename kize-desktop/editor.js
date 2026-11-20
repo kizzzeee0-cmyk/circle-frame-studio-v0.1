@@ -42,7 +42,10 @@ function toImageData(c){return c.getContext('2d',{willReadFrequently:true}).getI
 function newLayer(obj){return {id:nextId++,name:'레이어',x:0,y:0,w:100,h:100,visible:true,opacity:1,flipH:false,flipV:false,rotation:0,blend:'source-over',type:'image',adjust:defaultAdjust(),offsetX:0,offsetY:0,scale:100,...obj};}
 function sel(){return layers.find(l=>l.id===selectedId)||null;}
 function settingsSnapshot(layer){return {id:layer.id,canvas:cloneCanvas(layer.canvas),x:layer.x,y:layer.y,w:layer.w,h:layer.h,flipH:layer.flipH,flipV:layer.flipV,rotation:layer.rotation,visible:layer.visible,opacity:layer.opacity,adjust:{...layer.adjust},offsetX:layer.offsetX,offsetY:layer.offsetY,scale:layer.scale,photoSource:layer.photoSource,textValue:layer.textValue,fontFamily:layer.fontFamily,fontSize:layer.fontSize,textColor:layer.textColor};}
-function markEdited(){unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;if(previewMode==='composite')setPreviewMode('layers');}
+function markEdited(preserveAppearance=false){
+  unsavedChanges=true;updateDirtyStatus();hasLayerEdits=true;
+  if(!preserveAppearance&&previewMode==='composite')setPreviewMode('layers');
+}
 function updateDirtyStatus(){const el=$('dirtyStatus');if(el)el.textContent=unsavedChanges?'● 저장되지 않은 변경사항':'저장됨';}
 function checkpoint(l){if(!l)return;history.push({batch:[settingsSnapshot(l)],appearanceCount:appearancePatches.length,appearanceAdded:[],appearanceSafeBefore:appearanceSafe});if(history.length>12)history.shift();redoHistory=[];appearanceSafe=false;markEdited();}
 function checkpointBatch(list){
@@ -52,7 +55,7 @@ function checkpointBatch(list){
   history.push({batch:list.map(settingsSnapshot),appearanceCount:appearancePatches.length,
     appearanceAdded:[],appearanceSafeBefore:appearanceSafe});
   if(history.length>12)history.shift();
-  redoHistory=[];markEdited();
+  redoHistory=[];markEdited(Boolean(originalComposite&&appearanceSafe));
 }
 function clearSelections(){
   selectionParts=[];selection=null;selectionPreview=null;
@@ -832,8 +835,11 @@ function downloadBlob(blob,filename){const url=URL.createObjectURL(blob),a=docum
 $('exportPng').onclick=()=>{
   if(!documentModel){notify('먼저 디자인 파일을 불러와 주세요.');return;}
   if(hasLayerEdits&&previewMode==='composite'){
-    setPreviewMode('layers');
-    notify('PSD 원본 보기에는 수정 내용이 표시되지 않습니다. 레이어 편집 모습으로 전환했습니다. 확인 후 다시 PNG 저장을 눌러 주세요.');
+    const corrected=originalComposite&&appearanceSafe?'appearance':'layers';
+    setPreviewMode(corrected);
+    notify(corrected==='appearance'
+      ?'PSD 원본 보기에서는 수정된 색상이 보이지 않습니다. 외관 보존 편집 모습으로 전환했으니 확인 후 PNG 저장을 다시 눌러 주세요.'
+      :'원본과 효과가 다를 수 있는 레이어 재구성 화면으로 전환했습니다. 확인 후 PNG 저장을 다시 눌러 주세요.');
     return;
   }
   render();

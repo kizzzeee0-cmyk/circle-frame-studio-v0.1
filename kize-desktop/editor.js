@@ -8,7 +8,7 @@ import {summarizePsdCompatibility} from './psd-compatibility.mjs';
 import {compareRgba,publicFidelityReport} from './fidelity-audit.mjs';
 import {layerConstraintAlpha,constrainSelection} from './psd-mask-core.mjs';
 import {maskedLayerRgba} from './masked-preview.mjs';
-import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
+import {makeAppearancePatch,transformedSelectionRect,overlayPriorPatches,APPEARANCE_VERSION} from './appearance-core.mjs';
 import {protectOccludedPixels,pointIsOccluded,sourcePixelToDocument} from './visible-occlusion.mjs';
 import {parseVariantColors,variantFileName} from './palette-variants.mjs';
 import {paintPolicy,effectiveColor,defaultImportSelection} from './color-workflow.mjs';
@@ -24,7 +24,7 @@ let unsavedChanges=false;
 // Original Photoshop composite is a read-only WYSIWYG reference. Canvas
 // reconstruction of masks, layer styles, groups and text is never assumed exact.
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
-let temporaryPreview=null;
+let temporaryPreview=null,lastColorAction='';
 // Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
 // still use the explicitly marked reconstructed view.
 let appearancePatches=[],appearanceSafe=true;
@@ -89,7 +89,7 @@ function updateSelectionUi(){
     :'이미지에서 바꾸고 싶은 색상을 클릭하세요. Shift+클릭은 누적 선택입니다.';
   if($('workflowStatus'))$('workflowStatus').textContent=!documentModel
     ?'① 먼저 PSD 또는 PNG 파일을 열어 주세요.'
-    :!selectionParts.length?'① 바꾸고 싶은 색을 클릭하세요. 여러 색은 Shift+클릭하세요.'
+    :!selectionParts.length?(lastColorAction||'① 바꾸고 싶은 색을 클릭하세요. 여러 색은 Shift+클릭하세요.')
       :'② '+selectionParts.length+'개 영역 선택 완료 ('+count.toLocaleString()+'px) · 바꿀 색 지정 후 미리보기 또는 적용';
 }
 function updateSelectionPreview(){
@@ -873,6 +873,7 @@ function pickLayerColor(l,px,py,additive=false){
     return;
   }
   region.baseMask=region.mask;
+  lastColorAction='';
   reapplyMaskAmount(region);
   if(!region.count){notify('가려짐 또는 PSD 마스크로 인해 실제 수정 가능한 픽셀이 없습니다.');return;}
   if(!additive)selectionParts=[];
@@ -1070,7 +1071,17 @@ $('applyColor').onclick=()=>{
             const rgba=refCtx.getImageData(rect.x,rect.y,rect.w,rect.h).data;
             const patch=makeAppearancePatch(l,effectivePart,documentModel.width,documentModel.height,
               rgba,[...appearancePatches,...newAppearancePatches],opts);
-            if(patch)newAppearancePatches.push(patch);
+            if(patch){
+              const currentVisible=overlayPriorPatches(rgba,rect,
+                [...appearancePatches,...newAppearancePatches]);
+              let differs=false;
+              for(let i=0;i<patch.data.length;i+=4){
+                if(patch.data[i]!==currentVisible[i]||
+                   patch.data[i+1]!==currentVisible[i+1]||
+                   patch.data[i+2]!==currentVisible[i+2]){differs=true;break;}
+              }
+              if(differs)newAppearancePatches.push(patch);
+            }
           }
         }
         const painted=paintSelection(image.data,image.width,image.height,effectivePart,opts);
@@ -1079,13 +1090,20 @@ $('applyColor').onclick=()=>{
           output[index]=painted.data[index];
           output[index+1]=painted.data[index+1];
           output[index+2]=painted.data[index+2];
-          changed++;
+          if(output[index]!==image.data[index]||
+             output[index+1]!==image.data[index+1]||
+             output[index+2]!==image.data[index+2])changed++;
         }
       }
       if(changed)updates.push({layer:l,image:{width:image.width,height:image.height,data:output},count:changed});
       total+=changed;
     }
-    if(!updates.length){notify('수정할 픽셀이 없습니다. 선택 범위를 다시 확인해 주세요.');return;}
+    if(!updates.length||(appearanceEnabled&&!newAppearancePatches.length)){
+      const reason='적용 전후 색상이 같아 화면에 변화가 없습니다. 다른 HEX를 고르거나 '+
+        '흰색·검정 선 보호를 끄고 다시 시도해 주세요. 원본은 변경하지 않았습니다.';
+      notify(reason);$('workflowStatus').textContent='변경 없음 · 선택 영역 유지 · 다른 색상 또는 보호 옵션 확인';
+      return;
+    }
     checkpointBatch(updates.map(u=>u.layer));
     for(const u of updates){
       const l=u.layer;l.canvas=pixelCanvas(u.image);
@@ -1099,6 +1117,7 @@ $('applyColor').onclick=()=>{
     }else{
       previewMode='layers';
     }
+    lastColorAction='✓ '+total.toLocaleString()+'픽셀 색상 변경 완료! 다음 부분을 클릭하거나 PNG로 저장하세요.';
     clearSelections();refreshAll();
     notify(appearanceEnabled
       ?total.toLocaleString()+'px 색상 변경 완료 · Photoshop 원본 외관 유지 편집 ('+newAppearancePatches.length+'개 영역)'
@@ -1176,7 +1195,7 @@ function variantIsolated(part,covered){
   const bounds=maskBounds(mask,part.w,part.h).bounds;
   return bounds?{...part,mask,bounds}:null;
 }
-function drawBatchAppearance(out,color){
+function drawBatchAppearance(out,color,optionFactory=variantPaintOptions){
   const context=out.getContext('2d'),ref=originalComposite.getContext('2d',{willReadFrequently:true});
   context.drawImage(originalComposite,0,0);
   for(const patch of appearancePatches)
@@ -1193,13 +1212,13 @@ function drawBatchAppearance(out,color){
       if(!rect)continue;
       const original=ref.getImageData(rect.x,rect.y,rect.w,rect.h).data;
       const patch=makeAppearancePatch(layer,isolated,documentModel.width,documentModel.height,
-        original,[...appearancePatches,...added],variantPaintOptions(color,part));
+        original,[...appearancePatches,...added],optionFactory(color,part));
       if(patch)added.push(patch);
     }
   }
   for(const patch of added)context.putImageData(new ImageData(patch.data,patch.w,patch.h),patch.x,patch.y);
 }
-function drawBatchLayers(out,color){
+function drawBatchLayers(out,color,optionFactory=variantPaintOptions){
   const context=out.getContext('2d');
   for(const l of layers){
     if(!l.visible||!l.canvas)continue;
@@ -1213,7 +1232,7 @@ function drawBatchLayers(out,color){
         if(part.w!==src.width||part.h!==src.height)throw Error('시안 선택 레이어 크기가 변경되었습니다.');
         const isolated=variantIsolated(part,covered);
         if(isolated)modified=paintSelection(modified,src.width,src.height,
-          isolated,variantPaintOptions(color,part)).data;
+          isolated,optionFactory(color,part)).data;
       }
       try{
         if(l.maskSpecs?.length||l.groupMaskSpecs?.length||l.clipBaseId!=null||
@@ -1229,6 +1248,38 @@ function drawBatchLayers(out,color){
     context.drawImage(image,-l.w/2,-l.h/2,l.w,l.h);context.restore();
   }
 }
+
+function drawTemporaryPreview(){
+  if(!documentModel||!selectionParts.length){
+    notify('① 바꾸고 싶은 색상을 먼저 클릭해 선택해 주세요.');return;
+  }
+  if(documentModel.width*documentModel.height>10_000_000){
+    notify('메모리 보호: 1,000만 픽셀 초과 문서는 적용 후 보기로 확인해 주세요.');
+    return;
+  }
+  try{
+    const output=blankCanvas(documentModel.width,documentModel.height);
+    const options=(_color,part)=>paintPolicy(editorPaintSettings(),part.mode);
+    if(originalComposite&&appearanceSafe)
+      drawBatchAppearance(output,$('targetColor').value,options);
+    else drawBatchLayers(output,$('targetColor').value,options);
+    temporaryPreview=output;
+    $('previewColor').textContent='미리보기 해제';
+    render();
+    notify('미리보기입니다. 원본은 아직 수정하지 않았습니다. 마음에 들면 색상 적용을 눌러 주세요.');
+    $('workflowStatus').textContent='③ 미리보기 중 · 결과가 좋다면 아래 색상 적용 버튼을 누르세요.';
+  }catch(error){
+    temporaryPreview=null;render();
+    notify('색상 미리보기 실패: '+(error?.message||error));
+  }
+}
+$('previewColor').onclick=()=>{
+  if(temporaryPreview){
+    temporaryPreview=null;$('previewColor').textContent='변경 미리보기';
+    render();notify('미리보기를 해제했습니다. 실제 편집 내용은 그대로입니다.');
+  }else drawTemporaryPreview();
+};
+
 $('exportVariants').onclick=async()=>{
   if(!documentModel||!selectionParts.length){notify('시안 추출 전 색상/에셋 영역을 선택해 주세요.');return;}
   if(documentModel.width*documentModel.height>8_000_000){

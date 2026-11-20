@@ -77,3 +77,9 @@
 .stage{background-color:#eeedf2;cursor:crosshair}
 .stage.panning,.stage.panning *{cursor:grabbing!important}
 .stage .canvas-holder{will-change:transform}
+
+/* v0.6 project state is visible without adding a new settings panel. */
+.dirty-status{font-size:10px;color:#867b91;white-space:nowrap;font-weight:650;padding:0 5px}
+.top-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+#redo,#undo{white-space:nowrap}
+@media(max-width:1140px){.dirty-status{width:100%;text-align:right}}

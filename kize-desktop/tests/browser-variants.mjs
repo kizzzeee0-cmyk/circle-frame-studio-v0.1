@@ -54,6 +54,7 @@ try{
  const box=await page.locator('#overlayCanvas').boundingBox();
  await page.mouse.click(box.x+6.5*box.width/w,box.y+6.5*box.height/h);
  assert.match(await page.locator('#selectionInfo').textContent(),/영역/);
+ await page.locator('.variant-details summary').click();
  await page.locator('#variantColors').fill('#AA0000, #0000AA');
  const [download]=await Promise.all([page.waitForEvent('download',{timeout:60000}),
    page.locator('#exportVariants').click()]);

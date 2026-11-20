@@ -85,3 +85,19 @@ test('KIZE project can round-trip original merged reference and exact appearance
     'reference/psd-merged.png':tiny,'appearance/0000.png':tiny,'layers/0000.png':tiny
   }),/좌표|크기/);
 });
+
+test('odd-size PSD layers sample the actual selected object, never the adjacent beige background',()=>{
+  const dw=160,dh=130,layer={id:7,x:65,y:65,w:45,h:35,rotation:0,flipH:false,flipV:false};
+  const selection={w:45,h:35,mask:new Uint8Array(45*35).fill(255),
+    bounds:{x:0,y:0,w:45,h:35},sample:[75,130,230]};
+  const doc=rgba(dw,dh,(x,y)=>x>=65&&x<110&&y>=65&&y<100
+    ?[75,130,230,255]:[248,245,235,255]);
+  const rect=transformedSelectionRect(layer,selection,dw,dh);
+  const patch=makeAppearancePatch(layer,selection,dw,dh,crop(doc,dw,rect),[],{
+    mode:'solid',color:'#9389DE',tintAsset:true,protectWhite:true,preserveShading:true
+  });
+  const after=applyPatches(doc,dw,[patch]);
+  const center=Array.from(after.slice((80*dw+80)*4,(80*dw+80)*4+4));
+  assert.deepEqual(center,[147,137,222,255],
+    'Preserved appearance must use the actual selected badge brightness, not the nearby cream background');
+});

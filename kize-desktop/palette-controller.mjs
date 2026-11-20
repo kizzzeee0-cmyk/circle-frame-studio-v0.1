@@ -77,7 +77,7 @@ export function installPaletteController(api){
     clearTimeout(timer);
     timer=setTimeout(()=>{
       timer=null;updateMapping();
-      if(preview&&combo()&&api.pngSource())previewOrApply(false);
+      if(preview&&combo()&&api.canUse())previewOrApply(false);
     },280);
   }
   function refresh(){

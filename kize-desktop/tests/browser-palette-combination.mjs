@@ -43,10 +43,10 @@ try{
  await page.locator('#paletteSelectAll').click();
  const selected=await page.locator('#selectionInfo').textContent();
  assert.match(selected,/2,160개 픽셀 선택/,'Ctrl+A/all must omit transparent row');
- await page.locator('#clearSelection').click();
+ await page.locator('#paletteClearSelection').click();
  await page.keyboard.press('Control+a');
  assert.match(await page.locator('#selectionInfo').textContent(),/2,160개 픽셀 선택/);
- await page.locator('#clearSelection').click();
+ await page.locator('#paletteClearSelection').click();
  await page.locator('#variantColors').fill('#F2C4CC, #CEE5B7, #C9D4F1');
  await page.locator('#variantColors').press('Control+Shift+a');
  assert.match(await page.locator('#selectionInfo').textContent(),/2,160개 픽셀 선택/,

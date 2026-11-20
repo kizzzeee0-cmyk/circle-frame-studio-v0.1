@@ -100,18 +100,32 @@ export function paintSelection(src,w,h,selection,opt={}) {
   const preserve=opt.preserveShading!==false;
   const sample=selection.sample||[128,128,128];
   const refLum=.2126*sample[0]+.7152*sample[1]+.0722*sample[2];
+  const tintAsset=opt.tintAsset===true;
+  const protectWhite=opt.protectWhite!==false;
+  const strengthSetting=clamp(Number(opt.tintStrength??100),0,100)/100;
   let count=0;
   for(let i=0;i<w*h;i++){
     const strength=selection.mask[i]/255;if(strength<=0||out[i*4+3]===0)continue;
     const p=i*4,xx=i%w-b.x,yy=((i/w)|0)-b.y;
     const gradientPosition=((xx+.5)*dx+(yy+.5)*dy-min)/len;
     const target=gradient?gradientAt(gradientPosition,stops):solid;
-    const lum=.2126*src[p]+.7152*src[p+1]+.0722*src[p+2];
-    // Apply modest source shading without changing new target hues or alpha.
-    const shade=preserve?clamp((lum-refLum)*.38,-52,52):0;
+    const luminosity=.2126*src[p]+.7152*src[p+1]+.0722*src[p+2];
+    const sourceMax=Math.max(src[p],src[p+1],src[p+2]);
+    const sourceMin=Math.min(src[p],src[p+1],src[p+2]);
+    const saturation=sourceMax?((sourceMax-sourceMin)/sourceMax):0;
+    if(tintAsset&&protectWhite&&luminosity>=236&&saturation<.125)continue;
+    if(tintAsset&&protectWhite&&luminosity<=37&&saturation<.095)continue;
+    // In asset tone mode, treat colored fills, midtones and layer-style
+    // shadows as one hue family. Keep their relative luminance (not their old
+    // RGB hue), while protecting neutral white highlights / black linework.
+    const shade=preserve?clamp((luminosity-refLum)*(tintAsset?.86:.38),-155,155):0;
+    const adjustedStrength=strength*(tintAsset?strengthSetting:1);
+    const neutralWhite=tintAsset&&protectWhite&&saturation<.16&&luminosity>215
+      ?clamp((236-luminosity)/21,0,1):1;
     for(let ch=0;ch<3;ch++){
       const next=clamp(target[ch]+shade,0,255);
-      out[p+ch]=Math.round(src[p+ch]*(1-strength)+next*strength);
+      const mix=adjustedStrength*neutralWhite;
+      out[p+ch]=Math.round(src[p+ch]*(1-mix)+next*mix);
     }
     count++;
   }

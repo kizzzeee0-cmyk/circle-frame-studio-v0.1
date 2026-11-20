@@ -95,7 +95,7 @@ async function importProject(file){
 }
 $('importFile').addEventListener('change',async e=>{
   const file=e.target.files?.[0];e.target.value='';if(!file)return;
-  try{if(/\.psd$/i.test(file.name))await importPsd(file);else if(/\.kize\.json$/i.test(file.name))await importProject(file);else await importRaster(file);}
+  try{if(/\.(psd|psb)$/i.test(file.name))await importPsd(file);else if(/\.kize\.json$/i.test(file.name))await importProject(file);else await importRaster(file);}
   catch(err){
     const reason=err?.message||String(err);
     notify('불러오기 실패: '+reason);

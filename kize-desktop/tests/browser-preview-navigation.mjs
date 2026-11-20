@@ -76,12 +76,14 @@ try{
   });
   const area=await page.locator('#stage').boundingBox();
   const mx=area.x+area.width/2,my=area.y+area.height/2;
+  const beforePan=await page.locator('#canvasHolder').boundingBox();
   await page.mouse.move(mx,my);
   await page.mouse.down({button:'middle'});
   await page.mouse.move(mx+75,my+60,{steps:5});
   await page.mouse.up({button:'middle'});
-  const panned=await page.evaluate(()=>({x:document.querySelector('#stage').scrollLeft,y:document.querySelector('#stage').scrollTop}));
-  assert.ok(panned.x<230 && panned.y<240,'Middle mouse pan must move view both horizontally and vertically');
+  const afterPan=await page.locator('#canvasHolder').boundingBox();
+  assert.ok(afterPan.x-beforePan.x>55 && afterPan.y-beforePan.y>40,
+    'Middle mouse pan must translate the canvas on both axes: '+JSON.stringify({beforePan,afterPan}));
 
   const zoomBefore=Number((await page.locator('#zoomLabel').textContent()).replace('%',''));
   await page.mouse.move(mx,my);await page.mouse.wheel(0,-240);

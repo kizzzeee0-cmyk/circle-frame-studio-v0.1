@@ -5,7 +5,7 @@
 <div class="caption">WORKSPACE</div>
 <button class="side-btn selected" id="menuEditor">◈ <span>디자인 편집기</span></button>
 <div class="help"><strong>원본을 보호하는 편집</strong><p>PSD·PNG 작업물에서 영역과 색상을 수정하고, 별도 KIZE 프로젝트로 저장합니다.</p><p>Ctrl+S 저장 · Ctrl+Z 실행 취소 · Ctrl+Shift+Z 다시 실행</p></div>
-<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.11.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
+<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.12.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
 <section class="workspace"><header class="topbar"><div><div class="eyebrow">KIZE / WORKSPACE</div><h1>디자인 편집기</h1></div><div class="top-actions"><div class="update-control" id="updateControl">
   <button type="button" class="update-badge" id="updateBadge" aria-label="새로운 업데이트 확인" title="새 업데이트가 있습니다" hidden>NEW</button>
   <span id="updateStatus" class="update-status" role="status" aria-live="polite">새 버전 확인 중…</span>
@@ -24,7 +24,7 @@
 <div id="sourceName" class="muted small">파일을 선택해 주세요.</div>
 <div class="layer-options">
   <input id="layerSearch" type="search" placeholder="레이어 이름 검색" aria-label="레이어 이름 검색" autocomplete="off">
-  <label class="check"><input id="selectedLayerOnly" type="checkbox" checked> 현재 선택한 레이어만 색상 선택</label>
+  <label class="check"><input id="selectedLayerOnly" type="checkbox"> 선택한 레이어에 고정 (기본: 클릭한 부분의 레이어 자동 찾기)</label>
   <div id="activeLayerInfo" class="active-layer-info">색상을 수정할 레이어를 선택하세요.</div>
 </div>
 <div id="importReport" class="import-report" role="status" hidden></div>
@@ -56,10 +56,19 @@
 <section class="panel"><div class="title">위치와 크기</div><div class="two"><label>X <input id="propX" type="number" step="1"></label><label>Y <input id="propY" type="number" step="1"></label><label>가로 <input id="propW" type="number" min="1" step="1"></label><label>세로 <input id="propH" type="number" min="1" step="1"></label></div>
 <div class="buttonrow"><button id="centerH">가로 중앙</button><button id="centerV">세로 중앙</button></div><div class="buttonrow"><button id="flipH">좌우 반전</button><button id="flipV">상하 반전</button><button id="rotate90">90° 회전</button></div>
 <div class="mini-row"><label class="check"><input id="visibleLayer" type="checkbox" checked> 표시</label><label>불투명도 <input id="opacityLayer" type="range" min="0" max="100" value="100"></label></div></section>
-<section class="panel" id="colorPanel"><div class="title">선택한 색상 영역 편집</div>
-<p class="micro">PSD 레이어를 먼저 고른 뒤 캔버스에서 변경할 색상을 클릭하세요. 하나의 레이어 안에서도 연결된 색상 영역만 따로 선택할 수 있습니다.</p>
+<section class="panel" id="colorPanel"><div class="title">쉽게 색상 변경하기</div>
+<div class="workflow-guide" id="workflowGuide" aria-label="색상 편집 사용 순서">
+  <div class="workflow-step"><b>1</b><span><strong>부분 선택</strong><small>그림에서 바꾸고 싶은 색상을 클릭 · Shift+클릭으로 추가</small></span></div>
+  <div class="workflow-step"><b>2</b><span><strong>색상 지정</strong><small>정확한 HEX 또는 파스텔로 부드럽게 조절</small></span></div>
+  <div class="workflow-step"><b>3</b><span><strong>미리보기 → 적용</strong><small>미리 보고 원하는 모습이면 변경 적용</small></span></div>
+  <p id="workflowStatus" role="status" aria-live="polite">이미지를 열고 바꾸고 싶은 부분을 클릭하세요.</p>
+</div>
 <label class="color-chip-row">추출한 색상 <span id="pickedSwatch" class="picked-swatch"></span><input id="pickedHex" type="text" value="—" readonly></label>
-<label class="selection-mode-label">선택 방식<select id="selectionMode"><option value="asset">에셋 단위 · 그림자와 색 변화 함께</option><option value="color">색상 영역 · 비슷한 색상만</option></select></label>
+<label class="selection-mode-label">선택 범위<select id="selectionMode">
+  <option value="color">클릭한 색상만 (기본 · 프레임/PNG 추천)</option>
+  <option value="asset">이어진 에셋 전체 (넓게 선택될 수 있음)</option>
+</select></label>
+<p class="micro">프레임처럼 장식이 서로 이어진 PNG는 '클릭한 색상만'을 권장합니다. 같은 색이 떨어져 있다면 아래 '연결된 유사 색상만'을 끄세요.</p>
 <p class="micro">Shift + 클릭: 여러 부분 누적 선택 · Alt + 드래그: 레이어 이동</p>
 <label class="range-label">색상 허용 범위 <span id="toleranceOut">18</span><input id="colorTolerance" type="range" min="0" max="90" value="18"></label>
 <label class="range-label">선택 범위 넓히기 / 좁히기 <span id="maskAdjustOut">0px</span><input id="maskAdjust" type="range" min="-12" max="12" step="1" value="0"></label>
@@ -70,7 +79,21 @@
 <label>채우기 종류
   <select id="colorMode"><option value="solid">단색</option><option value="gradient">그라데이션</option></select>
 </label>
-<div id="solidControls"><label>변경할 색상 <input type="color" id="targetColor" value="#9389DE"></label></div>
+<div id="solidControls"><label>바꿀 색상 (고른 HEX 기준)</label>
+<div class="target-color-row"><input type="color" id="targetColor" value="#BEB5ED" aria-label="바꿀 색상 고르기">
+<input type="text" id="targetHex" value="#BEB5ED" maxlength="7" spellcheck="false" aria-label="바꿀 색상 HEX 직접 입력" placeholder="#RRGGBB"></div></div>
+<label class="selection-mode-label">색상을 바꾸는 방식
+<select id="colorFinish">
+  <option value="exact">선택한 색상 그대로 (기본 · 가장 정확함)</option>
+  <option value="pastel">파스텔로 더 부드럽게 (변경 색 미리 표시)</option>
+  <option value="shaded">명암 유지 (같은 HEX가 아닐 수 있음)</option>
+  <option value="palette">다색 조화 유지 (원래 색 관계를 보존)</option>
+</select></label>
+<div class="pastel-controls" id="pastelControls" hidden>
+  <label class="range-label">파스텔 부드러움 <input id="pastelSoftness" type="range" min="0" max="85" value="38" step="1"></label>
+  <input type="number" id="pastelSoftnessNumber" min="0" max="85" value="38" step="1" aria-label="파스텔 부드러움 숫자 입력"><span>%</span>
+</div>
+<div class="effective-color" id="effectiveColorPreview"><span id="effectiveColorSwatch"></span><div><strong id="effectiveColorText">#BEB5ED</strong><small>실제로 적용할 기준 색상</small></div></div>
 <div id="gradientControls" hidden>
   <div id="gradientPreview" class="gradient-preview"></div>
   <div id="gradientStops" class="gradient-stops"></div>
@@ -78,21 +101,36 @@
   <label class="range-label">그라데이션 방향 <span id="angleLabel">90°</span><input type="range" id="gradientAngle" min="0" max="360" value="90"></label>
 </div>
 <label class="check shading-check"><input type="checkbox" id="assetTint" checked> 에셋 색감 통일 · 그림자/밝기 유지</label>
-<label class="check shading-check"><input type="checkbox" id="smartPalette" checked> 스마트 다색 색감 변경 · 개별 색상 차이 유지</label>
+<p class="micro" id="colorFinishHint">‘선택한 색상 그대로’는 HEX를 정확히 적용합니다. 다른 표현은 위의 색상 변경 방식에서 선택하세요.</p>
 <label class="check shading-check"><input type="checkbox" id="protectWhite" checked> 원본 흰색·검정 선 보호</label>
 <label class="check shading-check"><input type="checkbox" id="preserveShading" checked> 명암 대비 유지</label>
-<div class="buttonrow"><button class="primary" id="applyColor">선택한 색상 영역 적용</button><button id="undo" title="Ctrl+Z">되돌리기</button><button id="redo" title="Ctrl+Shift+Z 또는 Ctrl+Y">다시 실행</button></div>
-<details class="variant-details"><summary>색상별 시안 일괄 생성 · PNG ZIP</summary><p class="micro">선택한 에셋을 서로 다른 색상으로 각각 미리보기 파일로 추출합니다. 현재 프로젝트는 변경되지 않습니다.</p><label>빠른 색상 조합<select id="variantPreset"><option value="">직접 입력</option><option value="#9389DE, #F0A6BB, #8BC9B2">라벤더 · 로즈 · 민트</option><option value="#FA9D95, #F7C68D, #B3C9EF">코랄 · 바닐라 · 스카이</option><option value="#48454E, #E58FA9, #E8E7EB">차콜 · 로즈 · 그레이</option></select></label><label>시안 HEX 색상 (2~6개, 쉼표 구분)<input id="variantColors" type="text" value="#9389DE, #F0A6BB, #8BC9B2" spellcheck="false"></label><button type="button" id="exportVariants" class="subtle fill">색상별 PNG 시안 ZIP 만들기</button></details>
+<div class="buttonrow color-action-row"><button type="button" class="subtle" id="previewColor">변경 미리보기</button><button class="primary" id="applyColor">선택한 부분에 색상 적용</button></div>
+<div class="buttonrow"><button id="undo" title="Ctrl+Z">되돌리기</button><button id="redo" title="Ctrl+Shift+Z 또는 Ctrl+Y">다시 실행</button></div>
+<details class="variant-details"><summary>색상별 시안 일괄 생성 · PNG ZIP (30가지 색상 조합)</summary>
+<p class="micro">① 먼저 그림에서 바꿀 부분 선택 → ② 아래 조합 선택 또는 HEX 입력 → ③ 적용 색 확인 → ④ ZIP 생성. ZIP 생성은 원본 작업을 변경하지 않습니다.</p><p class="micro">선택한 에셋을 서로 다른 색상으로 각각 미리보기 파일로 추출합니다. 현재 프로젝트는 변경되지 않습니다.</p><label>추천 팔레트 30종<select id="variantPreset"><option value="">직접 입력</option></select></label><label>시안 HEX 색상 (2~6개, 쉼표 구분)<input id="variantColors" type="text" value="#BEB5ED, #F2BFD1, #B8DECB" spellcheck="false"></label>
+<label>시안 색상 처리<select id="variantFinish">
+  <option value="exact">입력 HEX 그대로 (기본)</option>
+  <option value="pastel">입력 색상을 더 파스텔로 보정</option>
+  <option value="shaded">원본 명암을 유지하며 색감 변경</option>
+  <option value="palette">원본 다색 조화를 유지하며 변경</option>
+</select></label>
+<div class="pastel-controls" id="variantSoftnessControls" hidden>
+<label class="range-label">시안 파스텔 부드러움 <input id="variantSoftness" type="range" min="0" max="85" value="38"></label>
+<input id="variantSoftnessNumber" type="number" min="0" max="85" value="38" aria-label="시안 부드러움 숫자 입력"><span>%</span>
+</div>
+<div class="variant-swatches" id="variantSwatches" aria-label="실제 출력될 기준 색상 미리보기"></div>
+<small id="variantSummary" class="micro">각 시안은 선택한 영역에 해당 색상을 적용해 별도의 PNG로 저장합니다.</small>
+<button type="button" id="exportVariants" class="subtle fill">선택 영역을 색상별 PNG ZIP으로 저장</button></details>
 <p class="micro">변경은 선택된 PSD 레이어에만 적용합니다. 원본 PSD는 덮어쓰지 않습니다.</p>
 </section>
 <section class="panel" id="photoPanel"><div class="title">사진 보정 · Camera Raw 스타일</div><p class="micro">비파괴 기본 톤 보정이며 Photoshop Camera Raw와 동일한 엔진은 아닙니다.</p>
 <div class="photo-sliders">
-<label>노출 <output id="outExposure">0</output><input data-adjust="exposure" type="range" min="-100" max="100" value="0"></label>
-<label>대비 <output id="outContrast">0</output><input data-adjust="contrast" type="range" min="-100" max="100" value="0"></label>
-<label>채도 <output id="outSaturation">0</output><input data-adjust="saturation" type="range" min="-100" max="100" value="0"></label>
-<label>색온도 <output id="outWarmth">0</output><input data-adjust="warmth" type="range" min="-100" max="100" value="0"></label>
-<label>하이라이트 <output id="outHighlights">0</output><input data-adjust="highlights" type="range" min="-100" max="100" value="0"></label>
-<label>그림자 <output id="outShadows">0</output><input data-adjust="shadows" type="range" min="-100" max="100" value="0"></label></div>
+<label class="photo-adjust-row"><span>노출</span><input data-adjust="exposure" type="range" min="-100" max="100" value="0"><input id="numExposure" data-adjust-number="exposure" type="number" min="-100" max="100" step="1" value="0" aria-label="노출 숫자 직접 입력"><output id="outExposure" hidden>0</output></label>
+<label class="photo-adjust-row"><span>대비</span><input data-adjust="contrast" type="range" min="-100" max="100" value="0"><input id="numContrast" data-adjust-number="contrast" type="number" min="-100" max="100" step="1" value="0" aria-label="대비 숫자 직접 입력"><output id="outContrast" hidden>0</output></label>
+<label class="photo-adjust-row"><span>채도</span><input data-adjust="saturation" type="range" min="-100" max="100" value="0"><input id="numSaturation" data-adjust-number="saturation" type="number" min="-100" max="100" step="1" value="0" aria-label="채도 숫자 직접 입력"><output id="outSaturation" hidden>0</output></label>
+<label class="photo-adjust-row"><span>색온도</span><input data-adjust="warmth" type="range" min="-100" max="100" value="0"><input id="numWarmth" data-adjust-number="warmth" type="number" min="-100" max="100" step="1" value="0" aria-label="색온도 숫자 직접 입력"><output id="outWarmth" hidden>0</output></label>
+<label class="photo-adjust-row"><span>하이라이트</span><input data-adjust="highlights" type="range" min="-100" max="100" value="0"><input id="numHighlights" data-adjust-number="highlights" type="number" min="-100" max="100" step="1" value="0" aria-label="하이라이트 숫자 직접 입력"><output id="outHighlights" hidden>0</output></label>
+<label class="photo-adjust-row"><span>그림자</span><input data-adjust="shadows" type="range" min="-100" max="100" value="0"><input id="numShadows" data-adjust-number="shadows" type="number" min="-100" max="100" step="1" value="0" aria-label="그림자 숫자 직접 입력"><output id="outShadows" hidden>0</output></label></div>
 <div class="buttonrow"><button id="resetAdjust">사진 보정 초기화</button></div></section>
 <section class="panel"><div class="title">교체된 사진 내부 위치</div><div class="two"><label>사진 확대율 %<input id="photoScale" type="number" min="10" max="500" value="100"></label><label>사진 가로 이동 <input id="photoOffsetX" type="number" value="0"></label><label>사진 세로 이동 <input id="photoOffsetY" type="number" value="0"></label></div></section>
 <section class="panel" id="textPanel"><div class="title">PSD 텍스트 레이어</div><label>문구<textarea rows="2" id="textValue" placeholder="선택한 텍스트 레이어"></textarea></label><label>글꼴<input id="fontFamily" placeholder="설치된 원본 폰트 이름"></label><div class="two"><label>글자 크기 <input id="fontSize" type="number" min="1"></label><label>글자 색상 <input id="textColor" type="color" value="#333333"></label></div><button id="applyText" class="subtle fill">텍스트 미리보기 적용</button><p class="micro">텍스트 메타데이터가 있는 PSD 레이어에서만 가능합니다. 원본 폰트 및 효과가 없는 경우 완벽한 재현은 보장하지 않습니다.</p></section>

@@ -40,7 +40,7 @@ try{
   await page.locator('#importFile').setInputFiles({name:'colors.psd',mimeType:'application/octet-stream',buffer:Buffer.from(fixture)});
   await page.waitForFunction(()=>/불러오기 완료/.test(document.querySelector('#importReport')?.textContent||''),null,{timeout:60000});
   assert.equal(await page.locator('#layerCount').textContent(),'2');
-  assert.equal(await page.locator('#selectedLayerOnly').isChecked(),true);
+  assert.equal(await page.locator('#selectedLayerOnly').isChecked(),false,'new default uses automatic PSD layer detection');
   await page.locator('.layer').filter({hasText:'Color asset'}).click();
   const layerInfo=await page.locator('#activeLayerInfo').textContent();
   assert.match(layerInfo,/Color asset/);

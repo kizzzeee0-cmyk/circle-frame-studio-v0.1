@@ -8,9 +8,11 @@ import {summarizePsdCompatibility} from './psd-compatibility.mjs';
 import {compareRgba,publicFidelityReport} from './fidelity-audit.mjs';
 import {layerConstraintAlpha,constrainSelection} from './psd-mask-core.mjs';
 import {maskedLayerRgba} from './masked-preview.mjs';
-import {makeAppearancePatch,transformedSelectionRect,APPEARANCE_VERSION} from './appearance-core.mjs';
+import {makeAppearancePatch,transformedSelectionRect,overlayPriorPatches,APPEARANCE_VERSION} from './appearance-core.mjs';
 import {protectOccludedPixels,pointIsOccluded,sourcePixelToDocument} from './visible-occlusion.mjs';
 import {parseVariantColors,variantFileName} from './palette-variants.mjs';
+import {paintPolicy,effectiveColor,defaultImportSelection} from './color-workflow.mjs';
+import {PALETTE_PRESETS} from './palette-presets.mjs';
 import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
@@ -22,6 +24,7 @@ let unsavedChanges=false;
 // Original Photoshop composite is a read-only WYSIWYG reference. Canvas
 // reconstruction of masks, layer styles, groups and text is never assumed exact.
 let originalComposite=null,previewMode='layers',hasLayerEdits=false;
+let temporaryPreview=null,lastColorAction='';
 // Immutable Photoshop composite plus exact-pixel recolor patches; geometry edits
 // still use the explicitly marked reconstructed view.
 let appearancePatches=[],appearanceSafe=true;
@@ -70,6 +73,8 @@ function checkpointBatch(list){
   redoHistory=[];markEdited(Boolean(originalComposite&&appearanceSafe));
 }
 function clearSelections(){
+  temporaryPreview=null;
+  if($('previewColor'))$('previewColor').textContent='변경 미리보기';
   selectionParts=[];selection=null;selectionPreview=null;
   $('pickedHex').value='—';$('pickedSwatch').style.backgroundColor='';
   updateSelectionUi();
@@ -81,7 +86,11 @@ function updateSelectionUi(){
   if($('selectionPartsCount'))$('selectionPartsCount').textContent=label;
   if($('selectionInfo'))$('selectionInfo').textContent=selectionParts.length
     ?selectionParts.length+'개 영역 · '+count.toLocaleString()+'개 픽셀 선택 · Shift+클릭으로 추가 가능'
-    :'색상/에셋 영역을 클릭해 선택하세요. Shift+클릭은 누적 선택입니다.';
+    :'이미지에서 바꾸고 싶은 색상을 클릭하세요. Shift+클릭은 누적 선택입니다.';
+  if($('workflowStatus'))$('workflowStatus').textContent=!documentModel
+    ?'① 먼저 PSD 또는 PNG 파일을 열어 주세요.'
+    :!selectionParts.length?(lastColorAction||'① 바꾸고 싶은 색을 클릭하세요. 여러 색은 Shift+클릭하세요.')
+      :'② '+selectionParts.length+'개 영역 선택 완료 ('+count.toLocaleString()+'px) · 바꿀 색 지정 후 미리보기 또는 적용';
 }
 function updateSelectionPreview(){
   selection=selectionParts.at(-1)||null;
@@ -91,7 +100,7 @@ function updateSelectionPreview(){
 
 function openDoc(w,h,name,kind){documentModel={width:w,height:h,name,kind};canvas.width=overlay.width=w;canvas.height=overlay.height=h;holder.style.display='block';$('canvasEmpty').style.display='none';$('sourceName').textContent=name;$('docInfo').textContent=w+'×'+h+'px · '+kind;selectedId=null;selection=null;history=[];redoHistory=[];originalComposite=null;appearancePatches=[];appearanceSafe=true;
   psdCompatibilityReport=null;lastFidelityAudit=null;psdGroupMasks=[];collapsedPsdGroups.clear();
-  $('psdFidelityPanel').hidden=true;previewMode='layers';hasLayerEdits=false;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
+  $('psdFidelityPanel').hidden=true;previewMode='layers';hasLayerEdits=false;temporaryPreview=null;unsavedChanges=false;updateDirtyStatus();clearSelections();panX=panY=0;holder.style.transform='';stage.scrollLeft=0;stage.scrollTop=0;}
 function normOpacity(v){return Math.max(0,Math.min(1,Number(v??1)));}
 function mappedBlend(s){return ({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',darken:'darken',lighten:'lighten','color dodge':'color-dodge','color burn':'color-burn',difference:'difference',exclusion:'exclusion'}[s]||'source-over');}
 function flatten(items,prefix='',hidden=false,out=[]){
@@ -218,6 +227,8 @@ async function importPsd(file){
   openDoc(header.width,header.height,file.name,
     header.version===2?'PSB':'PSD');
   layers=built;psdGroupMasks=groupMasks;lastImportPsd=true;
+  $('selectionMode').value=defaultImportSelection('PSD');
+  $('selectedLayerOnly').checked=false;
   // Prefer Photoshop's own merged pixels over a naive layer redraw.
   // This is an exact raster reference to the stored composite, not a promise
   // that every original layer effect can be edited in this app.
@@ -247,7 +258,9 @@ async function importRaster(file){
   const image=await createImageBitmap(file);
   if(image.width*image.height>maxDocPixels){image.close();throw Error('이미지 크기가 제한을 넘었습니다.');}
   const c=blankCanvas(image.width,image.height);c.getContext('2d').drawImage(image,0,0);image.close();
-  openDoc(c.width,c.height,file.name,'IMAGE');layers=[newLayer({name:file.name,type:'image',canvas:c,x:0,y:0,w:c.width,h:c.height})];lastImportPsd=false;selectedId=layers[0].id;refreshAll();fitZoom();
+  openDoc(c.width,c.height,file.name,'IMAGE');layers=[newLayer({name:file.name,type:'image',canvas:c,x:0,y:0,w:c.width,h:c.height})];lastImportPsd=false;
+  $('selectionMode').value=defaultImportSelection('IMAGE');
+  $('selectedLayerOnly').checked=false;selectedId=layers[0].id;refreshAll();fitZoom();
   notify('이미지를 레이어로 불러왔습니다. 클릭하여 색상 영역을 선택하세요.');
 }
 async function importProject(file){
@@ -442,7 +455,8 @@ function drawOriginalAndPatches(){
 function render(){
   if(!documentModel)return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  if(originalComposite&&(previewMode==='composite'||previewMode==='appearance')){
+  if(temporaryPreview){ctx.drawImage(temporaryPreview,0,0);}
+  else if(originalComposite&&(previewMode==='composite'||previewMode==='appearance')){
     if(previewMode==='composite')ctx.drawImage(originalComposite,0,0);
     else drawOriginalAndPatches();
   }else{
@@ -456,6 +470,7 @@ function render(){
   drawOverlay();
 }
 function setPreviewMode(mode){
+  if(temporaryPreview){temporaryPreview=null;if($('previewColor'))$('previewColor').textContent='변경 미리보기';}
   if(mode==='appearance'&&!appearanceSafe){
     notify('PSD에서 위치·투명도·사진 등을 변경한 상태입니다. Photoshop 합성 효과를 그대로 보존한 편집은 색상 변경에 한정되므로 레이어 재구성 보기로 전환합니다.');
     mode='layers';
@@ -596,7 +611,12 @@ function drawOverlay(){
     oc.strokeRect(-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
     oc.restore();
   }
-  const l=sel();if(!l)return;
+  // Selection tint represents editable pixels, NOT the PNG layer's bounding
+  // rectangle. A single imported PNG has one full-canvas layer; drawing its
+  // entire dashed box made every click look like a whole-image selection.
+  const l=sel();if(!l||selectionParts.length)return;
+  if(documentModel?.kind==='IMAGE'&&l.x===0&&l.y===0&&
+     l.w===documentModel.width&&l.h===documentModel.height)return;
   oc.save();oc.translate(l.x+l.w/2,l.y+l.h/2);
   oc.rotate(l.rotation*Math.PI/180);
   oc.scale(l.flipH?-1:1,l.flipV?-1:1);
@@ -687,7 +707,14 @@ function refreshProperties(){
   $('photoScale').value=l?.scale??100;$('photoOffsetX').value=l?.offsetX??0;$('photoOffsetY').value=l?.offsetY??0;
   $('textValue').value=l?.type==='text'?(l.textValue||''):'';
   $('fontFamily').value=l?.fontFamily||'';$('fontSize').value=l?.fontSize||32;$('textColor').value=l?.textColor||'#333333';
-  for(const input of document.querySelectorAll('[data-adjust]')){const k=input.dataset.adjust;input.value=l?.adjust?.[k]||0;const id='out'+k[0].toUpperCase()+k.slice(1);if($(id))$(id).textContent=input.value;}
+  for(const input of document.querySelectorAll('[data-adjust]')){
+    const k=input.dataset.adjust;
+    input.value=l?.adjust?.[k]??0;
+    const id='out'+k[0].toUpperCase()+k.slice(1);
+    if($(id))$(id).textContent=input.value;
+    const numeric=$('num'+k[0].toUpperCase()+k.slice(1));
+    if(numeric)numeric.value=input.value;
+  }
   $('textPanel').hidden=l?.type!=='text';
   const note=$('layerCompatibility');
   if(l?.compatibility){
@@ -858,6 +885,7 @@ function pickLayerColor(l,px,py,additive=false){
     return;
   }
   region.baseMask=region.mask;
+  lastColorAction='';
   reapplyMaskAmount(region);
   if(!region.count){notify('가려짐 또는 PSD 마스크로 인해 실제 수정 가능한 픽셀이 없습니다.');return;}
   if(!additive)selectionParts=[];
@@ -868,7 +896,10 @@ function pickLayerColor(l,px,py,additive=false){
   const hex=rgbToHex(...region.sample);
   $('pickedHex').value=hex;$('pickedSwatch').style.backgroundColor=hex;
   refreshProperties();render();
-  notify('선택 '+selectionParts.length+'개 영역 · '+region.count.toLocaleString()+'px · Shift+클릭으로 추가 선택');
+  const percentage=Math.round(region.count*100/(region.w*region.h));
+  notify('선택 '+selectionParts.length+'개 영역 · '+region.count.toLocaleString()+'px ('+percentage+'%) · Shift+클릭으로 추가 선택');
+  if(percentage>=55&&region.mode==='asset')
+    $('workflowStatus').textContent='선택이 매우 넓습니다. 프레임 일부만 바꾸려면 선택 범위를 ‘클릭한 색상만’으로 바꿔 주세요.';
 }
 overlay.addEventListener('pointerdown',e=>{
   if(!documentModel||e.button!==0||middlePan||spacePan)return;
@@ -987,8 +1018,61 @@ $('addGradientStop').onclick=()=>{
   refreshGradientUi();
 };
 refreshGradientUi();
+// One visual policy powers direct editing. "Exact" NEVER secretly rotates
+// the source hue, and pastel softness is visible before clicking Apply.
+function editorPaintSettings(color=$('targetColor').value){
+  return {
+    mode:$('colorMode').value,color,finish:$('colorFinish').value,
+    softness:Number($('pastelSoftness').value),
+    stops:gradientStops.map(v=>({color:v.color,position:v.position})),
+    angle:Number($('gradientAngle').value),
+    tintAsset:$('assetTint').checked,
+    protectWhite:$('protectWhite').checked,
+    preserveShading:$('preserveShading').checked
+  };
+}
+function refreshColorFinish(){
+  const pastel=$('colorFinish').value==='pastel';
+  $('pastelControls').hidden=!pastel;
+  const shown=effectiveColor($('targetColor').value,$('colorFinish').value,
+    Number($('pastelSoftness').value));
+  $('effectiveColorText').textContent=shown;
+  $('effectiveColorSwatch').style.backgroundColor=shown;
+  $('targetHex').value=$('targetColor').value.toUpperCase();
+  const hints={
+    exact:'정확한 HEX: 원본 명암·색상 조화 계산 없이 고른 색으로 바꿉니다. 흰색/검정 보호를 켜면 해당 픽셀은 그대로 남습니다.',
+    pastel:'파스텔 보정: 아래에서 밝히는 정도를 직접 정합니다. 실제 적용될 HEX는 위에 표시됩니다.',
+    shaded:'명암 유지: 대상 색상을 기준으로 원본 밝고 어두운 부분을 재현하므로 픽셀마다 HEX가 다를 수 있습니다.',
+    palette:'다색 조화 유지: 원본의 여러 색 차이를 유지하면서 색 계열을 이동시킵니다. 정확한 HEX와 다를 수 있습니다.'
+  };
+  $('colorFinishHint').textContent=hints[$('colorFinish').value];
+  $('effectiveColorPreview').title='미리 표시한 기준 색상 '+shown;
+  if(temporaryPreview)scheduleColorPreview();
+}
+$('colorFinish').onchange=refreshColorFinish;
+$('targetColor').oninput=refreshColorFinish;
+$('targetHex').onchange=e=>{
+  const value=e.target.value.trim();
+  if(!/^#[0-9a-fA-F]{6}$/.test(value)){
+    e.target.value=$('targetColor').value.toUpperCase();
+    notify('HEX는 #BEB5ED처럼 # + 숫자/영문 6자리로 입력해 주세요.');
+    return;
+  }
+  $('targetColor').value=value;
+  refreshColorFinish();
+};
+$('pastelSoftness').oninput=e=>{
+  $('pastelSoftnessNumber').value=e.target.value;refreshColorFinish();
+};
+$('pastelSoftnessNumber').onchange=e=>{
+  const n=clamp(Math.round(Number(e.target.value)||0),0,85);
+  $('pastelSoftness').value=String(n);e.target.value=String(n);
+  refreshColorFinish();
+};
+refreshColorFinish();
+
 $('applyColor').onclick=()=>{
-  if(!selectionParts.length){notify('먼저 색상이나 에셋 영역을 클릭해 선택하세요. Shift+클릭으로 여러 영역을 추가할 수 있습니다.');return;}
+  if(!selectionParts.length){notify('① 먼저 이미지에서 바꾸고 싶은 색상을 클릭해 주세요.');return;}
   const mode=$('colorMode').value;
   const selectedLayers=layers.filter(l=>selectionParts.some(p=>p.id===l.id));
   const updates=[],newAppearancePatches=[];
@@ -1010,15 +1094,7 @@ $('applyColor').onclick=()=>{
         for(let i=0;i<n;i++)if(!covered[i]&&part.mask[i]){
           isolated[i]=part.mask[i];covered[i]=1;
         }
-        const opts={
-          mode,color:$('targetColor').value,
-          stops:gradientStops.map(x=>({color:x.color,position:x.position})),
-          angle:Number($('gradientAngle').value),
-          preserveShading:$('preserveShading').checked,
-          tintAsset:$('assetTint').checked&&part.mode==='asset',
-          protectWhite:$('protectWhite').checked,
-          smartPalette:$('smartPalette').checked,
-        };
+        const opts=paintPolicy(editorPaintSettings(),part.mode);
         const effectivePart={...part,mask:isolated};
         if(appearanceEnabled){
           // A Photoshop appearance patch is computed from the ACTUAL saved
@@ -1028,7 +1104,17 @@ $('applyColor').onclick=()=>{
             const rgba=refCtx.getImageData(rect.x,rect.y,rect.w,rect.h).data;
             const patch=makeAppearancePatch(l,effectivePart,documentModel.width,documentModel.height,
               rgba,[...appearancePatches,...newAppearancePatches],opts);
-            if(patch)newAppearancePatches.push(patch);
+            if(patch){
+              const currentVisible=overlayPriorPatches(rgba,rect,
+                [...appearancePatches,...newAppearancePatches]);
+              let differs=false;
+              for(let i=0;i<patch.data.length;i+=4){
+                if(patch.data[i]!==currentVisible[i]||
+                   patch.data[i+1]!==currentVisible[i+1]||
+                   patch.data[i+2]!==currentVisible[i+2]){differs=true;break;}
+              }
+              if(differs)newAppearancePatches.push(patch);
+            }
           }
         }
         const painted=paintSelection(image.data,image.width,image.height,effectivePart,opts);
@@ -1037,15 +1123,28 @@ $('applyColor').onclick=()=>{
           output[index]=painted.data[index];
           output[index+1]=painted.data[index+1];
           output[index+2]=painted.data[index+2];
-          changed++;
+          if(output[index]!==image.data[index]||
+             output[index+1]!==image.data[index+1]||
+             output[index+2]!==image.data[index+2])changed++;
         }
       }
       if(changed)updates.push({layer:l,image:{width:image.width,height:image.height,data:output},count:changed});
       total+=changed;
     }
-    if(!updates.length){notify('수정할 픽셀이 없습니다. 선택 범위를 다시 확인해 주세요.');return;}
-    checkpointBatch(updates.map(u=>u.layer));
-    for(const u of updates){
+    const changedAppearanceIds=new Set(newAppearancePatches.map(p=>p.layerId));
+    const effectiveUpdates=appearanceEnabled
+      ?updates.filter(u=>changedAppearanceIds.has(u.layer.id)):updates;
+    const snapshotLayers=appearanceEnabled
+      ?selectedLayers.filter(l=>changedAppearanceIds.has(l.id))
+      :effectiveUpdates.map(u=>u.layer);
+    if(!snapshotLayers.length){
+      const reason='적용 전후 눈에 보이는 색상이 같아 변화가 없습니다. 다른 HEX를 고르거나 '+
+        '흰색·검정 선 보호를 끄고 다시 시도해 주세요. 원본은 변경하지 않았습니다.';
+      notify(reason);$('workflowStatus').textContent='변경 없음 · 선택 영역 유지 · 다른 색상 또는 보호 옵션 확인';
+      return;
+    }
+    checkpointBatch(snapshotLayers);
+    for(const u of effectiveUpdates){
       const l=u.layer;l.canvas=pixelCanvas(u.image);
       if(l.photoSource){l.photoSource=null;l.adjust=defaultAdjust();l.type='image';}
     }
@@ -1057,21 +1156,78 @@ $('applyColor').onclick=()=>{
     }else{
       previewMode='layers';
     }
+    const displayChanged=appearanceEnabled
+      ?newAppearancePatches.reduce((n,p)=>n+(p.count||0),0):total;
+    lastColorAction='✓ '+displayChanged.toLocaleString()+'픽셀 범위에 색상 변경 적용! 다음 부분을 클릭하거나 PNG로 저장하세요.';
     clearSelections();refreshAll();
     notify(appearanceEnabled
-      ?total.toLocaleString()+'px 색상 변경 완료 · Photoshop 원본 외관 유지 편집 ('+newAppearancePatches.length+'개 영역)'
-      :total.toLocaleString()+'px 색상 변경 완료 · 원본 Photoshop 합성 효과는 현재 레이어 재구성에서 정확하게 재현되지 않습니다.');
+      ?displayChanged.toLocaleString()+'px 선택 범위 색상 변경 완료 · Photoshop 원본 외관 보존 ('+newAppearancePatches.length+'개 영역)'
+      :displayChanged.toLocaleString()+'px 색상 변경 완료 · PNG 내보내기로 결과를 저장할 수 있습니다.');
   }catch(e){notify('색상 변경 실패: '+(e?.message||e));console.error('KIZE appearance paint:',e);}
 };
 
-$('variantPreset').onchange=e=>{if(e.target.value)$('variantColors').value=e.target.value;};
 function variantPaintOptions(color,part){
-  return {mode:'solid',color,
-    stops:gradientStops.map(s=>({color:s.color,position:s.position})),
-    angle:Number($('gradientAngle').value),preserveShading:$('preserveShading').checked,
-    tintAsset:$('assetTint').checked&&part.mode==='asset',
-    protectWhite:$('protectWhite').checked,smartPalette:$('smartPalette').checked};
+  return paintPolicy({
+    mode:'solid',color,finish:$('variantFinish').value,
+    softness:Number($('variantSoftness').value),
+    tintAsset:$('assetTint').checked,
+    protectWhite:$('protectWhite').checked,
+    preserveShading:$('preserveShading').checked
+  },part.mode);
 }
+function updateVariantSwatches(){
+  const panel=$('variantSwatches');panel.replaceChildren();
+  $('variantSoftnessControls').hidden=$('variantFinish').value!=='pastel';
+  try{
+    const colors=parseVariantColors($('variantColors').value);
+    for(const color of colors){
+      const actual=effectiveColor(color,$('variantFinish').value,Number($('variantSoftness').value));
+      const item=document.createElement('span');item.className='variant-swatch';
+      const swatch=document.createElement('b');swatch.style.background=actual;
+      const label=document.createElement('span');label.textContent=actual;
+      item.append(swatch,label);
+      item.title=color===actual?'입력 HEX 그대로':'입력 '+color+' → 적용 '+actual;
+      panel.append(item);
+    }
+    $('variantSummary').textContent=colors.length+'가지 시안 · '+(
+      $('variantFinish').value==='exact'?'선택한 HEX 그대로 적용':
+      $('variantFinish').value==='pastel'?'표시한 파스텔 HEX로 적용':
+      '원본의 밝기/여러 색상 관계를 보존하므로 실제 픽셀 색상은 HEX와 다를 수 있음'
+    )+' · 원본 파일은 그대로 유지됩니다.';
+  }catch(error){
+    $('variantSummary').textContent=error.message;
+  }
+}
+(function setupVariantPresets(){
+  const select=$('variantPreset');
+  for(const groupName of [...new Set(PALETTE_PRESETS.map(p=>p.group))]){
+    const group=document.createElement('optgroup');group.label=groupName;
+    for(const preset of PALETTE_PRESETS.filter(p=>p.group===groupName)){
+      const option=document.createElement('option');
+      option.value=preset.colors.join(', ');
+      option.textContent=preset.label;
+      group.append(option);
+    }
+    select.append(group);
+  }
+})();
+$('variantPreset').onchange=e=>{
+  if(e.target.value)$('variantColors').value=e.target.value;
+  updateVariantSwatches();
+};
+$('variantColors').oninput=()=>{
+  $('variantPreset').value='';
+  updateVariantSwatches();
+};
+$('variantFinish').onchange=updateVariantSwatches;
+$('variantSoftness').oninput=e=>{
+  $('variantSoftnessNumber').value=e.target.value;updateVariantSwatches();
+};
+$('variantSoftnessNumber').onchange=e=>{
+  const n=clamp(Math.round(Number(e.target.value)||0),0,85);
+  $('variantSoftness').value=String(n);e.target.value=String(n);updateVariantSwatches();
+};
+updateVariantSwatches();
 function variantIsolated(part,covered){
   const mask=new Uint8Array(part.mask.length);
   for(let i=0;i<mask.length;i++)if(part.mask[i]&&!covered[i]){
@@ -1080,7 +1236,7 @@ function variantIsolated(part,covered){
   const bounds=maskBounds(mask,part.w,part.h).bounds;
   return bounds?{...part,mask,bounds}:null;
 }
-function drawBatchAppearance(out,color){
+function drawBatchAppearance(out,color,optionFactory=variantPaintOptions){
   const context=out.getContext('2d'),ref=originalComposite.getContext('2d',{willReadFrequently:true});
   context.drawImage(originalComposite,0,0);
   for(const patch of appearancePatches)
@@ -1097,13 +1253,13 @@ function drawBatchAppearance(out,color){
       if(!rect)continue;
       const original=ref.getImageData(rect.x,rect.y,rect.w,rect.h).data;
       const patch=makeAppearancePatch(layer,isolated,documentModel.width,documentModel.height,
-        original,[...appearancePatches,...added],variantPaintOptions(color,part));
+        original,[...appearancePatches,...added],optionFactory(color,part));
       if(patch)added.push(patch);
     }
   }
   for(const patch of added)context.putImageData(new ImageData(patch.data,patch.w,patch.h),patch.x,patch.y);
 }
-function drawBatchLayers(out,color){
+function drawBatchLayers(out,color,optionFactory=variantPaintOptions){
   const context=out.getContext('2d');
   for(const l of layers){
     if(!l.visible||!l.canvas)continue;
@@ -1117,7 +1273,7 @@ function drawBatchLayers(out,color){
         if(part.w!==src.width||part.h!==src.height)throw Error('시안 선택 레이어 크기가 변경되었습니다.');
         const isolated=variantIsolated(part,covered);
         if(isolated)modified=paintSelection(modified,src.width,src.height,
-          isolated,variantPaintOptions(color,part)).data;
+          isolated,optionFactory(color,part)).data;
       }
       try{
         if(l.maskSpecs?.length||l.groupMaskSpecs?.length||l.clipBaseId!=null||
@@ -1133,6 +1289,49 @@ function drawBatchLayers(out,color){
     context.drawImage(image,-l.w/2,-l.h/2,l.w,l.h);context.restore();
   }
 }
+
+let colorPreviewTimer=null;
+function scheduleColorPreview(){
+  if(!temporaryPreview)return;
+  // Debounce expensive raster preview renders while the user drags a color or
+  // pastel slider. Never spawn a render after preview was dismissed.
+  clearTimeout(colorPreviewTimer);
+  colorPreviewTimer=setTimeout(()=>{
+    colorPreviewTimer=null;
+    if(temporaryPreview&&selectionParts.length)drawTemporaryPreview();
+  },140);
+}
+function drawTemporaryPreview(){
+  if(!documentModel||!selectionParts.length){
+    notify('① 바꾸고 싶은 색상을 먼저 클릭해 선택해 주세요.');return;
+  }
+  if(documentModel.width*documentModel.height>10_000_000){
+    notify('메모리 보호: 1,000만 픽셀 초과 문서는 적용 후 보기로 확인해 주세요.');
+    return;
+  }
+  try{
+    const output=blankCanvas(documentModel.width,documentModel.height);
+    const options=(_color,part)=>paintPolicy(editorPaintSettings(),part.mode);
+    if(originalComposite&&appearanceSafe)
+      drawBatchAppearance(output,$('targetColor').value,options);
+    else drawBatchLayers(output,$('targetColor').value,options);
+    temporaryPreview=output;
+    $('previewColor').textContent='미리보기 해제';
+    render();
+    notify('미리보기입니다. 원본은 아직 수정하지 않았습니다. 마음에 들면 색상 적용을 눌러 주세요.');
+    $('workflowStatus').textContent='③ 미리보기 중 · 결과가 좋다면 아래 색상 적용 버튼을 누르세요.';
+  }catch(error){
+    temporaryPreview=null;render();
+    notify('색상 미리보기 실패: '+(error?.message||error));
+  }
+}
+$('previewColor').onclick=()=>{
+  if(temporaryPreview){
+    temporaryPreview=null;$('previewColor').textContent='변경 미리보기';
+    render();notify('미리보기를 해제했습니다. 실제 편집 내용은 그대로입니다.');
+  }else drawTemporaryPreview();
+};
+
 $('exportVariants').onclick=async()=>{
   if(!documentModel||!selectionParts.length){notify('시안 추출 전 색상/에셋 영역을 선택해 주세요.');return;}
   if(documentModel.width*documentModel.height>8_000_000){
@@ -1151,11 +1350,14 @@ $('exportVariants').onclick=async()=>{
       const c=blankCanvas(documentModel.width,documentModel.height);
       if(originalComposite&&appearanceSafe)drawBatchAppearance(c,color);
       else drawBatchLayers(c,color);
-      entries[variantFileName(documentModel.name,color,index)]=[await canvasToPngBytes(c),{level:0}];
+      entries[variantFileName(documentModel.name,
+        effectiveColor(color,$('variantFinish').value,Number($('variantSoftness').value)),index)]=[await canvasToPngBytes(c),{level:0}];
       await new Promise(resolve=>setTimeout(resolve,0));
     }
     entries['palette.json']=[strToU8(JSON.stringify({format:'KIZE-COLOR-VARIANTS-1',
-      colors,source:documentModel.name,width:documentModel.width,height:documentModel.height,
+      colors,effectiveColors:colors.map(color=>effectiveColor(color,$('variantFinish').value,
+        Number($('variantSoftness').value))),finish:$('variantFinish').value,
+      softness:Number($('variantSoftness').value),source:documentModel.name,width:documentModel.width,height:documentModel.height,
       appearancePreserved:!!(originalComposite&&appearanceSafe)},null,2)),{level:6}];
     downloadBlob(new Blob([zipSync(entries,{level:0})],{type:'application/zip'}),
       (documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'')+'-color-variants.zip');
@@ -1236,16 +1438,43 @@ async function replaceImage(file){
   markEdited();clearSelections();refreshAll();notify('사진을 기존 레이어 영역에 맞춰 교체했습니다. 내부 이동/크기와 톤을 조정할 수 있습니다.');
 }
 $('replaceFile').onchange=async e=>{const f=e.target.files?.[0];e.target.value='';if(f)try{await replaceImage(f);}catch(err){notify('사진 교체 실패: '+err.message);}};
+function setPhotoAdjustment(layer,key,value){
+  if(!layer)return;
+  if(!layer.photoSource)layer.photoSource=cloneCanvas(layer.canvas);
+  const next=clamp(Math.round(Number(value)||0),-100,100);
+  layer.adjust[key]=next;
+  // PSD merged snapshots don't recalculate Camera Raw / layer effects.
+  // Show the edited raster layer so the user never sees a stale composite.
+  if(originalComposite){
+    appearanceSafe=false;
+    previewMode='layers';
+  }
+  temporaryPreview=null;
+  markEdited();
+  const slider=document.querySelector('[data-adjust="'+key+'"]');
+  const numeric=document.querySelector('[data-adjust-number="'+key+'"]');
+  if(slider)slider.value=String(next);
+  if(numeric)numeric.value=String(next);
+  const out=$('out'+key[0].toUpperCase()+key.slice(1));
+  if(out)out.textContent=String(next);
+  render();
+}
 for(const input of document.querySelectorAll('[data-adjust]')){
   input.addEventListener('pointerdown',()=>{if(sel())checkpoint(sel());});
   input.addEventListener('keydown',e=>{if(e.key.startsWith('Arrow')&&sel())checkpoint(sel());});
   input.oninput=e=>{
+    const l=sel();if(l)setPhotoAdjustment(l,e.target.dataset.adjust,e.target.value);
+  };
+}
+for(const input of document.querySelectorAll('[data-adjust-number]')){
+  input.onchange=e=>{
     const l=sel();if(!l)return;
-    if(!l.photoSource)l.photoSource=cloneCanvas(l.canvas);
-    markEdited();
-    const k=e.target.dataset.adjust;l.adjust[k]=Number(e.target.value);
-    const out=$('out'+k[0].toUpperCase()+k.slice(1));if(out)out.textContent=e.target.value;
-    render();
+    const key=e.target.dataset.adjustNumber;
+    const value=clamp(Math.round(Number(e.target.value)||0),-100,100);
+    if(value===(l.adjust?.[key]??0)){e.target.value=String(value);return;}
+    checkpoint(l);
+    setPhotoAdjustment(l,key,value);
+    notify('사진 '+key+' '+value+' 적용 · 슬라이더·숫자 동기화 완료');
   };
 }
 $('resetAdjust').onclick=()=>{const l=sel();if(!l)return;checkpoint(l);l.adjust=defaultAdjust();refreshAll();};
@@ -1353,7 +1582,7 @@ $('saveProject').onclick=async()=>{
     }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.11.0',
+      appVersion:'0.12.0',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,

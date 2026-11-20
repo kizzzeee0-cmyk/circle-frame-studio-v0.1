@@ -1,6 +1,6 @@
 // KIZE-only GitHub Release discovery. No updater signing keys, no background
 // installer execution. Users open a GitHub-hosted download after opting in.
-export const CURRENT_VERSION='0.11.0';
+export const CURRENT_VERSION='0.12.0';
 export const REPO='kizzzeee0-cmyk/circle-frame-studio-v0.1';
 export const RELEASES_API='https://api.github.com/repos/'+REPO+'/releases?per_page=50';
 export const RELEASES_PAGE='https://github.com/'+REPO+'/releases';

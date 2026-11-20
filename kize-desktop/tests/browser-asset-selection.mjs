@@ -51,6 +51,7 @@ try{
   await page.locator('#importFile').setInputFiles({name:'two-stickers.psd',mimeType:'application/octet-stream',buffer:Buffer.from(fixture)});
   await page.waitForFunction(()=>/불러오기 완료/.test(document.querySelector('#importReport')?.textContent||''),null,{timeout:60000});
   assert.equal(await page.locator('#layerCount').textContent(),'3');
+  await page.locator('#selectionMode').selectOption('asset');
   assert.equal(await page.locator('#selectionMode').inputValue(),'asset');
   await page.locator('.layer').filter({hasText:'Stickers'}).click();
   const artwork=()=>page.locator('#overlayCanvas').boundingBox();

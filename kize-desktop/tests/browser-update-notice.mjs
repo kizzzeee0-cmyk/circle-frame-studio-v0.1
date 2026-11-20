@@ -5,7 +5,7 @@ import {chromium} from 'playwright-core';
 
 const host='http://127.0.0.1:4197/';
 const repo='kizzzeee0-cmyk/circle-frame-studio-v0.1';
-const version='0.12.0';
+const version='0.13.0';
 const tag='kize-v'+version;
 const name='KIZE-DESIGN-TOOL-v'+version+'-Windows.zip';
 const download='https://github.com/'+repo+'/releases/download/'+tag+'/'+name;

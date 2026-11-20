@@ -124,3 +124,40 @@
 .update-buttons .primary{flex:1}
 @media(max-width:1350px){.update-control .update-status{max-width:100px}}
 @media(max-width:1120px){.update-control .update-status{display:none}}
+
+/* v0.12 guided editing: compact, calm and comfortably readable without
+   gradient-heavy panels or intrusive overlays. */
+.workflow-guide{border:1px solid #e6e4eb;border-radius:10px;background:#faf9fc;padding:10px 11px;margin:8px 0 12px}
+.workflow-step{display:flex;align-items:flex-start;gap:9px;margin:8px 0}
+.workflow-step>b{background:#e9e5f3;color:#746693;width:21px;height:21px;min-width:21px;border-radius:7px;display:grid;place-items:center;font-size:10px}
+.workflow-step span{display:flex;flex-direction:column;gap:2px;font-size:11px}
+.workflow-step strong{font-size:11px;color:#655c72}
+.workflow-step small{color:#9b91a5;font-size:10px;line-height:1.4}
+.workflow-guide>p{font-size:10px;background:#f0edf6;border-radius:7px;margin:9px 0 0;padding:8px 9px;color:#736685;line-height:1.5}
+.pastel-controls{display:flex;align-items:center;gap:8px;margin:8px 0 12px;padding:8px 10px;background:#faf9fc;border:1px solid #ebe6f1;border-radius:8px}
+.pastel-controls[hidden]{display:none!important}
+.pastel-controls label{flex:1;min-width:0;font-size:10px}
+.pastel-controls .range-label input{display:block;width:100%;margin-top:6px}
+.pastel-controls input[type=number]{width:47px!important;max-width:47px;padding:6px 3px!important;margin:0!important;text-align:center;font-variant-numeric:tabular-nums}
+.pastel-controls span{font-size:10px;color:#88799a}
+.effective-color{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #ebe8ef;border-radius:8px;margin:10px 0 14px}
+#effectiveColorSwatch{display:block;width:34px;height:34px;border:1px solid #dcd7e4;border-radius:8px;background:#beb5ed;flex-shrink:0}
+.effective-color div{display:flex;flex-direction:column;gap:2px}
+.effective-color strong{font-size:12px;color:#62586e;font-variant-numeric:tabular-nums}
+.effective-color small{font-size:10px;color:#9a90a3}
+.color-action-row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:7px!important}
+.color-action-row button{min-width:0;white-space:normal;line-height:1.45}
+.variant-swatches{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 8px}
+.variant-swatch{display:flex;align-items:center;gap:5px;font-size:9px;color:#746783;background:#fff;border:1px solid #ece6f0;border-radius:7px;padding:4px 6px}
+.variant-swatch b{width:18px;height:18px;min-width:18px;border-radius:5px;border:1px solid #d8d4df}
+#variantSummary{display:block;color:#988ba5;line-height:1.5}
+.photo-sliders .photo-adjust-row{display:grid;grid-template-columns:60px minmax(0,1fr) 51px;gap:7px;align-items:center;margin-bottom:9px}
+.photo-sliders .photo-adjust-row input[type=range]{width:100%;min-width:0}
+.photo-sliders .photo-adjust-row input[type=number]{width:51px!important;min-width:0!important;height:29px;padding:5px!important;text-align:center;font-variant-numeric:tabular-nums;border:1px solid #e7e2eb;border-radius:6px}
+.photo-sliders .photo-adjust-row span{font-size:10px}
+#colorPanel .selection-mode-label{margin-top:9px}
+
+.target-color-row{display:flex;align-items:center;gap:8px;margin:7px 0 13px}
+.target-color-row input[type=color]{width:46px!important;height:38px!important;flex:none;margin:0!important;cursor:pointer}
+.target-color-row input[type=text]{flex:1;min-width:0!important;width:auto!important;box-sizing:border-box;border:1px solid #e8e2ec;border-radius:7px;padding:9px;font-size:12px;font-variant-numeric:tabular-nums}
+#colorFinishHint{color:#8b8297;margin:7px 0 13px;line-height:1.55}

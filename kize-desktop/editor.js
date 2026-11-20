@@ -119,6 +119,17 @@ async function readPsdInBackground(file){
   $('cancelPsdImport').hidden=false;
   notify('PSD 읽기 준비 · '+Math.round(file.size/1024/1024)+'MiB…');
   try{
+    // Only 26 header bytes are needed to reject incompatible or oversized
+    // canvases BEFORE allocating hundreds of MiB for a compressed PSD.
+    const headerBytes=await file.slice(0,26).arrayBuffer();
+    if(task.cancelled)throw Error('PSD 불러오기를 취소했습니다.');
+    if(headerBytes.byteLength<26)throw Error('PSD 헤더가 손상되었거나 너무 짧습니다.');
+    const header=new DataView(headerBytes);
+    if(header.getUint32(0)!==0x38425053||![1,2].includes(header.getUint16(4)))
+      throw Error('유효한 PSD/PSB 파일이 아닙니다.');
+    const pixels=header.getUint32(14)*header.getUint32(18);
+    if(pixels>maxDocPixels||!pixels)
+      throw Error('PSD 캔버스가 편집기 메모리 안전 한도(2,600만 픽셀)를 초과합니다. 파일 크기 제한과 별개의 보호 장치입니다.');
     let raw;
     try{raw=await file.arrayBuffer();}
     catch(e){throw Error('파일 내용을 메모리에 읽지 못했습니다. RAM을 확인해 주세요. '+(e?.message||''));}

@@ -873,10 +873,14 @@ export default function App() {
 
   const deleteMedia = (id: string) => {
     commit(draft => {
-      draft.mediaLayers = (draft.mediaLayers ?? []).filter(layer => layer.id !== id)
-      draft.mediaGroups = (draft.mediaGroups ?? [])
+      let layers = (draft.mediaLayers ?? []).filter(layer => layer.id !== id)
+      const groups = (draft.mediaGroups ?? [])
         .map(group => ({ ...group, layerIds: group.layerIds.filter(item => item !== id) }))
         .filter(group => group.layerIds.length > 1)
+      const validGroups = new Set(groups.map(group => group.id))
+      layers = layers.map(layer => layer.groupId && !validGroups.has(layer.groupId) ? { ...layer, groupId: '', locked: false } : layer)
+      draft.mediaLayers = layers
+      draft.mediaGroups = groups
       return draft
     })
     if (selectedMediaId === id) setSelectedMediaId('')
@@ -887,10 +891,14 @@ export default function App() {
     if (!selectedMediaIds.length) return
     const ids = new Set(selectedMediaIds)
     commit(draft => {
-      draft.mediaLayers = (draft.mediaLayers ?? []).filter(layer => !ids.has(layer.id))
-      draft.mediaGroups = (draft.mediaGroups ?? [])
+      let layers = (draft.mediaLayers ?? []).filter(layer => !ids.has(layer.id))
+      const groups = (draft.mediaGroups ?? [])
         .map(group => ({ ...group, layerIds: group.layerIds.filter(id => !ids.has(id)) }))
         .filter(group => group.layerIds.length > 1)
+      const validGroups = new Set(groups.map(group => group.id))
+      layers = layers.map(layer => layer.groupId && !validGroups.has(layer.groupId) ? { ...layer, groupId: '', locked: false } : layer)
+      draft.mediaLayers = layers
+      draft.mediaGroups = groups
       return draft
     })
     setSelectedMediaId('')
@@ -945,14 +953,22 @@ export default function App() {
     const ids = selectedMediaIds.filter(id => (project.mediaLayers ?? []).some(layer => layer.id === id))
     if (ids.length < 2) return
     commit(draft => {
+      const selected = new Set(ids)
+      const touchedGroups = new Set(
+        (draft.mediaLayers ?? []).filter(layer => selected.has(layer.id) && layer.groupId).map(layer => layer.groupId),
+      )
       const group: MediaGroup = {
         id: uid('group'),
         name: '그룹 ' + ((draft.mediaGroups?.length ?? 0) + 1),
         layerIds: ids,
         locked: false,
       }
-      draft.mediaGroups = [...(draft.mediaGroups ?? []).filter(item => !item.layerIds.some(id => ids.includes(id))), group]
-      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => ids.includes(layer.id) ? { ...layer, groupId: group.id } : layer)
+      draft.mediaGroups = [...(draft.mediaGroups ?? []).filter(item => !touchedGroups.has(item.id)), group]
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => {
+        if (selected.has(layer.id)) return { ...layer, groupId: group.id, locked: false }
+        if (touchedGroups.has(layer.groupId)) return { ...layer, groupId: '', locked: false }
+        return layer
+      })
       return draft
     })
   }
@@ -961,7 +977,7 @@ export default function App() {
     const ids = selectedMediaIds
     commit(draft => {
       const groupIds = new Set((draft.mediaLayers ?? []).filter(layer => ids.includes(layer.id) && layer.groupId).map(layer => layer.groupId))
-      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => groupIds.has(layer.groupId) ? { ...layer, groupId: '' } : layer)
+      draft.mediaLayers = (draft.mediaLayers ?? []).map(layer => groupIds.has(layer.groupId) ? { ...layer, groupId: '', locked: false } : layer)
       draft.mediaGroups = (draft.mediaGroups ?? []).filter(group => !groupIds.has(group.id))
       return draft
     })

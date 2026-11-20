@@ -88,14 +88,17 @@ export function growShrinkMask(mask,w,h,amount){
   const left=Math.max(0,b.x-margin),top=Math.max(0,b.y-margin);
   const right=Math.min(w,b.x+b.w+margin),bottom=Math.min(h,b.y+b.h+margin);
   const cw=right-left,ch=bottom-top;
-  const binary=new Uint8Array(cw*ch);
+  // One unselected pixel of virtual padding outside canvas edges matters:
+  // shrinking an object touching the canvas border must erode that edge too.
+  const pw=cw+2,ph=ch+2;
+  const binary=new Uint8Array(pw*ph);
   for(let y=0;y<ch;y++)for(let x=0;x<cw;x++)
-    binary[y*cw+x]=mask[(top+y)*w+left+x]>=128?1:0;
+    binary[(y+1)*pw+x+1]=mask[(top+y)*w+left+x]>=128?1:0;
   const target=radius>0?1:0;
-  const dist=distances(binary,cw,ch,target);
+  const dist=distances(binary,pw,ph,target);
   const out=new Uint8Array(mask.length);
   for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
-    const i=y*cw+x,idx=(top+y)*w+left+x;
+    const i=(y+1)*pw+x+1,idx=(top+y)*w+left+x;
     if(radius>0){
       if(binary[i])out[idx]=mask[idx]||255;
       else out[idx]=Math.round(255*clamp(radius+.65-dist[i],0,1));

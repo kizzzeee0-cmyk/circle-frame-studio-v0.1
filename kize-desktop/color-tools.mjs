@@ -118,7 +118,7 @@ export function paintSelection(src,w,h,selection,opt={}) {
     // In asset tone mode, treat colored fills, midtones and layer-style
     // shadows as one hue family. Keep their relative luminance (not their old
     // RGB hue), while protecting neutral white highlights / black linework.
-    const shade=preserve?clamp((luminosity-refLum)*(tintAsset?.86:.38),-155,155):0;
+    const shade=preserve?clamp((luminosity-refLum)*(tintAsset ? 0.86 : 0.38),-155,155):0;
     const adjustedStrength=strength*(tintAsset?strengthSetting:1);
     const neutralWhite=tintAsset&&protectWhite&&saturation<.16&&luminosity>215
       ?clamp((236-luminosity)/21,0,1):1;

@@ -14,6 +14,7 @@ interface Props {
   settings: ComposerSettings
   onSampleColor?: (hex: string) => void
   onSelectMedia?: (id: string, additive: boolean) => void
+  onSelectMediaBatch?: (ids: string[], additive: boolean) => void
   onBeginTransform?: () => void
   onTransformMedia?: (updates: Array<Partial<MediaLayer> & { id: string }>) => void
   onSettingsChange?: (next: ComposerSettings) => void
@@ -71,6 +72,7 @@ export default function CanvasPanel({
   settings,
   onSampleColor,
   onSelectMedia,
+  onSelectMediaBatch,
   onBeginTransform,
   onTransformMedia,
   onSettingsChange,
@@ -83,6 +85,7 @@ export default function CanvasPanel({
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [guide, setGuide] = useState<{ x: number | null; y: number | null }>({ x: null, y: null })
+  const [marquee, setMarquee] = useState<{ startX: number; startY: number; x: number; y: number; additive: boolean } | null>(null)
   const panRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null)
   const transformRef = useRef<{
     mode: 'move' | 'resize' | 'rotate'
@@ -278,7 +281,8 @@ export default function CanvasPanel({
     const dy = event.clientY - center.y
 
     if (session.mode === 'resize') {
-      const ratio = Math.max(.03, Math.hypot(dx, dy) / session.startDistance)
+      let ratio = Math.max(.03, Math.hypot(dx, dy) / session.startDistance)
+      if (event.shiftKey) ratio = Math.max(.05, Math.round(ratio / .05) * .05)
       onTransformMedia(session.layers.map(layer => ({
         id: layer.id,
         x: session.centerX + (layer.x - session.centerX) * ratio,
@@ -289,7 +293,11 @@ export default function CanvasPanel({
     }
 
     const angle = Math.atan2(dy, dx)
-    const delta = angle - session.startAngle
+    let delta = angle - session.startAngle
+    if (event.shiftKey) {
+      const snappedDegrees = Math.round((delta * 180 / Math.PI) / 15) * 15
+      delta = snappedDegrees * Math.PI / 180
+    }
     const degrees = delta * 180 / Math.PI
     onTransformMedia(session.layers.map(layer => {
       const point = rotatePoint(layer.x, layer.y, session.centerX, session.centerY, delta)
@@ -305,10 +313,22 @@ export default function CanvasPanel({
   }
 
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 1) return
-    event.preventDefault()
-    panRef.current = { startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y }
-    event.currentTarget.setPointerCapture(event.pointerId)
+    if (event.button === 1) {
+      event.preventDefault()
+      panRef.current = { startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y }
+      event.currentTarget.setPointerCapture(event.pointerId)
+      return
+    }
+    if (event.button === 0 && !event.altKey && !transformRef.current) {
+      setMarquee({
+        startX: event.clientX,
+        startY: event.clientY,
+        x: event.clientX,
+        y: event.clientY,
+        additive: event.ctrlKey || event.metaKey || event.shiftKey,
+      })
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
   }
 
   const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -318,11 +338,32 @@ export default function CanvasPanel({
         y: panRef.current.panY + event.clientY - panRef.current.startY,
       })
     }
+    if (marquee) setMarquee(value => value ? { ...value, x: event.clientX, y: event.clientY } : null)
     transformMove(event)
   }
 
   const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
     panRef.current = null
+    if (marquee) {
+      const minX = Math.min(marquee.startX, marquee.x)
+      const maxX = Math.max(marquee.startX, marquee.x)
+      const minY = Math.min(marquee.startY, marquee.y)
+      const maxY = Math.max(marquee.startY, marquee.y)
+      const moved = Math.hypot(marquee.x - marquee.startX, marquee.y - marquee.startY) > 5
+      if (moved) {
+        const ids = (project.mediaLayers ?? []).filter(layer => {
+          if (!layer.visible || timeSec < layer.startTime || timeSec > layer.endTime) return false
+          const b = rotatedBounds(layer)
+          const tl = screenPointForProject(b.left, b.top)
+          const br = screenPointForProject(b.right, b.bottom)
+          return !(br.x < minX || tl.x > maxX || br.y < minY || tl.y > maxY)
+        }).map(layer => layer.id)
+        onSelectMediaBatch?.(ids, marquee.additive)
+      } else if (!marquee.additive) {
+        onSelectMediaBatch?.([], false)
+      }
+      setMarquee(null)
+    }
     endTransform(event)
     try { event.currentTarget.releasePointerCapture(event.pointerId) } catch { /* ignore */ }
   }
@@ -368,7 +409,8 @@ export default function CanvasPanel({
         {settings.snapEnabled && <select title="스냅 간격" value={settings.snapSize} onChange={event => onSettingsChange?.({ ...settings, snapSize: Number(event.target.value) })}>
           <option value={5}>5px</option><option value={10}>10px</option><option value={20}>20px</option>
         </select>}
-        <label className="canvas-mini-toggle"><input type="checkbox" checked={settings.showGuides} onChange={event => onSettingsChange?.({ ...settings, showGuides: event.target.checked })} /> 가이드</label>
+        <label className="canvas-mini-toggle"><input type="checkbox" checked={settings.showGuides} onChange={event => onSettingsChange?.({ ...settings, showGuides: event.target.checked })} /> 스마트 가이드</label>
+        <label className="canvas-mini-toggle"><input type="checkbox" checked={settings.showCenterGuides} onChange={event => onSettingsChange?.({ ...settings, showCenterGuides: event.target.checked })} /> 중앙선</label>
         <select title="미리보기 해상도" value={settings.previewResolution} onChange={event => onSettingsChange?.({ ...settings, previewResolution: Number(event.target.value) as ComposerSettings['previewResolution'] })}>
           <option value={720}>720</option><option value={960}>960</option><option value={1200}>1200</option>
         </select>
@@ -394,6 +436,7 @@ export default function CanvasPanel({
           <canvas ref={ref} className={useGpu ? 'preview-canvas hidden' : 'preview-canvas'} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
           <canvas ref={gpuRef} className={useGpu ? 'preview-canvas gpu' : 'preview-canvas gpu hidden'} width={effectiveResolution} height={effectiveResolution} onClick={sample} />
 
+          {settings.showCenterGuides && <><div className="canvas-center-guide vertical" /><div className="canvas-center-guide horizontal" /></>}
           {settings.showGuides && guide.x !== null && <div className="smart-guide vertical" style={{ left: (50 + guide.x * fitScale / project.width * 100) + '%' }} />}
           {settings.showGuides && guide.y !== null && <div className="smart-guide horizontal" style={{ top: (50 + guide.y * fitScale / project.height * 100) + '%' }} />}
 
@@ -457,6 +500,15 @@ export default function CanvasPanel({
             />
           ))}
         </div>
+        {marquee && (() => {
+          const rect = viewportRef.current?.getBoundingClientRect()
+          if (!rect) return null
+          const left = Math.min(marquee.startX, marquee.x) - rect.left
+          const top = Math.min(marquee.startY, marquee.y) - rect.top
+          const width = Math.abs(marquee.x - marquee.startX)
+          const height = Math.abs(marquee.y - marquee.startY)
+          return <div className="selection-marquee" style={{ left, top, width, height }} />
+        })()}
       </div>
     </div>
   )

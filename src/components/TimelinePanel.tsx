@@ -14,6 +14,10 @@ interface Props {
   onToStart: () => void
   onDurationChange: (value: number) => void
   onLoopChange: (value: boolean) => void
+  snapEnabled: boolean
+  snapFps: 12 | 15 | 20 | 24 | 30 | 60
+  onSnapEnabledChange: (value: boolean) => void
+  onSnapFpsChange: (value: 12 | 15 | 20 | 24 | 30 | 60) => void
   onBeginTimingEdit: () => void
   onTimingChange: (id: string, patch: Partial<MediaLayer>) => void
   onSelectMedia: (id: string, additive: boolean) => void
@@ -34,6 +38,8 @@ export default function TimelinePanel(props: Props) {
     railWidth: number
   } | null>(null)
   const duration = Math.max(.5, props.duration)
+  const frameStep = 1 / props.snapFps
+  const snap = (value: number) => props.snapEnabled ? Math.round(value / frameStep) * frameStep : value
   const pct = Math.min(100, Math.max(0, (props.currentTime / duration) * 100))
 
   const beginClipDrag = (event: PointerEvent<HTMLElement>, layer: MediaLayer, mode: 'move' | 'start' | 'end' | 'intro-end' | 'outro-start') => {
@@ -64,7 +70,7 @@ export default function TimelinePanel(props: Props) {
     const delta = (event.clientX - drag.startX) / drag.railWidth * duration
     if (drag.mode === 'move') {
       const length = drag.endTime - drag.startTime
-      const start = Math.max(0, Math.min(duration - length, drag.startTime + delta))
+      const start = Math.max(0, Math.min(duration - length, snap(drag.startTime + delta)))
       const actualDelta = start - drag.startTime
       props.onTimingChange(layer.id, {
         startTime: start,
@@ -78,7 +84,7 @@ export default function TimelinePanel(props: Props) {
       return
     }
     if (drag.mode === 'start') {
-      const start = Math.max(0, Math.min(drag.endTime - .05, drag.startTime + delta))
+      const start = Math.max(0, Math.min(drag.endTime - .05, snap(drag.startTime + delta)))
       props.onTimingChange(layer.id, {
         startTime: start,
         animation: { ...layer.animation, introStart: Math.max(start, layer.animation.introStart) },
@@ -87,20 +93,20 @@ export default function TimelinePanel(props: Props) {
     }
     if (drag.mode === 'intro-end') {
       const maxDuration = Math.max(.05, layer.endTime - drag.introStart)
-      const introDuration = Math.max(.05, Math.min(maxDuration, drag.introDuration + delta))
+      const introDuration = Math.max(.05, Math.min(maxDuration, snap(drag.introDuration + delta)))
       props.onTimingChange(layer.id, {
         animation: { ...layer.animation, introDuration },
       })
       return
     }
     if (drag.mode === 'outro-start') {
-      const outroStart = Math.max(layer.startTime, Math.min(layer.endTime - .05, drag.outroStart + delta))
+      const outroStart = Math.max(layer.startTime, Math.min(layer.endTime - .05, snap(drag.outroStart + delta)))
       props.onTimingChange(layer.id, {
         animation: { ...layer.animation, outroStart, outroDuration: Math.max(.05, layer.endTime - outroStart) },
       })
       return
     }
-    const end = Math.max(drag.startTime + .05, Math.min(duration, drag.endTime + delta))
+    const end = Math.max(drag.startTime + .05, Math.min(duration, snap(drag.endTime + delta)))
     props.onTimingChange(layer.id, {
       endTime: end,
       animation: { ...layer.animation, outroStart: Math.min(end, layer.animation.outroStart) },
@@ -118,10 +124,16 @@ export default function TimelinePanel(props: Props) {
         <button type="button" onClick={props.onToStart}>|◀</button>
         <button type="button" className="timeline-play" onClick={props.onTogglePlay}>{props.playing ? 'Ⅱ' : '▶'}</button>
         <strong>{props.currentTime.toFixed(2)}s / {duration.toFixed(2)}s</strong>
+        <button type="button" title="이전 프레임" onClick={() => props.onTimeChange(Math.max(0, snap(props.currentTime - frameStep)))}>−1f</button>
+        <button type="button" title="다음 프레임" onClick={() => props.onTimeChange(Math.min(duration, snap(props.currentTime + frameStep)))}>+1f</button>
       </div>
       <div className="timeline-project-controls">
         <label>길이 <input type="number" min={.5} max={60} step={.5} value={duration} onChange={event => props.onDurationChange(Number(event.target.value))} /> s</label>
         <label><input type="checkbox" checked={props.loop} onChange={event => props.onLoopChange(event.target.checked)} /> 반복</label>
+        <label><input type="checkbox" checked={props.snapEnabled} onChange={event => props.onSnapEnabledChange(event.target.checked)} /> 프레임 스냅</label>
+        <select className="timeline-fps-select" value={props.snapFps} onChange={event => props.onSnapFpsChange(Number(event.target.value) as 12|15|20|24|30|60)}>
+          {[12,15,20,24,30,60].map(value => <option key={value} value={value}>{value}fps</option>)}
+        </select>
         <span className="timeline-help">클립 이동 · 양끝 길이 조절</span>
         <button type="button" onClick={() => setCollapsed(value => !value)}>{collapsed ? '펼치기' : '접기'}</button>
       </div>
@@ -129,7 +141,7 @@ export default function TimelinePanel(props: Props) {
 
     {!collapsed && <>
       <div className="timeline-scrubber">
-        <input type="range" min={0} max={duration} step={.01} value={props.currentTime} onChange={event => props.onTimeChange(Number(event.target.value))} />
+        <input type="range" min={0} max={duration} step={props.snapEnabled ? frameStep : .01} value={props.currentTime} onChange={event => props.onTimeChange(snap(Number(event.target.value)))} />
         <i style={{ left: pct + '%' }} />
       </div>
       <div className="timeline-tracks">

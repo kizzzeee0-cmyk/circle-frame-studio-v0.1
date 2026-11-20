@@ -805,6 +805,17 @@ export default function App() {
     })
   }
 
+  const selectMediaBatch = (ids: string[], additive = false) => {
+    const valid = ids.filter(id => (project.mediaLayers ?? []).some(layer => layer.id === id))
+    setSelectedMediaIds(prev => {
+      if (!additive) return valid
+      const merged = new Set(prev)
+      for (const id of valid) merged.add(id)
+      return [...merged]
+    })
+    setSelectedMediaId(valid[0] ?? (additive ? selectedMediaId : ''))
+  }
+
   const selectMedia = (id: string, additive = false) => {
     const layer = (project.mediaLayers ?? []).find(item => item.id === id)
     if (!layer) return
@@ -1292,6 +1303,7 @@ export default function App() {
             primaryMediaId={selectedMediaId}
             settings={project.settings ?? defaultComposerSettings()}
             onSelectMedia={selectMedia}
+            onSelectMediaBatch={selectMediaBatch}
             onBeginTransform={beginMediaTransform}
             onTransformMedia={transformMediaTransient}
             onSettingsChange={settings => commit(draft => ({ ...draft, settings }))}
@@ -1305,6 +1317,16 @@ export default function App() {
             currentTime={timelineTime}
             playing={timelinePlaying}
             loop={project.timeline?.loop !== false}
+            snapEnabled={(project.settings ?? defaultComposerSettings()).timelineSnapEnabled}
+            snapFps={(project.settings ?? defaultComposerSettings()).timelineFps}
+            onSnapEnabledChange={value => commit(draft => {
+              draft.settings = { ...(draft.settings ?? defaultComposerSettings()), timelineSnapEnabled: value }
+              return draft
+            })}
+            onSnapFpsChange={value => commit(draft => {
+              draft.settings = { ...(draft.settings ?? defaultComposerSettings()), timelineFps: value }
+              return draft
+            })}
             mediaLayers={project.mediaLayers ?? []}
             selectedMediaIds={selectedMediaIds}
             primaryMediaId={selectedMediaId}

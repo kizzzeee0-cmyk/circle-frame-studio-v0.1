@@ -209,6 +209,39 @@ async function exportAnimatedWebp(
   return new Blob([result], { type: 'image/webp' })
 }
 
+async function exportAlphaMov(
+  project: FrameProject,
+  options: AnimatedExportOptions,
+  onProgress?: (progress: AnimatedExportProgress) => void,
+  signal?: AbortSignal,
+) {
+  const rawBytes = estimateAnimatedRawMemory(options)
+  if (rawBytes > 1.6 * 1024 * 1024 * 1024) {
+    throw new Error('알파 MOV 설정이 브라우저 메모리 한계를 넘을 가능성이 큽니다. 해상도·FPS·길이를 낮춰 주세요.')
+  }
+  const canvas = makeAnimationCanvas(options.resolution)
+  const frameCount = getAnimatedFrameCount(options)
+  const frames: Blob[] = []
+
+  for (let i = 0; i < frameCount; i++) {
+    throwIfAborted(signal)
+    const progress = i / frameCount
+    await renderTimedFrame(canvas, project, progress, options.duration)
+    frames.push(await canvasToBlob(canvas, 'image/png'))
+    onProgress?.({
+      stage: 'render',
+      current: i + 1,
+      total: frameCount,
+      message: '알파 MOV PNG 프레임 ' + (i + 1) + ' / ' + frameCount + ' 생성 중',
+    })
+    if (i % 2 === 1) await new Promise(resolve => setTimeout(resolve, 0))
+  }
+
+  throwIfAborted(signal)
+  onProgress?.({ stage: 'encode', current: 0, total: 1, message: 'QuickTime MOV 컨테이너 작성 중' })
+  return encodePngMov(frames, options.resolution, options.resolution, options.fps)
+}
+
 async function exportCanvasVideo(
   project: FrameProject,
   options: AnimatedExportOptions,
@@ -225,9 +258,15 @@ async function exportCanvasVideo(
   const fps = options.fps >= 60 ? 60 : Math.max(12, options.fps)
   const capture = canvas.captureStream(0)
   const track = capture.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack
+  const audioMix = options.includeAudio === false ? null : await createProjectAudioMix(project, options.duration)
+  if (audioMix?.warnings.length) console.warn('오디오 믹싱 경고:', audioMix.warnings)
+  const combinedStream = new MediaStream([
+    ...capture.getVideoTracks(),
+    ...(audioMix?.stream.getAudioTracks() ?? []),
+  ])
   const mimeType = format === 'mp4' ? 'video/mp4;codecs=avc1.42E01E' : 'video/webm;codecs=vp9'
   const bitrate = Math.max(2, Math.min(80, options.videoBitrateMbps ?? (options.resolution >= 2000 ? 28 : 12))) * 1_000_000
-  const recorder = new MediaRecorder(capture, { mimeType, videoBitsPerSecond: bitrate })
+  const recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: bitrate })
   const chunks: Blob[] = []
 
   const stopped = new Promise<void>((resolve, reject) => {
@@ -237,6 +276,7 @@ async function exportCanvasVideo(
   })
 
   recorder.start()
+  await audioMix?.start()
   const frameCount = Math.max(2, Math.round(options.duration * fps))
   const frameDelay = 1000 / fps
 
@@ -258,6 +298,7 @@ async function exportCanvasVideo(
   recorder.stop()
   await stopped
   capture.getTracks().forEach(item => item.stop())
+  audioMix?.stop()
   return new Blob(chunks, { type: mimeType })
 }
 
@@ -272,7 +313,7 @@ export async function exportPng(project: FrameProject, sceneTimeSec = 0, resolut
   const progress = ((sceneTimeSec % duration) + duration) % duration / duration
   renderProject(canvas, project, undefined, sceneTimeSec * 1000, progress)
   const blob = await canvasToBlob(canvas, 'image/png')
-  downloadBlob(blob, 'circle-frame-v031-' + size + 'px-' + exportDate() + '.png')
+  downloadBlob(blob, 'circle-frame-v032-' + size + 'px-' + exportDate() + '.png')
 }
 
 export async function exportAnimatedFrame(
@@ -286,17 +327,18 @@ export async function exportAnimatedFrame(
   if (options.format === 'gif') blob = await exportGif(project, options, onProgress, signal)
   else if (options.format === 'apng') blob = await exportApng(project, options, onProgress, signal)
   else if (options.format === 'webp') blob = await exportAnimatedWebp(project, options, onProgress, signal)
+  else if (options.format === 'mov') blob = await exportAlphaMov(project, options, onProgress, signal)
   else blob = await exportCanvasVideo(project, options, onProgress, signal)
 
   throwIfAborted(signal)
   const ext = options.format === 'apng' ? 'png' : options.format
   const label = options.format === 'apng' ? 'apng' : options.format
-  downloadBlob(blob, 'circle-frame-v031-' + label + '-' + options.resolution + 'px-' + exportDate() + '.' + ext)
+  downloadBlob(blob, 'circle-frame-v032-' + label + '-' + options.resolution + 'px-' + exportDate() + '.' + ext)
   onProgress?.({ stage: 'done', current: 1, total: 1, message: '저장이 완료되었습니다.' })
   return blob
 }
 
 export function downloadProject(project: FrameProject) {
   const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' })
-  downloadBlob(blob, 'circle-frame-project-v031.json')
+  downloadBlob(blob, 'circle-frame-project-v032.json')
 }

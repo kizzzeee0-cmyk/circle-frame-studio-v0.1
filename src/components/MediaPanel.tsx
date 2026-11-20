@@ -8,7 +8,7 @@ interface Props {
   groups: MediaGroup[]
   background: BackgroundSettings
   onSelectMedia: (id: string, additive: boolean) => void
-  onAddMedia: (file?: File) => void
+  onAddMedia: (file?: File, mode?: 'media' | 'decoration') => void
   onToggleMedia: (id: string) => void
   onToggleLock: (id: string) => void
   onMoveMedia: (id: string, direction: -1 | 1) => void
@@ -27,6 +27,7 @@ interface Props {
 
 export default function MediaPanel(props: Props) {
   const imageInput = useRef<HTMLInputElement>(null)
+  const decorationInput = useRef<HTMLInputElement>(null)
   const backgroundInput = useRef<HTMLInputElement>(null)
   const [dragId, setDragId] = useState('')
   const selectedSet = new Set(props.selectedMediaIds)
@@ -36,7 +37,7 @@ export default function MediaPanel(props: Props) {
 
   const drop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
-    props.onAddMedia(event.dataTransfer.files?.[0])
+    props.onAddMedia(event.dataTransfer.files?.[0], 'media')
   }
 
   return (
@@ -50,7 +51,7 @@ export default function MediaPanel(props: Props) {
           <b>＋ 사진·영상</b>
           <span>PNG · JPG · WebP · MP4 · WebM · MOV</span>
         </button>
-        <button type="button" onClick={() => imageInput.current?.click()}>
+        <button type="button" onClick={() => decorationInput.current?.click()}>
           <b>＋ PNG·글자</b>
           <span>투명 로고 · 스티커 · 타이포</span>
         </button>
@@ -60,7 +61,14 @@ export default function MediaPanel(props: Props) {
         hidden
         type="file"
         accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov"
-        onChange={event => props.onAddMedia(event.target.files?.[0])}
+        onChange={event => props.onAddMedia(event.target.files?.[0], 'media')}
+      />
+      <input
+        ref={decorationInput}
+        hidden
+        type="file"
+        accept="image/png,image/webp,.png,.webp"
+        onChange={event => props.onAddMedia(event.target.files?.[0], 'decoration')}
       />
 
       <div className="media-dropzone" onDragOver={event => event.preventDefault()} onDrop={drop}>

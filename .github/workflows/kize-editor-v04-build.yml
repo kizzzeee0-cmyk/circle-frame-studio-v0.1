@@ -1,7 +1,7 @@
 name: KIZE DESIGN TOOL - Windows Build & Startup Check
 on:
   push:
-    branches: [kize-v0.9.0-group-vector-mask, kize-v0.14.0-selection-palette-primary]
+    branches: [kize-v0.9.0-group-vector-mask, kize-v0.15.0-selection-palette-photo-foundation]
   pull_request:
     branches: [kize-v0.9.0-group-vector-mask]
     paths:
@@ -11,6 +11,12 @@ on:
 
 permissions:
   contents: write
+
+# Multiple commits during development must not compete for the Windows runner.
+# Do not auto-cancel stable-branch publication after KIZE is merged.
+concurrency:
+  group: kize-windows-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/kize-v0.9.0-group-vector-mask' }}
 
 jobs:
   windows:
@@ -129,6 +135,18 @@ jobs:
         run: |
           node tests/browser-palette-combination.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Multicolor PNG palette E2E failed' }
+      - name: Browser regression - exact colors while selecting and local character photo palettes
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          node tests/browser-outline-photo.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Selection outline or character palette regression' }
+      - name: Browser regression - real offline Pattern, Circle and KIZE tools with live palette sharing
+        working-directory: kize-desktop
+        shell: pwsh
+        run: |
+          node tests/browser-unified-tools.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Actual bundled Pattern/Circle integration failed' }
       - name: Browser regression - KIZE one-time update badge and manual download
         working-directory: kize-desktop
         shell: pwsh
@@ -191,7 +209,7 @@ jobs:
       - name: Upload Windows setup
         uses: actions/upload-artifact@v4
         with:
-          name: KIZE-DESIGN-TOOL-v0.14.0-Windows
+          name: KIZE-DESIGN-TOOL-v0.15.0-Windows
           path: kize-desktop/src-tauri/target/release/bundle/nsis/*setup.exe
           if-no-files-found: error
           retention-days: 30

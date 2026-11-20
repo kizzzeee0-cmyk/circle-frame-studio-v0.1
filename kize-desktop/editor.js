@@ -14,6 +14,7 @@ import {parseVariantColors,variantFileName} from './palette-variants.mjs';
 import {paintPolicy,effectiveColor,defaultImportSelection} from './color-workflow.mjs';
 import {PALETTE_PRESETS} from './palette-presets.mjs';
 import {installPaletteController} from './palette-controller.mjs';
+import {installCharacterPalette} from './character-palette-ui.mjs';
 import {zipSync,strToU8} from 'fflate';
 
 const $=id=>document.getElementById(id);
@@ -616,19 +617,25 @@ $('downloadFidelityReport').onclick=()=>{
 };
 function createMaskPreview(s){
   const b=s.bounds;if(!b)return null;
+  // Only the EDGE pixels receive UI color. Previously every selected pixel
+  // got a 33% violet fill, making pastel colors impossible to judge.
   const downsample=Math.min(1,1400/Math.max(b.w,b.h));
   const w=Math.max(1,Math.ceil(b.w*downsample)),h=Math.max(1,Math.ceil(b.h*downsample));
-  const preview=blankCanvas(w,h);
-  const pc=preview.getContext('2d');
-  const image=pc.createImageData(w,h);
+  const preview=blankCanvas(w,h),pc=preview.getContext('2d');
+  const image=pc.createImageData(w,h),source=s.mask,sw=s.w,sh=s.h;
+  const at=(x,y)=>x<0||y<0||x>=sw||y>=sh?0:source[y*sw+x];
   for(let yy=0;yy<h;yy++){
     const sy=b.y+Math.min(b.h-1,Math.floor((yy+.5)/downsample));
     for(let xx=0;xx<w;xx++){
       const sx=b.x+Math.min(b.w-1,Math.floor((xx+.5)/downsample));
-      const strength=s.mask[sy*s.w+sx];
+      const value=at(sx,sy);
+      if(value<8)continue;
+      const radius=Math.max(1,Math.round(1/downsample));
+      if(at(sx-radius,sy)>=8&&at(sx+radius,sy)>=8&&
+        at(sx,sy-radius)>=8&&at(sx,sy+radius)>=8)continue;
       const p=(yy*w+xx)*4;
-      image.data[p]=145;image.data[p+1]=109;image.data[p+2]=221;
-      image.data[p+3]=Math.round(strength*.33);
+      image.data[p]=62;image.data[p+1]=157;image.data[p+2]=205;
+      image.data[p+3]=Math.max(140,Math.min(230,value));
     }
   }
   pc.putImageData(image,0,0);
@@ -636,36 +643,33 @@ function createMaskPreview(s){
 }
 function drawOverlay(){
   oc.clearRect(0,0,overlay.width,overlay.height);
+  // A visible image preview must not have selection marks over it. Keep
+  // selectionParts intact so returning to edit restores the exact selection.
+  if(temporaryPreview||!$('showSelectionOutline').checked)return;
   for(const part of selectionParts){
     const layer=layers.find(l=>l.id===part.id);
-    if(!layer?.visible||!part.bounds)continue;
-    const preview=part.preview;
-    if(!preview?.canvas)continue;
+    if(!layer?.visible||!part.bounds||!part.preview?.canvas)continue;
     oc.save();
     oc.translate(layer.x+layer.w/2,layer.y+layer.h/2);
     oc.rotate(layer.rotation*Math.PI/180);
     oc.scale(layer.flipH?-1:1,layer.flipV?-1:1);
-    const b=preview.bounds,sw=layer.w/part.w,sh=layer.h/part.h;
-    oc.drawImage(preview.canvas,-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
-    oc.lineWidth=Math.max(.75,1.1/zoom);
-    oc.setLineDash([4/zoom,4/zoom]);
-    oc.strokeStyle='#7354AE';
-    oc.strokeRect(-layer.w/2+b.x*sw,-layer.h/2+b.y*sh,b.w*sw,b.h*sh);
+    const b=part.preview.bounds,sw=layer.w/part.w,sh=layer.h/part.h;
+    oc.drawImage(part.preview.canvas,-layer.w/2+b.x*sw,
+      -layer.h/2+b.y*sh,b.w*sw,b.h*sh);
     oc.restore();
   }
-  // Selection tint represents editable pixels, NOT the PNG layer's bounding
-  // rectangle. A single imported PNG has one full-canvas layer; drawing its
-  // entire dashed box made every click look like a whole-image selection.
+  // A layer border is a lightweight selection cue; never paint inside it.
   const l=sel();if(!l||selectionParts.length)return;
   if(documentModel?.kind==='IMAGE'&&l.x===0&&l.y===0&&
      l.w===documentModel.width&&l.h===documentModel.height)return;
   oc.save();oc.translate(l.x+l.w/2,l.y+l.h/2);
   oc.rotate(l.rotation*Math.PI/180);
   oc.scale(l.flipH?-1:1,l.flipV?-1:1);
-  oc.lineWidth=Math.max(1,1.5/zoom);
-  oc.setLineDash([7/zoom,5/zoom]);oc.strokeStyle='#9476D7';
+  oc.lineWidth=Math.max(1,1.2/zoom);
+  oc.setLineDash([6/zoom,5/zoom]);oc.strokeStyle='#56A8CC';
   oc.strokeRect(-l.w/2,-l.h/2,l.w,l.h);oc.restore();
 }
+$('showSelectionOutline').onchange=render;
 
 function refreshLayers(){
   const list=$('layerList');list.replaceChildren();
@@ -1501,6 +1505,74 @@ paletteController=installPaletteController({
   notify
 });
 
+// Character reference is analysis-only: no bitmap is added to the design
+// canvas or to the current document. Proposed palettes use the same exact
+// multi-swatch engine and can be revised before committing.
+window.addEventListener('kize:shared-palette-apply',event=>{
+  const colors=event.detail?.colors;
+  if(!Array.isArray(colors)||colors.length<2)return;
+  if(!canEditWholePalette()){
+    notify('공통 팔레트는 한 장짜리 PNG에 적용할 수 있어요. PSD는 PNG로 내보내거나 부분 색상 편집을 이용해 주세요.');
+    return;
+  }
+  setColorEditMode('palette');
+  $('variantOutputMode').value='combo';
+  $('variantColors').value=colors.join(', ');
+  $('variantPreset').value='';
+  $('variantColors').dispatchEvent(new Event('input',{bubbles:true}));
+  paletteController?.refresh();paletteController?.preview();
+  notify('공통 팔레트를 미리 보여주고 있어요. 마음에 들면 팔레트 적용을 눌러 주세요.');
+});
+installCharacterPalette({
+  applyPalette(colors){
+    setColorEditMode('palette');
+    $('variantOutputMode').value='combo';
+    $('variantColors').value=colors.join(', ');
+    $('variantPreset').value='';
+    $('variantColors').dispatchEvent(new Event('input',{bubbles:true}));
+    paletteController?.refresh();
+    paletteController?.preview();
+  },
+  notify,
+  download:(blob,name)=>downloadBlob(blob,name)
+});
+
+// Exact PNG handoff from Cute Pattern Studio. This imports a real original-
+// size image Blob through the common IndexedDB workspace, not a screenshot.
+async function receiveSharedAsset(){
+  if(new URL(location.href).searchParams.get('handoff')!=='1')return;
+  try{
+    const bridge=window.KIZEBridge;
+    if(!bridge)return;
+    const asset=await bridge.getAsset();
+    if(!asset){notify('전달받은 PNG가 없어요. 패턴 도구에서 다시 보내 주세요.');return;}
+    const file=new File([asset.blob],asset.name,{type:'image/png'});
+    await importRaster(file);
+    await bridge.clearAsset();
+    const url=new URL(location.href);url.searchParams.delete('handoff');
+    window.history.replaceState(null,'',url.pathname+url.search+url.hash);
+    notify('큐트 패턴에서 '+file.name+' 원본 크기 PNG를 가져왔어요. 색상 편집을 시작하세요.');
+  }catch(error){notify('도구 간 PNG 불러오기 실패: '+(error?.message||error));}
+}
+$('sendToCircle').onclick=async()=>{
+  if(!documentModel){notify('원형 프레임에 보낼 PNG를 먼저 불러와 주세요.');return;}
+  const bridge=window.KIZEBridge;
+  if(!bridge){notify('공통 작업 공간을 사용할 수 없어요.');return;}
+  if(unsavedChanges&&!confirm('현재 미저장 편집 내용을 새 도구로 전환하면 복구할 수 없어요. 필요한 경우 .kize 프로젝트로 먼저 저장해 주세요. 현재 결과 PNG만 보내고 이동할까요?'))return;
+  try{
+    const bytes=await canvasToPngBytes(canvas);
+    const filename=(documentModel.name||'KIZE-design').replace(/\.[^.]+$/,'')+'-edited.png';
+    await bridge.putAsset(new Blob([bytes],{type:'image/png'}),filename);
+    // The handoff safely persists the full-resolution PNG. User approved
+    // leaving their current unsaved editor state above.
+    unsavedChanges=false;updateDirtyStatus();
+    bridge.openTool('circle');
+  }catch(error){notify('원형 프레임으로 보내기 실패: '+(error?.message||error));}
+};
+if(document.readyState==='loading')
+  document.addEventListener('DOMContentLoaded',()=>void receiveSharedAsset(),{once:true});
+else void receiveSharedAsset();
+
 function restoreSnapshots(snapshots){
   for(const snapshot of snapshots){
     const l=layers.find(x=>x.id===snapshot.id);
@@ -1717,7 +1789,7 @@ $('saveProject').onclick=async()=>{
     }
     const manifest={
       format:'KIZE-PROJECT-2',
-      appVersion:'0.14.0',
+      appVersion:'0.15.0',
       width:documentModel.width,height:documentModel.height,
       name:documentModel.name,kind:documentModel.kind,
       edited:hasLayerEdits,previewMode,appearanceSafe,

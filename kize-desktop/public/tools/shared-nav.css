@@ -1,0 +1,38 @@
+/* Common skyline navigation used by all three OFFLINE tools. */
+#kize-unified-nav{position:relative;z-index:1000;height:44px;min-height:44px;width:100%;display:flex;align-items:center;gap:16px;padding:0 12px;background:#fff;border-bottom:1px solid #DCE7EF;color:#344553;font:600 11px/1.5 Inter,Pretendard,'Noto Sans KR',system-ui,sans-serif;box-shadow:none}
+#kize-unified-nav .kize-nav-brand{font-size:12px;letter-spacing:.8px;white-space:nowrap;color:#2B86B5;font-weight:850}
+#kize-unified-nav .kize-nav-tabs{display:flex;gap:5px;align-items:center}
+#kize-unified-nav .kize-nav-tabs a{display:inline-flex;align-items:center;padding:6px 10px;text-decoration:none;border:1px solid transparent;border-radius:7px;color:#537185;font-size:11px;white-space:nowrap}
+#kize-unified-nav .kize-nav-tabs a.current{background:#E9F5FC;color:#206F99;border-color:#C7E2F1}
+#kize-unified-nav .kize-nav-tabs a:hover{background:#F2F9FC}
+#kize-unified-nav .kize-nav-share{display:flex;gap:6px;align-items:center;margin-left:auto;min-width:0}
+#kize-unified-nav .kize-nav-share span{font-size:10px;color:#718494;white-space:nowrap}
+#kize-unified-nav .kize-nav-share select{min-width:110px;max-width:165px;height:28px;border:1px solid #DCE7EF;background:#fff;border-radius:6px;color:#45667A;font-size:10px;padding:2px 5px}
+#kize-unified-nav .kize-nav-share button{background:#F5FAFD;color:#2B86B5;border:1px solid #C8DDEB;border-radius:6px;padding:5px 8px;font-size:10px;white-space:nowrap;cursor:pointer}
+#kize-unified-nav #kize-shared-notice{max-width:175px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#648BA0;font-size:9px}
+body:has(#app)>#app{height:calc(100vh - 44px)!important}
+body:has(#root)>#root{height:calc(100vh - 44px)!important}
+body:has(.app-shell)>.app-shell{min-height:calc(100vh - 44px)}
+body:has(#root){padding:0}
+body:has(#root)>#root{overflow:hidden}
+body:has(#root){--accent:#79BCE5;--accent-soft:#DDEFFA;--accent-strong:#2B86B5;--line:#DCE7EF;--muted:#718494}
+@media(max-width:940px){#kize-unified-nav{gap:8px;padding:0 6px}#kize-unified-nav .kize-nav-share span,#kize-unified-nav #kize-shared-notice{display:none}#kize-unified-nav .kize-nav-tabs a{padding:5px 6px;font-size:10px}}
+
+/* Shared low-glare design tokens. Legacy project canvases retain THEIR pixels
+   and export palettes: these selectors target app chrome only. */
+body:has(#previewCanvas){--bg:#F7FAFC;--panel:#FFF;--ink:#344553;--muted:#718494;--line:#DCE7EF;--accent:#2B86B5;--accent2:#79BCE5;--shadow:none;background:#F7FAFC!important;color:#344553}
+body:has(#previewCanvas) button.primary{background:#2B86B5;box-shadow:none}
+body:has(#previewCanvas) button.secondary{background:#79BCE5;box-shadow:none}
+body:has(#previewCanvas) .panel{border-color:#DCE7EF;box-shadow:none;border-radius:10px}
+body:has(#previewCanvas) input[type=range]{accent-color:#2B86B5}
+body:has(#previewCanvas) .tab.active,body:has(#previewCanvas) .layer-tab.active{background:#DDEFFA;border-color:#BBDDEB;color:#2B86B5}
+body:has(#previewCanvas) input[type=search],body:has(#previewCanvas) select,
+body:has(#previewCanvas) input[type=text],body:has(#previewCanvas) input[type=number]{background:#fff;border-color:#DCE7EF;color:#344553}
+body:has(#previewCanvas) .topbar h1 span{color:#2B86B5;background:#DDEFFA}
+body:has(#root){color:#344553;background:#F7FAFC}
+body:has(#root) .app-shell{height:calc(100vh - 44px)!important;min-height:0!important}
+body:has(#root) .brand-mark{background:#2B86B5!important;box-shadow:none!important}
+body:has(#root) .topbar{box-shadow:none;border-bottom-color:#DCE7EF}
+body:has(#root) .toolbar .primary-button{background:#2B86B5;border-color:#2B86B5}
+body:has(#root) .toolbar button:hover,body:has(#root) .soft-button:hover{background:#F0F8FC;border-color:#C8E0EC}
+body:has(#root) input[type=range]{accent-color:#2B86B5}

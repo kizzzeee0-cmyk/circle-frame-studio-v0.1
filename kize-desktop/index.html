@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#F7F5FA"><title>KIZE DESIGN TOOL</title><link rel="stylesheet" href="./styles.css"></head>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#F7F5FA"><title>KIZE DESIGN TOOL</title><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./tools/shared-nav.css"><script defer src="./tools/shared-nav.js"></script></head>
 <body><div id="app">
 <aside class="sidebar"><div class="brand"><div class="brand-logo">K</div><div><strong>KIZE</strong><small>DESIGN TOOL</small></div></div>
 <div class="caption">WORKSPACE</div>
 <button class="side-btn selected" id="menuEditor">◈ <span>디자인 편집기</span></button>
 <div class="help"><strong>원본을 보호하는 편집</strong><p>PSD·PNG 작업물에서 영역과 색상을 수정하고, 별도 KIZE 프로젝트로 저장합니다.</p><p>Ctrl+S 저장 · Ctrl+Z 실행 취소 · Ctrl+Shift+Z 다시 실행</p></div>
-<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.14.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
+<div class="sidebar-bottom">KIZE DESIGN TOOL <span id="appVersion">v0.15.0</span><br><span class="tiny">LOCAL EDITING · NO CLOUD UPLOAD</span></div></aside>
 <section class="workspace"><header class="topbar"><div><div class="eyebrow">KIZE / WORKSPACE</div><h1>디자인 편집기</h1></div><div class="top-actions"><div class="update-control" id="updateControl">
   <button type="button" class="update-badge" id="updateBadge" aria-label="새로운 업데이트 확인" title="새 업데이트가 있습니다" hidden>NEW</button>
   <span id="updateStatus" class="update-status" role="status" aria-live="polite">새 버전 확인 중…</span>
@@ -16,7 +16,7 @@
     <p class="update-caution" id="updateSaveWarning">설치 전에 작업을 저장해 주세요.</p>
     <div class="update-buttons"><button type="button" id="downloadUpdate" class="primary">설치 ZIP 다운로드</button><button type="button" id="dismissUpdate" class="subtle">닫기</button></div>
   </div>
-</div><span id="dirtyStatus" class="dirty-status">저장됨</span><button class="subtle" id="saveProject" title="Ctrl+S · 수정 가능한 KIZE 프로젝트로 저장">프로젝트 저장</button><button id="exportPng" class="primary">PNG 내보내기</button></div></header>
+</div><span id="dirtyStatus" class="dirty-status">저장됨</span><button class="subtle" id="saveProject" title="Ctrl+S · 수정 가능한 KIZE 프로젝트로 저장">프로젝트 저장</button><button id="sendToCircle" class="subtle" title="현재 원본 해상도 PNG를 원형 프레임의 사진 레이어로 전달">원형 프레임으로 보내기</button><button id="exportPng" class="primary">PNG 내보내기</button></div></header>
 <div class="main-grid">
 <aside class="left-pane">
 <div class="pane-heading"><strong>PSD 레이어</strong><span id="layerCount">0</span></div>
@@ -57,6 +57,7 @@
 <div class="buttonrow"><button id="centerH">가로 중앙</button><button id="centerV">세로 중앙</button></div><div class="buttonrow"><button id="flipH">좌우 반전</button><button id="flipV">상하 반전</button><button id="rotate90">90° 회전</button></div>
 <div class="mini-row"><label class="check"><input id="visibleLayer" type="checkbox" checked> 표시</label><label>불투명도 <input id="opacityLayer" type="range" min="0" max="100" value="100"></label></div></section>
 <section class="panel" id="colorPanel"><div class="title">색상 편집</div>
+<label class="check selection-outline-control"><input type="checkbox" id="showSelectionOutline" checked> 선택 윤곽선 표시 <span>미리보기 중에는 자동 숨김</span></label>
 <div class="color-mode-tabs" role="group" aria-label="색상 편집 방식">
   <button type="button" id="modePalette" class="color-mode-tab selected" aria-pressed="true">팔레트 조합<br><small>여러 색 한번에</small></button>
   <button type="button" id="modeSingle" class="color-mode-tab" aria-pressed="false">부분 색상<br><small>한 색만 바꾸기</small></button>
@@ -119,6 +120,34 @@
 <div class="buttonrow palette-quick-select">
 <button type="button" id="paletteSelectAll" class="subtle" title="투명 픽셀 제외 전체 디자인 선택">그림 전체 선택</button>
 <button type="button" id="paletteClearSelection" class="subtle">부분 선택 해제</button></div>
+<details class="character-analyzer" id="characterAnalyzer">
+<summary>캐릭터 사진으로 팔레트 만들기 <span class="small">12가지 추천 · 내 컴퓨터에서 분석</span></summary>
+<div class="character-analyzer-body">
+  <p class="micro">현재 디자인은 변경하지 않고, 참고 사진의 색상만 추출해요. 분석용 사진은 서버로 보내지 않습니다. 머리·눈·의상 역할은 필요하면 직접 지정해 주세요.</p>
+  <label class="subtle fill char-dropzone" id="charDropzone">캐릭터 사진 선택 또는 여기에 놓기
+    <input id="charPhotoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+  </label>
+  <div id="charReference" hidden>
+    <div class="char-preview-viewport" id="charPreviewViewport"><img id="charPreviewImage" alt="색상 분석 참고 사진"></div>
+    <label class="range-label">사진 확대/축소 <input id="charZoom" type="range" min="50" max="180" value="100"></label>
+    <div class="buttonrow"><button id="charRemove" class="subtle" type="button">참고 사진 삭제</button><button id="charAnalyze" class="subtle" type="button">다시 분석하기</button></div>
+    <p id="charReport" class="micro"></p>
+    <div id="charExtractedColors" class="char-extracted-colors"></div>
+    <div class="buttonrow"><button id="charAddSwatch" class="subtle" type="button">+ 색상 추가</button><button id="charCopyHex" class="subtle" type="button">HEX 목록 복사</button></div>
+    <details class="char-adjustments"><summary>추천 팔레트 세부 조절</summary>
+      <label>파스텔 정도 <input id="charPastel" type="range" min="0" max="85" value="45"></label>
+      <label>전체 밝기 <input id="charBrightness" type="range" min="-40" max="45" value="0"></label>
+      <label>채도 <input id="charSaturation" type="range" min="-45" max="45" value="0"></label>
+      <label>색상 대비 <input id="charContrast" type="range" min="0" max="90" value="20"></label>
+      <label>화이트 비중 <input id="charWhite" type="range" min="25" max="85" value="55"></label>
+      <label>포인트 강도 <input id="charAccent" type="range" min="0" max="90" value="45"></label>
+    </details>
+    <div class="char-palette-grid" id="charPaletteSuggestions"></div>
+    <div class="buttonrow"><button id="charSavePalette" type="button" class="subtle">선택한 조합 저장</button><button id="charExportPalettes" type="button" class="subtle">추천 팔레트 JSON</button></div>
+    <p class="micro" id="charPaletteState">추천 팔레트를 선택하면 아래 팔레트 조합에 전달되고 결과가 미리 보여요.</p>
+  </div>
+</div>
+</details>
 <details class="variant-details" id="variantDetails" open><summary>전체 색상 조합 · 추천 팔레트 30종</summary>
 <p class="micro">PNG 전체에 여러 색상을 한 번에 적용할 수 있습니다. ZIP 저장은 파일 내보내기이며, 화면에서 색을 바꾸려면 아래의 <strong>‘팔레트 조합 적용’</strong> 버튼을 눌러 주세요.</p>
 <label>변경할 방식<select id="variantOutputMode">

@@ -373,21 +373,48 @@ function drawOverlay(){
 function refreshLayers(){
   const list=$('layerList');list.replaceChildren();
   const query=($('layerSearch')?.value||'').trim().toLocaleLowerCase();
-  const shown=layers.slice().reverse().filter(l=>($('showHidden').checked||l.visible)&&(!query||l.name.toLocaleLowerCase().includes(query)));
+  const shown=layers.slice().reverse().filter(l=>($('showHidden').checked||l.visible)&&
+    (!query||l.name.toLocaleLowerCase().includes(query)));
   $('layerCount').textContent=query?shown.length+' / '+layers.length:String(layers.length);
   const info=$('activeLayerInfo'),active=sel();
-  info.textContent=active?'편집 중 · '+active.name:'먼저 색상을 수정할 PSD 레이어를 선택하세요.';
+  info.textContent=active?'편집 중 · '+active.name:'먼저 수정할 PSD 레이어를 선택하세요.';
   info.title=active?.name||'';
   if(!shown.length){list.innerHTML='<div class="placeholder">검색 결과가 없거나 표시할 레이어가 없습니다.</div>';return;}
-  const fragment=document.createDocumentFragment();
+  const fragment=document.createDocumentFragment(),groupsSeen=new Set();
   for(const l of shown){
+    const feature=l.compatibility||{},paths=feature.groupPath||[],keys=feature.groupKeys||paths;
+    let parentHidden=false;
+    for(let depth=0;depth<paths.length;depth++){
+      const groupKey=keys[depth];
+      if(depth&&collapsedPsdGroups.has(keys[depth-1])&&!query){parentHidden=true;break;}
+      if(!groupsSeen.has(groupKey)){
+        groupsSeen.add(groupKey);
+        const group=document.createElement('button');
+        group.type='button';group.className='psd-group-row';
+        group.style.paddingLeft=(9+depth*10)+'px';
+        const collapsed=collapsedPsdGroups.has(groupKey);
+        group.textContent=(collapsed&&!query?'▸ ':'▾ ')+paths[depth];
+        group.setAttribute('aria-expanded',String(!collapsed||!!query));
+        group.title='PSD 원본 그룹 · 클릭하여 접기/펼치기';
+        group.onclick=()=>{
+          if(collapsedPsdGroups.has(groupKey))collapsedPsdGroups.delete(groupKey);
+          else collapsedPsdGroups.add(groupKey);
+          refreshLayers();
+        };
+        fragment.append(group);
+      }
+      if(collapsedPsdGroups.has(groupKey)&&!query){parentHidden=true;break;}
+    }
+    if(parentHidden)continue;
     const row=document.createElement('div');
     row.className='layer'+(l.id===selectedId?' active':'')+(l.visible?'':' layer-hidden');
+    row.style.marginLeft=(paths.length?Math.min(26,paths.length*10):0)+'px';
     row.setAttribute('role','option');row.setAttribute('aria-selected',String(l.id===selectedId));
-    row.tabIndex=0;row.title=l.name;
+    row.tabIndex=0;row.title=feature.issues?.length?l.name+' · '+feature.issues.join(' / '):l.name;
     row.onclick=()=>select(l.id);
     row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(l.id);}};
-    const thumb=document.createElement('canvas');thumb.className='layer-thumb';thumb.width=40;thumb.height=40;
+    const thumb=document.createElement('canvas');thumb.className='layer-thumb';
+    thumb.width=40;thumb.height=40;
     const tc=thumb.getContext('2d');
     tc.fillStyle='#faf8fd';tc.fillRect(0,0,40,40);
     if(l.canvas?.width&&l.canvas?.height){
@@ -396,14 +423,21 @@ function refreshLayers(){
       tc.drawImage(l.canvas,(40-dw)/2,(40-dh)/2,dw,dh);
     }
     const nameBox=document.createElement('span');nameBox.className='layer-text';
-    const parts=l.name.split(' / '),depth=parts.length-1;
-    const name=document.createElement('strong');name.textContent=parts.at(-1);
-    if(depth){const path=document.createElement('small');path.className='layer-path';path.textContent=parts.slice(0,-1).join(' / ');nameBox.append(path);}
-    const note=document.createElement('small');note.textContent=(l.type==='text'?'텍스트':l.type==='smart-object'?'스마트 오브젝트':l.type==='composite'?'통합 미리보기':'이미지')+' · '+Math.round(l.w)+'×'+Math.round(l.h);
+    const name=document.createElement('strong');name.textContent=l.name.split(' / ').at(-1);
+    const note=document.createElement('small');
+    const type=l.type==='text'?'텍스트':l.type==='smart-object'?'스마트 오브젝트':
+      l.type==='composite'?'원본 통합 미리보기':'이미지';
+    note.textContent=type+' · '+Math.round(l.w)+'×'+Math.round(l.h)+
+      (feature.complexity==='caution'?' · 효과 재현 주의':'');
     nameBox.append(name,note);
-    const eye=document.createElement('button');eye.type='button';eye.className='eye';eye.textContent=l.visible?'◉':'○';
-    eye.setAttribute('aria-label',l.visible?'레이어 숨기기':'레이어 표시');eye.title=eye.getAttribute('aria-label');
-    eye.onclick=e=>{e.stopPropagation();selectedId=l.id;checkpoint(l);l.visible=!l.visible;selection=null;selectionPreview=null;refreshAll();};
+    const eye=document.createElement('button');eye.type='button';eye.className='eye';
+    eye.textContent=l.visible?'◉':'○';
+    eye.setAttribute('aria-label',l.visible?'레이어 숨기기':'레이어 표시');
+    eye.title=eye.getAttribute('aria-label');
+    eye.onclick=e=>{
+      e.stopPropagation();selectedId=l.id;checkpoint(l);l.visible=!l.visible;
+      clearSelections();refreshAll();
+    };
     row.append(thumb,nameBox,eye);fragment.append(row);
   }
   list.append(fragment);

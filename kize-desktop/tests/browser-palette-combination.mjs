@@ -38,7 +38,9 @@ try{
  assert.equal(await page.locator('#variantOutputMode').inputValue(),'combo','PNG opens true multi-swatch combo mode');
  assert.equal(await page.locator('#variantDetails').getAttribute('open'),'','palette controls are already visible');
  assert.deepEqual(await pixel(2,2),[211,139,167,255]);
- await page.locator('#selectAllOpaque').click();
+ assert.equal(await page.locator('#modePalette').getAttribute('aria-pressed'),'true');
+ assert.equal(await page.locator('#singleEditor').isVisible(),false,'No misleading one-color picker beside palette presets');
+ await page.locator('#paletteSelectAll').click();
  const selected=await page.locator('#selectionInfo').textContent();
  assert.match(selected,/2,160개 픽셀 선택/,'Ctrl+A/all must omit transparent row');
  await page.locator('#clearSelection').click();
@@ -68,7 +70,15 @@ try{
  await page.locator('#redo').click();
  assert.deepEqual(await pixel(36,2),colors[1],'Redo restores combo');
 
+ // Even if legacy mode was chosen previously, selecting a palette must
+ // restore real multi-swatch mode and non-destructively auto-preview it.
+ await page.locator('#variantOutputMode').selectOption('single');
  await page.locator('#variantPreset').selectOption({label:'버터옐로우 · 연두 · 크림'});
+ assert.equal(await page.locator('#variantOutputMode').inputValue(),'combo');
+ assert.equal(await page.locator('#paletteApply').isVisible(),true);
+ await page.waitForFunction(()=>document.querySelector('#palettePreview')?.textContent==='미리보기 해제');
+ assert.equal(await page.locator('#targetHex').isVisible(),false);
+ assert.equal(await page.locator('#targetColor').inputValue(),'#beb5ed','Palette never changes single-color picker');
  await page.waitForFunction(()=>document.querySelectorAll('#paletteMapping .palette-map-item').length===3);
  await page.locator('#paletteZipCount').selectOption('4');
  const beforeExport=await pixel(2,2);
